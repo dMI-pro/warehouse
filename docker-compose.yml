@@ -9,15 +9,10 @@ services:
       POSTGRES_PASSWORD: antiquar123
       POSTGRES_DB: antiquar_db
     ports:
-      - "5433:5432"  # ИЗМЕНИЛИ ПОРТ на 5433
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # healthcheck:
-    #   test: ["CMD-SHELL", "pg_isready -U antiquar"]
-    #   interval: 10s
-    #   timeout: 5s
-    #   retries: 5
-    # restart: unless-stopped
+    restart: unless-stopped
 
   backend:
     build:
@@ -27,11 +22,11 @@ services:
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://antiquar:antiquar123@postgres:5432/antiquar_db
+      CHOKIDAR_USEPOLLING: "true"  # Для NestJS watch в Docker на Windows
     ports:
       - "3000:3000"
     depends_on:
       - postgres
-        # condition: service_healthy
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -43,7 +38,7 @@ services:
         npm install &&
         echo 'Generating Prisma client...' &&
         npx prisma generate &&
-        echo 'Starting backend...' &&
+        echo 'Starting backend in watch mode...' &&
         npm run start:dev
       "
     restart: unless-stopped
@@ -60,6 +55,7 @@ services:
       - /app/node_modules
     environment:
       - HOST=0.0.0.0
+      - CHOKIDAR_USEPOLLING=true  # Для Vite watch в Docker на Windows
     depends_on:
       - backend
     restart: unless-stopped
