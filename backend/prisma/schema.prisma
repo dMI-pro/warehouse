@@ -8,12 +8,95 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Пример модели
+// Модель пользователя
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  username     String    @unique
+  password     String
+  fullName     String
+  role         String    @default("user") // user, admin, manager
+  isSuperAdmin Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Отношения
+  sales      Sale[]
+  auditLogs  AuditLog[]
+
+  @@map("users")
+}
+
+// Модель категории товаров
+model Category {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String?
+  parentId    Int?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Отношения для иерархии категорий
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryHierarchy")
+
+  // Товары в этой категории
+  products Product[]
+
+  @@map("categories")
+}
+
+// Модель товара
 model Product {
+  id             Int       @id @default(autoincrement())
+  name           String
+  sku            String    @unique
+  description    String?
+  purchasePrice  Decimal   @db.Decimal(10, 2)
+  salePrice      Decimal   @db.Decimal(10, 2)
+  quantity       Int       @default(0)
+  minStockLevel  Int       @default(0)
+  categoryId     Int?
+  images         String[]  @default([]) // Массив URL изображений
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Отношения
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  sales    Sale[]
+
+  @@map("products")
+}
+
+// Модель продажи
+model Sale {
   id        Int      @id @default(autoincrement())
-  name      String
+  productId Int
   quantity  Int
-  price     Decimal
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  salePrice Decimal  @db.Decimal(10, 2)
+  soldAt    DateTime @default(now())
+  soldBy    Int      // ID пользователя, который совершил продажу
+
+  // Отношения
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [soldBy], references: [id], onDelete: Restrict)
+
+  @@map("sales")
+}
+
+// Модель журнала действий (аудит)
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String   // create, update, delete, etc.
+  entityType String   // Product, Category, Sale, User, etc.
+  entityId   Int?
+  oldValues  Json?    // Старые значения в формате JSON
+  newValues  Json?    // Новые значения в формате JSON
+  createdAt  DateTime @default(now())
+
+  // Отношения
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
 }

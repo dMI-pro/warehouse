@@ -38,6 +38,8 @@ services:
         npm install &&
         echo 'Generating Prisma client...' &&
         npx prisma generate &&
+        echo 'Pushing database schema...' &&
+        npx prisma db push --accept-data-loss || true &&
         echo 'Starting backend in watch mode...' &&
         npm run start:dev
       "
