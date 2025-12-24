@@ -23,7 +23,7 @@ async function main() {
       username: 'admin',
       password: hashedPassword,
       fullName: 'Super Administrator',
-      role: 'admin',
+      role: 'ADMIN',
       isSuperAdmin: true,
     },
   });
