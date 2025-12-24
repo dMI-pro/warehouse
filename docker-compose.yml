@@ -22,6 +22,7 @@ services:
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://antiquar:antiquar123@postgres:5432/antiquar_db
+      JWT_SECRET: your-secret-key-change-in-production
       CHOKIDAR_USEPOLLING: "true"  # Для NestJS watch в Docker на Windows
     ports:
       - "3000:3000"
