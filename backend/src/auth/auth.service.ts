@@ -67,14 +67,16 @@ export class AuthService {
       where: { username },
     });
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+    // Защита от timing attacks: всегда выполняем хеширование,
+    // даже если пользователь не найден, чтобы время ответа было одинаковым
+    const dummyHash = '$2a$10$dummyhashfordummyuserprotection';
+    const hashToCompare = user?.password || dummyHash;
 
-    // Проверка пароля
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // Проверка пароля (всегда выполняется для защиты от timing attacks)
+    const isPasswordValid = await bcrypt.compare(password, hashToCompare);
 
-    if (!isPasswordValid) {
+    // Проверяем существование пользователя и валидность пароля одновременно
+    if (!user || !isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 

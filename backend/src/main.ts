@@ -1,9 +1,30 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
+import helmet from 'helmet';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Security headers
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+      },
+    },
+  }));
+
+  // Настройка статической раздачи файлов для загрузки изображений
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/',
+  });
 
   // Включение валидации для всех входящих запросов
   app.useGlobalPipes(
@@ -11,15 +32,29 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
   );
 
   // Включение CORS для фронтенда и API клиентов
+  const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? (process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : ['http://localhost:5173'])
+    : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'];
+
   app.enableCors({
-    origin: process.env.NODE_ENV === 'production'
-      ? process.env.FRONTEND_URL || 'http://localhost:5173'
-      : true, // В разработке разрешаем все источники (для Thunder Client и других инструментов)
+    origin: (origin, callback) => {
+      // Разрешаем запросы без origin (например, мобильные приложения, Postman)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // Bind explicitly to 0.0.0.0 so the app is reachable from Docker
