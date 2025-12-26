@@ -13,6 +13,24 @@
       "id": "users-folder",
       "created": "2024-01-01T00:00:00.000Z",
       "sortNum": 20000
+    },
+    {
+      "name": "Products",
+      "id": "products-folder",
+      "created": "2024-01-01T00:00:00.000Z",
+      "sortNum": 30000
+    },
+    {
+      "name": "Categories",
+      "id": "categories-folder",
+      "created": "2024-01-01T00:00:00.000Z",
+      "sortNum": 40000
+    },
+    {
+      "name": "Sales",
+      "id": "sales-folder",
+      "created": "2024-01-01T00:00:00.000Z",
+      "sortNum": 50000
     }
   ],
   "requests": [
@@ -163,6 +181,521 @@
       "body": {
         "type": "json",
         "raw": "{\n  \"fullName\": \"Updated Name\",\n  \"role\": \"SELLER\"\n}",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "8. Get All Products (Public)",
+      "url": "http://localhost:3000/products?page=1&limit=10",
+      "method": "GET",
+      "sortNum": 30001,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "products-folder",
+      "headers": [],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "9. Get Products with Search",
+      "url": "http://localhost:3000/products?search=laptop&page=1&limit=10",
+      "method": "GET",
+      "sortNum": 30002,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "products-folder",
+      "headers": [],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "10. Get Products by Category",
+      "url": "http://localhost:3000/products?category=1&page=1&limit=10",
+      "method": "GET",
+      "sortNum": 30003,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "products-folder",
+      "headers": [],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "11. Get Product by ID (Public)",
+      "url": "http://localhost:3000/products/1",
+      "method": "GET",
+      "sortNum": 30004,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "products-folder",
+      "headers": [],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "12. Create Product (Manager/Admin)",
+      "url": "http://localhost:3000/products",
+      "method": "POST",
+      "sortNum": 30005,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "products-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"name\": \"Laptop Dell XPS 15\",\n  \"sku\": \"LAP-DELL-XPS15-001\",\n  \"description\": \"High-performance laptop with 16GB RAM and 512GB SSD\",\n  \"purchasePrice\": 1200.00,\n  \"salePrice\": 1500.00,\n  \"quantity\": 10,\n  \"minStockLevel\": 5,\n  \"categoryId\": 1\n}",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "13. Update Product (Manager/Admin)",
+      "url": "http://localhost:3000/products/1",
+      "method": "PATCH",
+      "sortNum": 30006,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "products-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"salePrice\": 1450.00,\n  \"quantity\": 15\n}",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "14. Delete Product (Admin Only)",
+      "url": "http://localhost:3000/products/1",
+      "method": "DELETE",
+      "sortNum": 30007,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "products-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "15. Upload Product Image (Manager/Admin)",
+      "url": "http://localhost:3000/products/1/images",
+      "method": "POST",
+      "sortNum": 30008,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "products-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        }
+      ],
+      "body": {
+        "type": "form-data",
+        "raw": "",
+        "form": [
+          {
+            "name": "image",
+            "value": "",
+            "type": "file",
+            "src": []
+          }
+        ]
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "16. Remove Product Image (Manager/Admin)",
+      "url": "http://localhost:3000/products/1/images",
+      "method": "DELETE",
+      "sortNum": 30009,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "products-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"imageUrl\": \"/uploads/products/image-1234567890.jpg\"\n}",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "17. Get All Categories (Public)",
+      "url": "http://localhost:3000/categories",
+      "method": "GET",
+      "sortNum": 40001,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "categories-folder",
+      "headers": [],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "18. Get Category by ID (Public)",
+      "url": "http://localhost:3000/categories/1",
+      "method": "GET",
+      "sortNum": 40002,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "categories-folder",
+      "headers": [],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "19. Create Category (Manager/Admin)",
+      "url": "http://localhost:3000/categories",
+      "method": "POST",
+      "sortNum": 40003,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "categories-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"name\": \"Electronics\",\n  \"description\": \"Electronic devices and accessories\",\n  \"parentId\": null\n}",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "20. Create Subcategory (Manager/Admin)",
+      "url": "http://localhost:3000/categories",
+      "method": "POST",
+      "sortNum": 40004,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "categories-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"name\": \"Laptops\",\n  \"description\": \"Laptop computers\",\n  \"parentId\": 1\n}",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "21. Update Category (Manager/Admin)",
+      "url": "http://localhost:3000/categories/1",
+      "method": "PATCH",
+      "sortNum": 40005,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "categories-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"name\": \"Electronics & Gadgets\",\n  \"description\": \"Updated description\"\n}",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "22. Delete Category (Admin Only)",
+      "url": "http://localhost:3000/categories/1",
+      "method": "DELETE",
+      "sortNum": 40006,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "categories-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "23. Create Sale (Seller/Manager/Admin)",
+      "url": "http://localhost:3000/sales",
+      "method": "POST",
+      "sortNum": 50001,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "sales-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"productId\": 1,\n  \"quantity\": 2,\n  \"salePrice\": 1500.00\n}",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "24. Create Sale with Auto Price (Seller/Manager/Admin)",
+      "url": "http://localhost:3000/sales",
+      "method": "POST",
+      "sortNum": 50002,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "sales-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "{\n  \"productId\": 1,\n  \"quantity\": 1\n}",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "25. Get All Sales (Manager/Admin)",
+      "url": "http://localhost:3000/sales?page=1&limit=10",
+      "method": "GET",
+      "sortNum": 50003,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "sales-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "26. Get Sales by Product (Manager/Admin)",
+      "url": "http://localhost:3000/sales?productId=1&page=1&limit=10",
+      "method": "GET",
+      "sortNum": 50004,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "sales-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "27. Get Sales by Date Range (Manager/Admin)",
+      "url": "http://localhost:3000/sales?startDate=2024-01-01&endDate=2024-12-31&page=1&limit=10",
+      "method": "GET",
+      "sortNum": 50005,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "sales-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "28. Get Sale by ID (Manager/Admin)",
+      "url": "http://localhost:3000/sales/1",
+      "method": "GET",
+      "sortNum": 50006,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "sales-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "29. Get Sales Statistics (Manager/Admin)",
+      "url": "http://localhost:3000/sales/statistics",
+      "method": "GET",
+      "sortNum": 50007,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "sales-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "",
+        "form": []
+      },
+      "params": [],
+      "tests": []
+    },
+    {
+      "name": "30. Get Sales Statistics by Date Range (Manager/Admin)",
+      "url": "http://localhost:3000/sales/statistics?startDate=2024-01-01&endDate=2024-12-31",
+      "method": "GET",
+      "sortNum": 50008,
+      "created": "2024-01-01T00:00:00.000Z",
+      "modified": "2024-01-01T00:00:00.000Z",
+      "containerId": "sales-folder",
+      "headers": [
+        {
+          "name": "Authorization",
+          "value": "Bearer YOUR_TOKEN_HERE"
+        }
+      ],
+      "body": {
+        "type": "json",
+        "raw": "",
         "form": []
       },
       "params": [],
