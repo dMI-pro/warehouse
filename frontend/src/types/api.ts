@@ -31,10 +31,111 @@ export interface RegisterDto {
   fullName: string;
 }
 
+export interface Category {
+  id: number;
+  name: string;
+  description?: string;
+  parentId?: number;
+  parent?: Category;
+  children?: Category[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Product {
+  id: number;
+  name: string;
+  sku: string;
+  description?: string;
+  purchasePrice: number;
+  salePrice: number;
+  quantity: number;
+  minStockLevel: number;
+  categoryId?: number;
+  category?: Category;
+  images: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateProductDto {
+  name: string;
+  sku: string;
+  description?: string;
+  purchasePrice: number;
+  salePrice: number;
+  quantity: number;
+  minStockLevel?: number;
+  categoryId?: number;
+  images?: string[];
+}
+
+export interface UpdateProductDto {
+  name?: string;
+  sku?: string;
+  description?: string;
+  purchasePrice?: number;
+  salePrice?: number;
+  quantity?: number;
+  minStockLevel?: number;
+  categoryId?: number;
+  images?: string[];
+}
+
+export interface CreateCategoryDto {
+  name: string;
+  description?: string;
+  parentId?: number;
+}
+
+export interface UpdateCategoryDto {
+  name?: string;
+  description?: string;
+  parentId?: number;
+}
+
+export interface Sale {
+  id: number;
+  productId: number;
+  product?: Product;
+  quantity: number;
+  salePrice: number;
+  totalAmount: number;
+  userId: number;
+  user?: User;
+  createdAt: string;
+}
+
+export interface CreateSaleDto {
+  productId: number;
+  quantity: number;
+  salePrice?: number;
+}
+
+export interface SalesStatistics {
+  totalSales: number;
+  totalRevenue: number;
+  totalProducts: number;
+  averageSalePrice: number;
+  salesByDate?: Array<{ date: string; count: number; revenue: number }>;
+  salesByProduct?: Array<{ productId: number; productName: string; count: number; revenue: number }>;
+}
+
 export interface ApiError {
   message: string;
   statusCode?: number;
   error?: string;
 }
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 
 

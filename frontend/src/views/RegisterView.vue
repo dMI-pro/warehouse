@@ -166,13 +166,15 @@ const handleRegister = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
+  background: var(--surface-ground);
   padding: 2rem;
 }
 
 .register-card {
   width: 100%;
   max-width: 450px;
+  background: var(--surface-card);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .register-form {
@@ -201,5 +203,6 @@ const handleRegister = async () => {
   text-decoration: underline;
 }
 </style>
+
 
 

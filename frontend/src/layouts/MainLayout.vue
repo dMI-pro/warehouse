@@ -48,6 +48,19 @@ const menuItems = computed(() => {
     },
   ];
 
+  if (authStore.hasRole('MANAGER') || authStore.isAdmin) {
+    items.push({
+      label: 'Отчеты',
+      icon: 'pi pi-chart-bar',
+      command: () => router.push({ name: 'reports' }),
+    });
+    items.push({
+      label: 'Настройки',
+      icon: 'pi pi-cog',
+      command: () => router.push({ name: 'settings' }),
+    });
+  }
+
   if (authStore.isAdmin) {
     items.push({
       label: 'Пользователи',
@@ -77,18 +90,22 @@ const handleLogout = () => {
   border-left: none;
   border-right: none;
   border-top: none;
+  background: var(--surface-card);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .logo {
   font-size: 1.5rem;
   font-weight: bold;
   margin-right: 2rem;
+  color: var(--primary-color);
 }
 
 .user-info {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .username {
@@ -99,7 +116,31 @@ const handleLogout = () => {
   flex: 1;
   padding: 2rem;
   background-color: var(--surface-ground);
+  min-height: calc(100vh - 60px);
+}
+
+@media (max-width: 768px) {
+  .logo {
+    font-size: 1.25rem;
+    margin-right: 1rem;
+  }
+
+  .user-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .content-wrapper {
+    padding: 1rem;
+  }
+
+  .main-menu :deep(.p-menubar-root-list) {
+    flex-direction: column;
+    width: 100%;
+  }
 }
 </style>
+
 
 
