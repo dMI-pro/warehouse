@@ -137,5 +137,27 @@ export interface PaginatedResponse<T> {
   };
 }
 
+// Дополнительные типы для работы с изображениями
+export interface ImageUploadResult {
+  url: string;
+  thumbnailUrl?: string;
+  size: number;
+  width: number;
+  height: number;
+}
+
+// Типы для ошибок валидации
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
+export interface ApiErrorResponse {
+  message: string | string[];
+  error?: string;
+  statusCode: number;
+  validationErrors?: ValidationError[];
+}
+
 
 

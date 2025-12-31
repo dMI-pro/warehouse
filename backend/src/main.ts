@@ -41,7 +41,13 @@ async function bootstrap() {
   // Включение CORS для фронтенда и API клиентов
   const allowedOrigins = process.env.NODE_ENV === 'production'
     ? (process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : ['http://localhost:5173'])
-    : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'];
+    : [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:3000',
+      ];
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -49,12 +55,15 @@ async function bootstrap() {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.warn(`CORS blocked origin: ${origin}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 86400, // 24 часа
   });
 
   // Bind explicitly to 0.0.0.0 so the app is reachable from Docker

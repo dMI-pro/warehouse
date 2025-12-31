@@ -53,7 +53,10 @@ class ApiService {
           // Токен истек или невалиден
           localStorage.removeItem('access_token');
           localStorage.removeItem('user');
-          window.location.href = '/login';
+          // Не перенаправляем автоматически, чтобы компоненты могли обработать ошибку
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(error);
       }

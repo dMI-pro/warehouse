@@ -1,29 +1,31 @@
 <template>
   <div class="login-container">
     <Card class="login-card">
-      <template #title>Вход в систему</template>
       <template #content>
+        <div class="login-header">
+          <div class="logo">Складской Учет</div>
+        </div>
         <form @submit.prevent="handleLogin" class="login-form">
           <div class="field">
-            <label for="username" class="label">Имя пользователя</label>
+            <label for="email" class="label">Email</label>
             <InputText
-              id="username"
-              v-model="form.username"
-              placeholder="Введите имя пользователя"
-              :class="{ 'p-invalid': errors.username }"
+              id="email"
+              v-model="form.email"
+              type="email"
+              placeholder="Введите email"
+              :class="{ 'p-invalid': errors.email }"
               class="w-full"
             />
-            <small v-if="errors.username" class="p-error">{{ errors.username }}</small>
+            <small v-if="errors.email" class="p-error">{{ errors.email }}</small>
           </div>
 
           <div class="field">
             <label for="password" class="label">Пароль</label>
-            <Password
+            <InputText
               id="password"
               v-model="form.password"
+              type="password"
               placeholder="Введите пароль"
-              :feedback="false"
-              toggleMask
               :class="{ 'p-invalid': errors.password }"
               class="w-full"
             />
@@ -37,19 +39,17 @@
           <Button
             type="submit"
             label="Войти"
-            icon="pi pi-sign-in"
             :loading="authStore.loading"
-            class="w-full"
+            class="w-full login-button"
           />
 
-          <div class="mt-3 text-center">
-            <span>Нет аккаунта? </span>
+          <Divider />
+
+          <div class="login-links">
             <router-link to="/register" class="link">Зарегистрироваться</router-link>
+            <a href="#" class="link" @click.prevent="handleForgotPassword">Забыли пароль?</a>
           </div>
         </form>
-        <div>
-          <!-- <button @click="testLoginUser()">Testclick</button> -->
-        </div>
       </template>
     </Card>
   </div>
@@ -58,36 +58,41 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { useToast } from 'primevue/usetoast';
 import Card from 'primevue/card';
 import InputText from 'primevue/inputtext';
-import Password from 'primevue/password';
 import Button from 'primevue/button';
 import Message from 'primevue/message';
+import Divider from 'primevue/divider';
 import { useAuthStore } from '@/stores/authStore';
-import { apiService } from '@/services/api';
-
-import axios from 'axios'
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const toast = useToast();
 
 const form = reactive({
-  username: '',
+  email: '',
   password: '',
 });
 
 const errors = reactive({
-  username: '',
+  email: '',
   password: '',
 });
 
 const validate = () => {
-  errors.username = '';
+  errors.email = '';
   errors.password = '';
 
-  if (!form.username.trim()) {
-    errors.username = 'Имя пользователя обязательно';
+  if (!form.email.trim()) {
+    errors.email = 'Email обязателен';
+    return false;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(form.email)) {
+    errors.email = 'Введите корректный email';
     return false;
   }
 
@@ -101,10 +106,11 @@ const validate = () => {
 
 const handleLogin = async () => {
   if (!validate()) return;
-// debugger
+
   try {
+    // Используем email как username (многие системы позволяют входить по email)
     await authStore.login({
-      username: form.username,
+      username: form.email,
       password: form.password,
     });
 
@@ -115,46 +121,14 @@ const handleLogin = async () => {
   }
 };
 
-const testLoginUser = async (username = 'Testuser', password = 'Testuser') => {
-  try {
-    const response = await axios.post('http://localhost:3000/auth/login', {
-      username,
-      password
-    }, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
-
-    console.log('response:', response);
-    
-    // Сохраняем токен
-    const token = response.data.access_token
-    if (token) {
-      localStorage.setItem('access_token', token)
-      // axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-    }
-
-    console.log('response:', response);
-    
-    // return response.data
-  } catch (error) {
-    console.error('Login error:', error)
-    throw error
-  }
-}
-
-const testclick = async () => {
-  console.log('testclick');
-  try {
-    debugger
-    const test = await apiService.getUsers()
-    console.log('test', test);
-  } catch (error) {
-    // Ошибка уже обработана в store
-  }
-
-}
+const handleForgotPassword = () => {
+  toast.add({
+    severity: 'info',
+    summary: 'Восстановление пароля',
+    detail: 'Функция восстановления пароля будет доступна в ближайшее время',
+    life: 3000,
+  });
+};
 </script>
 
 <style scoped>
@@ -163,21 +137,60 @@ const testclick = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-ground);
+  background: linear-gradient(135deg, #f5f5f5 0%, #e6f7ff 100%);
   padding: 2rem;
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .login-card {
   width: 100%;
   max-width: 400px;
   background: var(--surface-card);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-top: 1rem;
+}
+
+.logo {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  letter-spacing: -0.5px;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  padding: 0 1rem 1rem;
 }
 
 .field {
@@ -188,16 +201,45 @@ const testclick = async () => {
 
 .label {
   font-weight: 500;
+  color: var(--text-color);
+  font-size: 0.9rem;
+}
+
+.login-button {
+  margin-top: 0.5rem;
+  height: 44px;
+  font-weight: 600;
+}
+
+.login-links {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
 }
 
 .link {
   color: var(--primary-color);
   text-decoration: none;
   font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .link:hover {
   text-decoration: underline;
+  opacity: 0.8;
+}
+
+:deep(.p-card-body) {
+  padding: 2rem 1.5rem;
+}
+
+:deep(.p-card-content) {
+  padding: 0;
+}
+
+:deep(.p-divider) {
+  margin: 1rem 0;
 }
 </style>
 
