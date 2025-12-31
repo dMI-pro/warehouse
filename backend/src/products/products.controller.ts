@@ -27,6 +27,7 @@ import { diskStorage } from 'multer';
 import { extname, join, normalize } from 'path';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { compressImage, createThumbnail } from '../common/utils/image-compression.util';
 
 @Controller('products')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -118,10 +119,53 @@ export class ProductsController {
       throw new BadRequestException('Invalid file extension');
     }
 
-    // В реальном приложении здесь можно сохранить файл в облачное хранилище
-    // и вернуть URL. Для примера используем локальный путь
-    const imageUrl = `/uploads/products/${file.filename}`;
-    return this.productsService.addImage(id, imageUrl);
+    try {
+      // Читаем файл в буфер
+      const fileBuffer = fs.readFileSync(file.path);
+
+      // Сжимаем изображение
+      const compressedBuffer = await compressImage(fileBuffer, {
+        maxWidth: 1920,
+        maxHeight: 1920,
+        quality: 85,
+        format: 'webp',
+        maxFileSize: 500 * 1024, // 500KB
+      });
+
+      // Создаем миниатюру
+      const thumbnailBuffer = await createThumbnail(fileBuffer, 300);
+
+      // Генерируем уникальные имена файлов
+      const uniqueId = uuidv4();
+      const compressedFilename = `${uniqueId}.webp`;
+      const thumbnailFilename = `${uniqueId}_thumb.webp`;
+
+      // Сохраняем сжатое изображение
+      const uploadPath = normalize(join(process.cwd(), 'uploads', 'products'));
+      const compressedPath = join(uploadPath, compressedFilename);
+      const thumbnailPath = join(uploadPath, thumbnailFilename);
+
+      fs.writeFileSync(compressedPath, compressedBuffer);
+      fs.writeFileSync(thumbnailPath, thumbnailBuffer);
+
+      // Удаляем оригинальный файл
+      fs.unlinkSync(file.path);
+
+      // Сохраняем URL основного изображения и миниатюры
+      const imageUrl = `/uploads/products/${compressedFilename}`;
+      const thumbnailUrl = `/uploads/products/${thumbnailFilename}`;
+
+      // Добавляем оба изображения в продукт
+      return this.productsService.addImage(id, imageUrl, thumbnailUrl);
+    } catch (error) {
+      // Удаляем файл в случае ошибки
+      if (file.path && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+      throw new BadRequestException(
+        error.message || 'Ошибка обработки изображения',
+      );
+    }
   }
 
   @Delete(':id/images')

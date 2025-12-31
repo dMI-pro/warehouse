@@ -27,4 +27,26 @@ export default defineConfig({
       port: 5173,
     },
   },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vue-vendor': ['vue', 'vue-router', 'pinia'],
+          'primevue-vendor': ['primevue'],
+          'chart-vendor': ['echarts'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
 })
