@@ -148,22 +148,31 @@ const chartOption = computed(() => {
     const date = new Date();
     date.setDate(date.getDate() - (29 - i));
     return date.toISOString().split('T')[0];
-  });
+  }).filter((d): d is string => !!d);
 
   const salesByDate = new Map<string, number>();
-  last30Days.forEach((date) => salesByDate.set(date, 0));
+  last30Days.forEach((date) => {
+    if (date) {
+      salesByDate.set(date, 0);
+    }
+  });
 
   salesData.value.forEach((sale) => {
-    const date = sale.createdAt.split('T')[0];
-    if (salesByDate.has(date)) {
-      salesByDate.set(date, (salesByDate.get(date) || 0) + sale.totalAmount);
+    if (sale.createdAt) {
+      const date = sale.createdAt.split('T')[0];
+      if (date && salesByDate.has(date)) {
+        salesByDate.set(date, (salesByDate.get(date) || 0) + sale.totalAmount);
+      }
     }
   });
 
   const dates = last30Days.map((d) => {
-    const date = new Date(d);
-    return `${date.getDate()}.${date.getMonth() + 1}`;
-  });
+    if (d) {
+      const date = new Date(d);
+      return `${date.getDate()}.${date.getMonth() + 1}`;
+    }
+    return '';
+  }).filter(Boolean);
   const values = Array.from(salesByDate.values());
 
   return {
@@ -279,7 +288,7 @@ const loadStats = async () => {
     recentActions.value = salesResponse.data.slice(0, 10).map((sale: Sale) => ({
       user: sale.user?.fullName || sale.user?.username || 'Неизвестно',
       action: `Продажа: ${sale.product?.name || 'Товар'} (${sale.quantity} шт.)`,
-      time: sale.createdAt,
+      time: sale.createdAt || new Date().toISOString(),
     }));
   } catch (error) {
     console.error('Failed to load dashboard stats', error);

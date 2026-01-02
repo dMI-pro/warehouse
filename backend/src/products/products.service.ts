@@ -173,7 +173,7 @@ export class ProductsService {
     });
   }
 
-  async addImage(id: number, imageUrl: string) {
+  async addImage(id: number, imageUrl: string,  thumbnailUrl: string) {
     const product = await this.prisma.product.findUnique({
       where: { id },
     });

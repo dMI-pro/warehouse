@@ -6,6 +6,7 @@
       </template>
       <template #end>
         <div class="user-info">
+          <ThemeToggle />
           <span class="username">{{ authStore.user?.fullName || authStore.user?.username }}</span>
           <Button
             label="Выход"
@@ -29,6 +30,7 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import Menubar from 'primevue/menubar';
 import Button from 'primevue/button';
+import ThemeToggle from '@/components/ThemeToggle.vue';
 import { useAuthStore } from '@/stores/authStore';
 
 const router = useRouter();
@@ -58,6 +60,11 @@ const menuItems = computed(() => {
       label: 'Настройки',
       icon: 'pi pi-cog',
       command: () => router.push({ name: 'settings' }),
+    });
+    items.push({
+      label: 'Журнал действий',
+      icon: 'pi pi-history',
+      command: () => router.push({ name: 'audit-log' }),
     });
   }
 

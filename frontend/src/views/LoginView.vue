@@ -7,28 +7,37 @@
         </div>
         <form @submit.prevent="handleLogin" class="login-form">
           <div class="field">
-            <label for="email" class="label">Email</label>
+            <label for="login" class="label">Имя пользователя</label>
             <InputText
-              id="email"
-              v-model="form.email"
-              type="email"
-              placeholder="Введите email"
-              :class="{ 'p-invalid': errors.email }"
+              id="login"
+              v-model="form.login"
+              type="login"
+              placeholder="Введите имя пользователя"
+              :class="{ 'p-invalid': errors.login }"
               class="w-full"
             />
-            <small v-if="errors.email" class="p-error">{{ errors.email }}</small>
+            <small v-if="errors.login" class="p-error">{{ errors.login }}</small>
           </div>
 
           <div class="field">
             <label for="password" class="label">Пароль</label>
-            <InputText
+            <Password
+              id="password"
+              v-model="form.password"
+              placeholder="Введите пароль"
+              :feedback="false"
+              toggleMask
+              :class="{ 'p-invalid': errors.password }"
+              class="w-full"
+            />
+            <!-- <InputText
               id="password"
               v-model="form.password"
               type="password"
               placeholder="Введите пароль"
               :class="{ 'p-invalid': errors.password }"
               class="w-full"
-            />
+            /> -->
             <small v-if="errors.password" class="p-error">{{ errors.password }}</small>
           </div>
 
@@ -61,6 +70,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import Card from 'primevue/card';
 import InputText from 'primevue/inputtext';
+import Password from 'primevue/password';
 import Button from 'primevue/button';
 import Message from 'primevue/message';
 import Divider from 'primevue/divider';
@@ -72,29 +82,30 @@ const authStore = useAuthStore();
 const toast = useToast();
 
 const form = reactive({
-  email: '',
+  login: '',
   password: '',
 });
 
 const errors = reactive({
-  email: '',
+  login: '',
   password: '',
 });
 
 const validate = () => {
-  errors.email = '';
+  errors.login = '';
   errors.password = '';
 
-  if (!form.email.trim()) {
-    errors.email = 'Email обязателен';
+  if (!form.login.trim()) {
+    errors.login = 'Имя пользователя обязателен';
     return false;
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(form.email)) {
-    errors.email = 'Введите корректный email';
-    return false;
-  }
+  // Проверка на корректность Email
+  // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // if (!emailRegex.test(form.login)) {
+  //   errors.login = 'Введите корректный email';
+  //   return false;
+  // }
 
   if (!form.password) {
     errors.password = 'Пароль обязателен';
@@ -108,9 +119,8 @@ const handleLogin = async () => {
   if (!validate()) return;
 
   try {
-    // Используем email как username (многие системы позволяют входить по email)
     await authStore.login({
-      username: form.email,
+      username: form.login,
       password: form.password,
     });
 
