@@ -89,12 +89,12 @@
         </Card>
 
         <!-- Статистика -->
-        <div v-if="salesStore.statistics" class="stats-panel mb-4">
+        <div v-if="reportType === 'sales' && normalizedReportData.length" class="stats-panel mb-4">
           <Card class="stat-card">
             <template #content>
               <div class="stat-item">
                 <div class="stat-label">Общая выручка:</div>
-                <div class="stat-value">{{ formatPrice(salesStore.statistics.totalRevenue) }}</div>
+                <div class="stat-value">{{ formatPrice(calculatedStats.totalRevenue) }}</div>
               </div>
             </template>
           </Card>
@@ -102,22 +102,30 @@
             <template #content>
               <div class="stat-item">
                 <div class="stat-label">Прибыль:</div>
-                <div class="stat-value profit">{{ formatPrice(calculateProfit()) }}</div>
+                <div class="stat-value profit">{{ formatPrice(calculatedStats.totalProfit) }}</div>
               </div>
             </template>
           </Card>
           <Card class="stat-card">
             <template #content>
               <div class="stat-item">
-                <div class="stat-label">Количество продаж:</div>
-                <div class="stat-value">{{ salesStore.statistics.totalSales }}</div>
+                <div class="stat-label">Количество чеков:</div>
+                <div class="stat-value">{{ calculatedStats.totalInvoices }}</div>
+              </div>
+            </template>
+          </Card>
+          <Card class="stat-card">
+            <template #content>
+              <div class="stat-item">
+                <div class="stat-label">Товаров продано:</div>
+                <div class="stat-value">{{ calculatedStats.totalItemsSold }}</div>
               </div>
             </template>
           </Card>
         </div>
 
         <!-- График -->
-        <Card class="chart-card mb-4">
+        <Card v-if="reportType === 'sales'" class="chart-card mb-4">
           <template #title>Динамика продаж</template>
           <template #content>
             <div ref="mainChartRef" class="chart-container"></div>
@@ -188,10 +196,12 @@ interface NormalizedSale {
   productName: string;
   quantity: number;
   salePrice: number;
+  purchasePrice: number; // Добавляем закупочную цену
   totalAmount: number;
+  totalProfit: number; // Добавляем прибыль по позиции
   seller: string;
   date: string;
-  originalData?: Sale; // Сохраняем оригинальные данные для экспорта
+  originalData?: Sale;
 }
 
 interface NormalizedProduct {
@@ -209,6 +219,13 @@ interface ReportColumn {
   header: string;
   sortable: boolean;
   format?: 'price' | 'date';
+}
+
+interface CalculatedStats {
+  totalRevenue: number;
+  totalProfit: number;
+  totalInvoices: number;
+  totalItemsSold: number;
 }
 
 const salesStore = useSalesStore();
@@ -233,16 +250,27 @@ const exportFormats = [
 // Нормализация данных для таблицы
 const normalizedReportData = computed(() => {
   if (reportType.value === 'sales') {
-    return salesStore.sales.map((sale): NormalizedSale => ({
-      id: sale.id,
-      productName: sale.product?.name || 'Неизвестный товар',
-      quantity: sale.quantity,
-      salePrice: Number(sale.salePrice) || 0,
-      totalAmount: (Number(sale.salePrice) || 0) * sale.quantity,
-      seller: sale.user?.fullName || 'Неизвестный продавец',
-      date: sale.soldAt || sale.createdAt || new Date().toISOString(),
-      originalData: sale
-    }));
+    return salesStore.sales.map((sale): NormalizedSale => {
+      const salePrice = Number(sale.salePrice) || 0;
+      const purchasePrice = Number(sale.product?.purchasePrice) || 0;
+      const quantity = sale.quantity;
+      const totalAmount = salePrice * quantity;
+      const profitPerItem = salePrice - purchasePrice;
+      const totalProfit = profitPerItem * quantity;
+      
+      return {
+        id: sale.id,
+        productName: sale.product?.name || 'Неизвестный товар',
+        quantity: quantity,
+        salePrice: salePrice,
+        purchasePrice: purchasePrice,
+        totalAmount: totalAmount,
+        totalProfit: totalProfit,
+        seller: sale.user?.fullName || 'Неизвестный продавец',
+        date: sale.soldAt || sale.createdAt || new Date().toISOString(),
+        originalData: sale
+      };
+    });
   } else if (reportType.value === 'stock') {
     return productsStore.products.map((product): NormalizedProduct => ({
       id: product.id,
@@ -255,28 +283,64 @@ const normalizedReportData = computed(() => {
     }));
   } else {
     // Для движения товаров
-    return salesStore.sales.map((sale): NormalizedSale => ({
-      id: sale.id,
-      productName: sale.product?.name || 'Неизвестный товар',
-      quantity: sale.quantity,
-      salePrice: Number(sale.salePrice) || 0,
-      totalAmount: (Number(sale.salePrice) || 0) * sale.quantity,
-      seller: sale.user?.fullName || 'Неизвестный продавец',
-      date: sale.soldAt || sale.createdAt || new Date().toISOString(),
-      originalData: sale
-    }));
+    return salesStore.sales.map((sale): NormalizedSale => {
+      const salePrice = Number(sale.salePrice) || 0;
+      const quantity = sale.quantity;
+      const totalAmount = salePrice * quantity;
+      
+      return {
+        id: sale.id,
+        productName: sale.product?.name || 'Неизвестный товар',
+        quantity: quantity,
+        salePrice: salePrice,
+        purchasePrice: 0,
+        totalAmount: totalAmount,
+        totalProfit: 0,
+        seller: sale.user?.fullName || 'Неизвестный продавец',
+        date: sale.soldAt || sale.createdAt || new Date().toISOString(),
+        originalData: sale
+      };
+    });
   }
+});
+
+// Расчет статистики на основе нормализованных данных
+const calculatedStats = computed<CalculatedStats>(() => {
+  if (reportType.value !== 'sales' || !normalizedReportData.value.length) {
+    return {
+      totalRevenue: 0,
+      totalProfit: 0,
+      totalInvoices: 0,
+      totalItemsSold: 0
+    };
+  }
+
+  const stats = normalizedReportData.value.reduce((acc, item) => {
+    acc.totalRevenue += item.totalAmount;
+    acc.totalProfit += item.totalProfit;
+    acc.totalItemsSold += item.quantity;
+    return acc;
+  }, {
+    totalRevenue: 0,
+    totalProfit: 0,
+    totalInvoices: normalizedReportData.value.length, // Каждая запись - это отдельный чек
+    totalItemsSold: 0
+  });
+
+  return stats;
 });
 
 // Колонки для таблицы
 const tableColumns = computed<ReportColumn[]>(() => {
   if (reportType.value === 'sales') {
     return [
-      { field: 'id', header: 'ID', sortable: true },
+      { field: 'id', header: 'ID чека', sortable: true },
       { field: 'productName', header: 'Товар', sortable: true },
       { field: 'quantity', header: 'Количество', sortable: true },
-      { field: 'salePrice', header: 'Цена', sortable: true, format: 'price' },
-      { field: 'totalAmount', header: 'Сумма', sortable: true, format: 'price' },
+      { field: 'salePrice', header: 'Цена продажи', sortable: true, format: 'price' },
+      { field: 'purchasePrice', header: 'Цена закупки', sortable: true, format: 'price' },
+      { field: 'totalAmount', header: 'Сумма продажи', sortable: true, format: 'price' },
+      { field: 'totalProfit', header: 'Прибыль', sortable: true, format: 'price' },
       { field: 'seller', header: 'Продавец', sortable: false },
       { field: 'date', header: 'Дата', sortable: true, format: 'date' },
     ];
@@ -329,11 +393,6 @@ const formatDate = (dateString: string) => {
   }
 };
 
-const calculateProfit = () => {
-  if (!salesStore.statistics) return 0;
-  return salesStore.statistics.totalRevenue * 0.3;
-};
-
 const generateReport = async () => {
   const params: any = {};
   if (filters.startDate) {
@@ -345,7 +404,7 @@ const generateReport = async () => {
 
   if (reportType.value === 'sales') {
     await salesStore.fetchSales(params);
-    await salesStore.fetchStatistics(params.startDate, params.endDate);
+    // Не загружаем statistics, т.к. считаем самостоятельно
   } else if (reportType.value === 'stock') {
     await productsStore.fetchProducts({ limit: 1000 });
   } else {
@@ -365,21 +424,55 @@ const initChart = async () => {
 };
 
 const updateChart = async () => {
-  if (!mainChart || !salesStore.statistics) return;
+  if (!mainChart || reportType.value !== 'sales') return;
 
-  if (reportType.value === 'sales' && salesStore.statistics.salesByDate) {
-    const dates = salesStore.statistics.salesByDate.map((item) => {
-      const date = new Date(item.date);
+  // Группируем продажи по дате для графика
+  if (normalizedReportData.value.length) {
+    const salesByDate: Record<string, { revenue: number; profit: number }> = {};
+    
+    normalizedReportData.value.forEach(sale => {
+      const date = new Date(sale.date);
+      const dateKey = date.toISOString().split('T')[0];
+      
+      if (!salesByDate[dateKey]) {
+        salesByDate[dateKey] = { revenue: 0, profit: 0 };
+      }
+      
+      salesByDate[dateKey].revenue += sale.totalAmount;
+      salesByDate[dateKey].profit += sale.totalProfit;
+    });
+
+    // Сортируем даты по возрастанию
+    const sortedDates = Object.keys(salesByDate).sort();
+    
+    const dates = sortedDates.map(dateStr => {
+      const date = new Date(dateStr);
       return `${date.getDate()}.${date.getMonth() + 1}`;
     });
-    const revenues = salesStore.statistics.salesByDate.map((item) => item.revenue);
+    
+    const revenues = sortedDates.map(date => salesByDate[date].revenue);
+    const profits = sortedDates.map(date => salesByDate[date].profit);
 
     mainChart.setOption({
       tooltip: {
         trigger: 'axis',
-        formatter: (params: any) => {
-          return `${params[0].name}<br/>${params[0].seriesName}: ${formatPrice(params[0].value)}`;
+        axisPointer: {
+          type: 'cross'
         },
+        formatter: (params: any) => {
+          let result = `${params[0].axisValueLabel}<br/>`;
+          params.forEach((param: any) => {
+            if (param.seriesName === 'Выручка') {
+              result += `${param.seriesName}: ${formatPrice(param.value)}<br/>`;
+            } else if (param.seriesName === 'Прибыль') {
+              result += `${param.seriesName}: ${formatPrice(param.value)}<br/>`;
+            }
+          });
+          return result;
+        },
+      },
+      legend: {
+        data: ['Выручка', 'Прибыль']
       },
       grid: {
         left: '3%',
@@ -424,6 +517,18 @@ const updateChart = async () => {
               ],
             },
           },
+        },
+        {
+          name: 'Прибыль',
+          type: 'line',
+          smooth: true,
+          data: profits,
+          itemStyle: {
+            color: '#52c41a',
+          },
+          lineStyle: {
+            type: 'dashed'
+          }
         },
       ],
     });
@@ -493,8 +598,9 @@ watch(reportType, () => {
   generateReport();
 });
 
+// Обновляем график при изменении данных
 watch(
-  () => salesStore.statistics,
+  () => normalizedReportData.value,
   () => {
     updateChart();
   },
@@ -614,7 +720,7 @@ onMounted(async () => {
 
 .stats-panel {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
 }
 
@@ -656,6 +762,18 @@ onMounted(async () => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+@media (max-width: 1200px) {
+  .stats-panel {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1024px) {
   .reports-layout {
     grid-template-columns: 1fr;
@@ -663,10 +781,6 @@ onMounted(async () => {
 
   .sidebar {
     position: static;
-  }
-
-  .stats-panel {
-    grid-template-columns: 1fr;
   }
 }
 </style>
