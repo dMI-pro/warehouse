@@ -129,7 +129,7 @@
           <template #title>Детализация отчета</template>
           <template #content>
             <DataTable
-              :value="reportData"
+              :value="normalizedReportData"
               :loading="salesStore.loading"
               :paginator="true"
               :rows="20"
@@ -146,11 +146,16 @@
                 :header="column.header"
                 :sortable="column.sortable"
               >
-                <template v-if="column.format === 'price'" #body="{ data }">
-                  {{ formatPrice(data[column.field]) }}
-                </template>
-                <template v-else-if="column.format === 'date'" #body="{ data }">
-                  {{ formatDate(data[column.field]) }}
+                <template #body="{ data }">
+                  <template v-if="column.format === 'price'">
+                    {{ formatPrice(data[column.field]) }}
+                  </template>
+                  <template v-else-if="column.format === 'date'">
+                    {{ formatDate(data[column.field]) }}
+                  </template>
+                  <template v-else>
+                    {{ data[column.field] }}
+                  </template>
                 </template>
               </Column>
             </DataTable>
@@ -175,7 +180,36 @@ import Column from 'primevue/column';
 import { useSalesStore } from '@/stores/salesStore';
 import { useProductsStore } from '@/stores/productsStore';
 import { useToast } from 'primevue/usetoast';
-import type { Sale } from '@/types/api';
+import type { Sale, Product } from '@/types/api';
+
+// Типы для нормализованных данных
+interface NormalizedSale {
+  id: number;
+  productName: string;
+  quantity: number;
+  salePrice: number;
+  totalAmount: number;
+  seller: string;
+  date: string;
+  originalData?: Sale; // Сохраняем оригинальные данные для экспорта
+}
+
+interface NormalizedProduct {
+  id: number;
+  name: string;
+  sku: string;
+  quantity: number;
+  minStockLevel: number;
+  salePrice: number;
+  originalData?: Product;
+}
+
+interface ReportColumn {
+  field: string;
+  header: string;
+  sortable: boolean;
+  format?: 'price' | 'date';
+}
 
 const salesStore = useSalesStore();
 const productsStore = useProductsStore();
@@ -196,16 +230,55 @@ const exportFormats = [
   { label: 'CSV', value: 'csv' },
 ];
 
-const tableColumns = computed(() => {
+// Нормализация данных для таблицы
+const normalizedReportData = computed(() => {
+  if (reportType.value === 'sales') {
+    return salesStore.sales.map((sale): NormalizedSale => ({
+      id: sale.id,
+      productName: sale.product?.name || 'Неизвестный товар',
+      quantity: sale.quantity,
+      salePrice: Number(sale.salePrice) || 0,
+      totalAmount: (Number(sale.salePrice) || 0) * sale.quantity,
+      seller: sale.user?.fullName || 'Неизвестный продавец',
+      date: sale.soldAt || sale.createdAt || new Date().toISOString(),
+      originalData: sale
+    }));
+  } else if (reportType.value === 'stock') {
+    return productsStore.products.map((product): NormalizedProduct => ({
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      quantity: product.quantity,
+      minStockLevel: product.minStockLevel,
+      salePrice: Number(product.salePrice) || 0,
+      originalData: product
+    }));
+  } else {
+    // Для движения товаров
+    return salesStore.sales.map((sale): NormalizedSale => ({
+      id: sale.id,
+      productName: sale.product?.name || 'Неизвестный товар',
+      quantity: sale.quantity,
+      salePrice: Number(sale.salePrice) || 0,
+      totalAmount: (Number(sale.salePrice) || 0) * sale.quantity,
+      seller: sale.user?.fullName || 'Неизвестный продавец',
+      date: sale.soldAt || sale.createdAt || new Date().toISOString(),
+      originalData: sale
+    }));
+  }
+});
+
+// Колонки для таблицы
+const tableColumns = computed<ReportColumn[]>(() => {
   if (reportType.value === 'sales') {
     return [
       { field: 'id', header: 'ID', sortable: true },
-      { field: 'product.name', header: 'Товар', sortable: true },
+      { field: 'productName', header: 'Товар', sortable: true },
       { field: 'quantity', header: 'Количество', sortable: true },
       { field: 'salePrice', header: 'Цена', sortable: true, format: 'price' },
       { field: 'totalAmount', header: 'Сумма', sortable: true, format: 'price' },
-      { field: 'user.fullName', header: 'Продавец', sortable: false },
-      { field: 'createdAt', header: 'Дата', sortable: true, format: 'date' },
+      { field: 'seller', header: 'Продавец', sortable: false },
+      { field: 'date', header: 'Дата', sortable: true, format: 'date' },
     ];
   } else if (reportType.value === 'stock') {
     return [
@@ -219,24 +292,12 @@ const tableColumns = computed(() => {
   } else {
     return [
       { field: 'id', header: 'ID', sortable: true },
-      { field: 'product.name', header: 'Товар', sortable: true },
-      { field: 'type', header: 'Тип', sortable: true },
+      { field: 'productName', header: 'Товар', sortable: true },
       { field: 'quantity', header: 'Количество', sortable: true },
-      { field: 'createdAt', header: 'Дата', sortable: true, format: 'date' },
+      { field: 'totalAmount', header: 'Сумма', sortable: true, format: 'price' },
+      { field: 'seller', header: 'Продавец', sortable: false },
+      { field: 'date', header: 'Дата', sortable: true, format: 'date' },
     ];
-  }
-});
-
-const reportData = computed(() => {
-  if (reportType.value === 'sales') {
-    return salesStore.sales;
-  } else if (reportType.value === 'stock') {
-    return productsStore.products;
-  } else {
-    return salesStore.sales.map((sale) => ({
-      ...sale,
-      type: 'Продажа',
-    }));
   }
 });
 
@@ -244,24 +305,33 @@ const formatPrice = (price: number) => {
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: 'RUB',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(price);
 };
 
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('ru-RU', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Неверная дата';
+    }
+    return date.toLocaleDateString('ru-RU', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch (error) {
+    console.error('Ошибка форматирования даты:', error);
+    return 'Ошибка даты';
+  }
 };
 
 const calculateProfit = () => {
   if (!salesStore.statistics) return 0;
-  // Упрощенный расчет прибыли (выручка - закупка)
-  // В реальном приложении нужно учитывать purchasePrice
-  return salesStore.statistics.totalRevenue * 0.3; // Пример: 30% прибыль
+  return salesStore.statistics.totalRevenue * 0.3;
 };
 
 const generateReport = async () => {
@@ -278,6 +348,9 @@ const generateReport = async () => {
     await salesStore.fetchStatistics(params.startDate, params.endDate);
   } else if (reportType.value === 'stock') {
     await productsStore.fetchProducts({ limit: 1000 });
+  } else {
+    // Для движения товаров
+    await salesStore.fetchSales(params);
   }
 
   await updateChart();
@@ -366,7 +439,7 @@ const handleExport = () => {
 };
 
 const exportToCSV = () => {
-  if (!reportData.value.length) {
+  if (!normalizedReportData.value.length) {
     toast.add({
       severity: 'warn',
       summary: 'Предупреждение',
@@ -377,9 +450,16 @@ const exportToCSV = () => {
   }
 
   const headers = tableColumns.value.map((col) => col.header);
-  const rows = reportData.value.map((item: any) =>
+  const rows = normalizedReportData.value.map((item: any) =>
     tableColumns.value.map((col) => {
-      const value = col.field.split('.').reduce((obj: any, key) => obj?.[key], item);
+      const value = item[col.field];
+      
+      // Форматирование для экспорта
+      if (col.format === 'price') {
+        return formatPrice(value).replace('₽', 'RUB');
+      } else if (col.format === 'date') {
+        return formatDate(value);
+      }
       return value ?? '';
     })
   );
