@@ -15,6 +15,7 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "@primevue/themes": "^4.5.4",
     "axios": "^1.13.2",
     "browser-image-compression": "^2.0.2",
     "echarts": "^6.0.0",

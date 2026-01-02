@@ -55,6 +55,12 @@ const router = createRouter({
           component: () => import('@/views/SettingsView.vue'),
           meta: { requiredRole: 'MANAGER' },
         },
+        {
+          path: 'audit-log',
+          name: 'audit-log',
+          component: () => import('@/views/AuditLogView.vue'),
+          meta: { requiredRole: 'MANAGER' },
+        },
       ],
     },
   ],
