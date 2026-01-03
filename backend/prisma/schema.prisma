@@ -46,6 +46,36 @@ model Category {
   @@map("categories")
 }
 
+// Модель склада
+model Warehouse {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  address     String?
+  createdAt   DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Отношения
+  products Product[]
+
+  @@map("warehouses")
+}
+
+// Модель коммитета (владелец товара)
+model Committee {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  contactInfo String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Отношения
+  products Product[]
+
+  @@map("committees")
+}
+
 // Модель товара
 model Product {
   id             Int       @id @default(autoincrement())
@@ -57,13 +87,18 @@ model Product {
   quantity       Int       @default(0)
   minStockLevel  Int       @default(0)
   categoryId     Int?
+  warehouseId    Int?
+  committeeId    Int?
+  arrivalDate    DateTime? // Дата поступления товара
   images         String[]  @default([]) // Массив URL изображений
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   // Отношения
-  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  sales    Sale[]
+  category  Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  warehouse Warehouse?  @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  committee Committee? @relation(fields: [committeeId], references: [id], onDelete: SetNull)
+  sales     Sale[]
 
   @@map("products")
 }
@@ -88,11 +123,14 @@ model Sale {
 model AuditLog {
   id         Int      @id @default(autoincrement())
   userId     Int?
-  action     String   // create, update, delete, etc.
-  entityType String   // Product, Category, Sale, User, etc.
+  action     String   // login, login_attempt, product.create, product.update, product.delete, sale.create, etc.
+  entityType String?  // Product, Category, Sale, User, Auth, etc.
   entityId   Int?
   oldValues  Json?    // Старые значения в формате JSON
   newValues  Json?    // Новые значения в формате JSON
+  ipAddress  String?  // IP адрес для попыток входа
+  userAgent  String?  // User agent для попыток входа
+  success    Boolean? // Успешность действия (для попыток входа)
   createdAt  DateTime @default(now())
 
   // Отношения

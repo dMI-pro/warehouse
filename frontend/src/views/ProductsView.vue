@@ -18,7 +18,7 @@
           @click="exportToExcel"
         />
         <Button
-          v-if="authStore.hasRole('MANAGER') || authStore.isAdmin"
+          v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
           label="Добавить товар"
           icon="pi pi-plus"
           @click="openAddDialog"
@@ -31,15 +31,14 @@
       <template #content>
         <div class="filters-grid">
           <div class="filter-item search-item">
-            <span class="p-input-icon-left w-full">
-              <i class="pi pi-search" />
+            <div class="p-input-icon-left w-full">
               <InputText
                 v-model="searchQuery"
-                placeholder="🔍 Поиск по названию, SKU, описанию..."
-                class="w-full"
+                placeholder="Поиск по названию, SKU, описанию..."
+                fluid
                 @input="handleSearch"
               />
-            </span>
+            </div>
           </div>
           <div class="filter-item">
             <label for="category" class="filter-label">Категория</label>
@@ -52,6 +51,32 @@
               placeholder="Все категории"
               class="w-full"
               @change="handleCategoryChange"
+            />
+          </div>
+          <div class="filter-item">
+            <label for="warehouse" class="filter-label">Склад</label>
+            <Dropdown
+              id="warehouse"
+              v-model="selectedWarehouse"
+              :options="warehouseOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Все склады"
+              class="w-full"
+              @change="handleWarehouseChange"
+            />
+          </div>
+          <div class="filter-item">
+            <label for="committee" class="filter-label">Коммитет</label>
+            <Dropdown
+              id="committee"
+              v-model="selectedCommittee"
+              :options="committeeOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Все коммитеты"
+              class="w-full"
+              @change="handleCommitteeChange"
             />
           </div>
           <div class="filter-item">
@@ -212,6 +237,43 @@
                   optionLabel="label"
                   optionValue="value"
                   placeholder="Выберите категорию"
+                  class="w-full"
+                />
+              </div>
+
+              <div class="field">
+                <label for="warehouseId" class="label">Склад</label>
+                <Dropdown
+                  id="warehouseId"
+                  v-model="productForm.warehouseId"
+                  :options="warehouseOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Выберите склад"
+                  class="w-full"
+                />
+              </div>
+
+              <div class="field">
+                <label for="committeeId" class="label">Коммитет</label>
+                <Dropdown
+                  id="committeeId"
+                  v-model="productForm.committeeId"
+                  :options="committeeOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Выберите коммитет"
+                  class="w-full"
+                />
+              </div>
+
+              <div class="field" v-if="authStore.isAdmin">
+                <label for="arrivalDate" class="label">Дата поступления</label>
+                <Calendar
+                  id="arrivalDate"
+                  v-model="productForm.arrivalDate"
+                  dateFormat="yy-mm-dd"
+                  showIcon
                   class="w-full"
                 />
               </div>
@@ -399,6 +461,20 @@
           <small class="text-gray-500">По умолчанию: {{ formatPrice(selectedProduct.salePrice) }}</small>
         </div>
 
+        <div class="field" v-if="authStore.isAdmin">
+          <label for="soldAt" class="label">Дата продажи</label>
+          <Calendar
+            id="soldAt"
+            v-model="saleForm.soldAt"
+            dateFormat="yy-mm-dd"
+            showIcon
+            showTime
+            hourFormat="24"
+            class="w-full"
+          />
+          <small class="text-gray-500">По умолчанию: сегодня</small>
+        </div>
+
         <Message v-if="salesStore.error" severity="error" :closable="false" class="mb-3">
           {{ salesStore.error }}
         </Message>
@@ -435,11 +511,15 @@ import Message from 'primevue/message';
 import ConfirmDialog from 'primevue/confirmdialog';
 import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
+import Calendar from 'primevue/calendar';
 import { useProductsStore } from '@/stores/productsStore';
 import { useCategoriesStore } from '@/stores/categoriesStore';
 import { useSalesStore } from '@/stores/salesStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useWarehousesStore } from '@/stores/warehousesStore';
+import { useCommitteesStore } from '@/stores/committeesStore';
 import type { Product, CreateProductDto, UpdateProductDto } from '@/types/api';
+import { Role } from '@/types/api';
 import { apiService } from '@/services/api';
 import { compressImageFile, createImagePreview } from '@/utils/imageCompression';
 import { handleApiError, validateSKU } from '@/utils/errorHandler';
@@ -448,11 +528,15 @@ const productsStore = useProductsStore();
 const categoriesStore = useCategoriesStore();
 const salesStore = useSalesStore();
 const authStore = useAuthStore();
+const warehousesStore = useWarehousesStore();
+const committeesStore = useCommitteesStore();
 const confirm = useConfirm();
 const toast = useToast();
 
 const searchQuery = ref('');
 const selectedCategory = ref<number | null>(null);
+const selectedWarehouse = ref<number | null>(null);
+const selectedCommittee = ref<number | null>(null);
 const sortField = ref('name');
 const productDialogVisible = ref(false);
 const saleDialogVisible = ref(false);
@@ -460,7 +544,7 @@ const editingProduct = ref<Product | null>(null);
 const selectedProduct = ref<Product | null>(null);
 const selectedProducts = ref<Product[]>([]);
 
-const productForm = reactive<CreateProductDto & { images?: string[] }>({
+const productForm = reactive<CreateProductDto & { images?: string[]; arrivalDate?: Date }>({
   name: '',
   sku: '',
   description: '',
@@ -469,12 +553,16 @@ const productForm = reactive<CreateProductDto & { images?: string[] }>({
   quantity: 0,
   minStockLevel: 0,
   categoryId: undefined,
+  warehouseId: undefined,
+  committeeId: undefined,
+  arrivalDate: undefined,
   images: [],
 });
 
 const saleForm = reactive({
   quantity: 1,
   salePrice: undefined as number | undefined,
+  soldAt: undefined as Date | undefined,
 });
 
 const formErrors = reactive({
@@ -493,6 +581,22 @@ const categoryOptions = computed(() => {
   const options = [{ label: 'Все категории', value: null }];
   categoriesStore.categories.forEach((cat) => {
     options.push({ label: cat.name, value: cat.id });
+  });
+  return options;
+});
+
+const warehouseOptions = computed(() => {
+  const options = [{ label: 'Все склады', value: null }];
+  warehousesStore.warehouses.forEach((wh) => {
+    options.push({ label: wh.name, value: wh.id });
+  });
+  return options;
+});
+
+const committeeOptions = computed(() => {
+  const options = [{ label: 'Все коммитеты', value: null }];
+  committeesStore.committees.forEach((com) => {
+    options.push({ label: com.name, value: com.id });
   });
   return options;
 });
@@ -531,7 +635,31 @@ const handleSearch = () => {
 };
 
 const handleCategoryChange = () => {
-  productsStore.setFilters({ category: selectedCategory.value || undefined });
+  productsStore.setFilters({
+    category: selectedCategory.value || undefined,
+    warehouse: selectedWarehouse.value || undefined,
+    committee: selectedCommittee.value || undefined,
+  });
+  productsStore.setPage(1);
+  productsStore.fetchProducts();
+};
+
+const handleWarehouseChange = () => {
+  productsStore.setFilters({
+    category: selectedCategory.value || undefined,
+    warehouse: selectedWarehouse.value || undefined,
+    committee: selectedCommittee.value || undefined,
+  });
+  productsStore.setPage(1);
+  productsStore.fetchProducts();
+};
+
+const handleCommitteeChange = () => {
+  productsStore.setFilters({
+    category: selectedCategory.value || undefined,
+    warehouse: selectedWarehouse.value || undefined,
+    committee: selectedCommittee.value || undefined,
+  });
   productsStore.setPage(1);
   productsStore.fetchProducts();
 };
@@ -545,8 +673,10 @@ const handleSortChange = () => {
 const resetFilters = () => {
   searchQuery.value = '';
   selectedCategory.value = null;
+  selectedWarehouse.value = null;
+  selectedCommittee.value = null;
   sortField.value = 'name';
-  productsStore.setFilters({ search: '', category: undefined });
+  productsStore.setFilters({ search: '', category: undefined, warehouse: undefined, committee: undefined });
   productsStore.setPage(1);
   productsStore.fetchProducts();
 };
@@ -572,6 +702,9 @@ const openEditDialog = (product: Product) => {
   productForm.quantity = product.quantity;
   productForm.minStockLevel = product.minStockLevel || 0;
   productForm.categoryId = product.categoryId || undefined;
+  productForm.warehouseId = product.warehouseId || undefined;
+  productForm.committeeId = product.committeeId || undefined;
+  productForm.arrivalDate = product.arrivalDate ? new Date(product.arrivalDate) : undefined;
   productForm.images = [...(product.images || [])];
   productDialogVisible.value = true;
 };
@@ -590,6 +723,9 @@ const resetProductForm = () => {
   productForm.quantity = 0;
   productForm.minStockLevel = 0;
   productForm.categoryId = undefined;
+  productForm.warehouseId = undefined;
+  productForm.committeeId = undefined;
+  productForm.arrivalDate = undefined;
   productForm.images = [];
   Object.keys(formErrors).forEach((key) => {
     formErrors[key as keyof typeof formErrors] = '';
@@ -645,6 +781,9 @@ const saveProduct = async () => {
         quantity: productForm.quantity,
         minStockLevel: productForm.minStockLevel,
         categoryId: productForm.categoryId,
+        warehouseId: productForm.warehouseId,
+        committeeId: productForm.committeeId,
+        arrivalDate: productForm.arrivalDate ? productForm.arrivalDate.toISOString() : undefined,
         images: productForm.images,
       };
       await productsStore.updateProduct(editingProduct.value.id, updateDto);
@@ -659,6 +798,9 @@ const saveProduct = async () => {
         quantity: productForm.quantity,
         minStockLevel: productForm.minStockLevel,
         categoryId: productForm.categoryId,
+        warehouseId: productForm.warehouseId,
+        committeeId: productForm.committeeId,
+        arrivalDate: productForm.arrivalDate ? productForm.arrivalDate.toISOString() : undefined,
         images: productForm.images,
       };
       await productsStore.createProduct(createDto);
@@ -733,6 +875,7 @@ const openSaleDialog = (product: Product) => {
   selectedProduct.value = product;
   saleForm.quantity = 1;
   saleForm.salePrice = Number(product.salePrice);
+  saleForm.soldAt = new Date();
   saleDialogVisible.value = true;
 };
 
@@ -741,6 +884,7 @@ const closeSaleDialog = () => {
   selectedProduct.value = null;
   saleForm.quantity = 1;
   saleForm.salePrice = undefined;
+  saleForm.soldAt = undefined;
   saleFormErrors.quantity = '';
 };
 
@@ -764,6 +908,7 @@ const handleSale = async () => {
       productId: selectedProduct.value.id,
       quantity: saleForm.quantity,
       salePrice: saleForm.salePrice,
+      soldAt: saleForm.soldAt ? saleForm.soldAt.toISOString() : undefined,
     });
     toast.add({ severity: 'success', summary: 'Успешно', detail: 'Продажа оформлена', life: 3000 });
     closeSaleDialog();
@@ -842,6 +987,8 @@ const exportToExcel = () => {
 
 onMounted(async () => {
   await categoriesStore.fetchCategories();
+  await warehousesStore.fetchWarehouses();
+  await committeesStore.fetchCommittees();
   await productsStore.fetchProducts();
 });
 </script>
@@ -874,7 +1021,7 @@ onMounted(async () => {
 
 .filters-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr auto;
+  grid-template-columns: 2fr 1fr 1fr 1fr auto;
   gap: 1rem;
   align-items: end;
 }

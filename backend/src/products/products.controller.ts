@@ -23,6 +23,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { Public } from '../common/decorators/public.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import type { User } from '@prisma/client';
 import { diskStorage } from 'multer';
 import { extname, join, normalize } from 'path';
 import * as fs from 'fs';
@@ -54,8 +56,12 @@ export class ProductsController {
 
   @Patch(':id')
   @Roles(Role.MANAGER, Role.ADMIN)
-  async update(@Param('id', ParseIntPipe) id: number, @Body() updateProductDto: UpdateProductDto) {
-    return this.productsService.update(id, updateProductDto);
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateProductDto: UpdateProductDto,
+    @CurrentUser() user?: User,
+  ) {
+    return this.productsService.update(id, updateProductDto, user?.id);
   }
 
   @Delete(':id')

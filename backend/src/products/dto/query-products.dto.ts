@@ -13,6 +13,16 @@ export class QueryProductsDto {
   category?: number;
 
   @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  warehouse?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  committee?: number;
+
+  @IsInt()
   @Min(1)
   @Type(() => Number)
   @IsOptional()

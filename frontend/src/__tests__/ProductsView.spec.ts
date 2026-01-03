@@ -6,6 +6,8 @@ import ProductsView from '@/views/ProductsView.vue';
 import { useProductsStore } from '@/stores/productsStore';
 import { useAuthStore } from '@/stores/authStore';
 
+import { Role } from '@/types/api';
+
 describe('ProductsView', () => {
   let router: ReturnType<typeof createRouter>;
   let pinia: ReturnType<typeof createPinia>;
@@ -58,7 +60,7 @@ describe('ProductsView', () => {
       email: 'test@test.com',
       username: 'admin',
       fullName: 'Admin',
-      role: 'ADMIN' as const,
+      role: Role.ADMIN as const,
       isSuperAdmin: false,
     };
 

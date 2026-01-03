@@ -1,13 +1,18 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { Prisma } from '@prisma/client';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class ProductsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => AuditLogService))
+    private auditLogService?: AuditLogService,
+  ) {}
 
   async create(createProductDto: CreateProductDto) {
     // Проверка уникальности SKU
@@ -30,7 +35,29 @@ export class ProductsService {
       }
     }
 
-    return this.prisma.product.create({
+    // Проверка существования склада, если указан
+    if (createProductDto.warehouseId) {
+      const warehouse = await this.prisma.warehouse.findUnique({
+        where: { id: createProductDto.warehouseId },
+      });
+
+      if (!warehouse) {
+        throw new NotFoundException(`Warehouse with ID ${createProductDto.warehouseId} not found`);
+      }
+    }
+
+    // Проверка существования коммитета, если указан
+    if (createProductDto.committeeId) {
+      const committee = await this.prisma.committee.findUnique({
+        where: { id: createProductDto.committeeId },
+      });
+
+      if (!committee) {
+        throw new NotFoundException(`Committee with ID ${createProductDto.committeeId} not found`);
+      }
+    }
+
+    const product = await this.prisma.product.create({
       data: {
         name: createProductDto.name,
         sku: createProductDto.sku,
@@ -40,16 +67,23 @@ export class ProductsService {
         quantity: createProductDto.quantity,
         minStockLevel: createProductDto.minStockLevel ?? 0,
         categoryId: createProductDto.categoryId,
+        warehouseId: createProductDto.warehouseId,
+        committeeId: createProductDto.committeeId,
+        arrivalDate: createProductDto.arrivalDate || new Date(),
         images: createProductDto.images ?? [],
       },
       include: {
         category: true,
+        warehouse: true,
+        committee: true,
       },
     });
+
+    return product;
   }
 
   async findAll(query: QueryProductsDto) {
-    const { search, category, page = 1, limit = 10 } = query;
+    const { search, category, warehouse, committee, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.ProductWhereInput = {};
@@ -68,6 +102,16 @@ export class ProductsService {
       where.categoryId = category;
     }
 
+    // Фильтрация по складу
+    if (warehouse) {
+      where.warehouseId = warehouse;
+    }
+
+    // Фильтрация по коммитету
+    if (committee) {
+      where.committeeId = committee;
+    }
+
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
@@ -75,6 +119,8 @@ export class ProductsService {
         take: limit,
         include: {
           category: true,
+          warehouse: true,
+          committee: true,
         },
         orderBy: {
           createdAt: 'desc',
@@ -99,6 +145,8 @@ export class ProductsService {
       where: { id },
       include: {
         category: true,
+        warehouse: true,
+        committee: true,
       },
     });
 
@@ -109,18 +157,23 @@ export class ProductsService {
     return product;
   }
 
-  async update(id: number, updateProductDto: UpdateProductDto) {
+  async update(id: number, updateProductDto: UpdateProductDto, userId?: number) {
     // Проверка существования товара
-    const product = await this.prisma.product.findUnique({
+    const oldProduct = await this.prisma.product.findUnique({
       where: { id },
+      include: {
+        category: true,
+        warehouse: true,
+        committee: true,
+      },
     });
 
-    if (!product) {
+    if (!oldProduct) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
     // Проверка уникальности SKU, если он изменяется
-    if (updateProductDto.sku && updateProductDto.sku !== product.sku) {
+    if (updateProductDto.sku && updateProductDto.sku !== oldProduct.sku) {
       const existingProduct = await this.prisma.product.findUnique({
         where: { sku: updateProductDto.sku },
       });
@@ -131,7 +184,7 @@ export class ProductsService {
     }
 
     // Проверка существования категории, если она изменяется
-    if (updateProductDto.categoryId) {
+    if (updateProductDto.categoryId !== undefined && updateProductDto.categoryId !== null) {
       const category = await this.prisma.category.findUnique({
         where: { id: updateProductDto.categoryId },
       });
@@ -141,13 +194,69 @@ export class ProductsService {
       }
     }
 
-    return this.prisma.product.update({
+    // Проверка существования склада, если он изменяется
+    if (updateProductDto.warehouseId !== undefined && updateProductDto.warehouseId !== null) {
+      const warehouse = await this.prisma.warehouse.findUnique({
+        where: { id: updateProductDto.warehouseId },
+      });
+
+      if (!warehouse) {
+        throw new NotFoundException(`Warehouse with ID ${updateProductDto.warehouseId} not found`);
+      }
+    }
+
+    // Проверка существования коммитета, если он изменяется
+    if (updateProductDto.committeeId !== undefined && updateProductDto.committeeId !== null) {
+      const committee = await this.prisma.committee.findUnique({
+        where: { id: updateProductDto.committeeId },
+      });
+
+      if (!committee) {
+        throw new NotFoundException(`Committee with ID ${updateProductDto.committeeId} not found`);
+      }
+    }
+
+    const updatedProduct = await this.prisma.product.update({
       where: { id },
       data: updateProductDto,
       include: {
         category: true,
+        warehouse: true,
+        committee: true,
       },
     });
+
+    // Логирование изменений
+    if (this.auditLogService && userId) {
+      const oldValues: any = {};
+      const newValues: any = {};
+
+      // Собираем только измененные поля
+      Object.keys(updateProductDto).forEach((key) => {
+        const typedKey = key as keyof UpdateProductDto;
+        if (updateProductDto[typedKey] !== undefined) {
+          const oldValue = (oldProduct as any)[key];
+          const newValue = updateProductDto[typedKey];
+          if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+            oldValues[key] = oldValue;
+            newValues[key] = newValue;
+          }
+        }
+      });
+
+      if (Object.keys(newValues).length > 0) {
+        await this.auditLogService.create({
+          userId,
+          action: 'product.update',
+          entityType: 'Product',
+          entityId: id,
+          oldValues,
+          newValues,
+        });
+      }
+    }
+
+    return updatedProduct;
   }
 
   async remove(id: number) {
@@ -191,6 +300,8 @@ export class ProductsService {
       },
       include: {
         category: true,
+        warehouse: true,
+        committee: true,
       },
     });
   }
@@ -213,6 +324,8 @@ export class ProductsService {
       },
       include: {
         category: true,
+        warehouse: true,
+        committee: true,
       },
     });
   }

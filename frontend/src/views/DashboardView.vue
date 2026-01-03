@@ -64,6 +64,81 @@
         </template>
       </Card>
 
+      <!-- Последние продажи (2 колонки) -->
+      <Card class="widget-card recent-sales-widget" style="grid-column: span 2">
+        <template #content>
+          <div class="widget-header">
+            <div class="widget-icon">💰</div>
+            <div class="widget-title">Последние продажи</div>
+          </div>
+          <div class="recent-sales-content">
+            <DataTable
+              :value="recentSales"
+              :loading="loading"
+              :paginator="false"
+              class="recent-sales-table"
+            >
+              <Column field="productName" header="Товар" />
+              <Column field="quantity" header="Кол-во" style="width: 80px" />
+              <Column field="amount" header="Сумма" style="width: 120px">
+                <template #body="{ data }">
+                  {{ formatPrice(data.amount) }}
+                </template>
+              </Column>
+            </DataTable>
+          </div>
+        </template>
+      </Card>
+
+      <!-- Новые поступления (2 колонки) -->
+      <Card class="widget-card new-arrivals-widget" style="grid-column: span 2">
+        <template #content>
+          <div class="widget-header">
+            <div class="widget-icon">📥</div>
+            <div class="widget-title">Новые поступления</div>
+          </div>
+          <div class="new-arrivals-content">
+            <DataTable
+              :value="newArrivals"
+              :loading="loading"
+              :paginator="false"
+              class="new-arrivals-table"
+            >
+              <Column field="name" header="Товар" />
+              <Column field="quantity" header="Кол-во" style="width: 80px" />
+              <Column field="arrivalDate" header="Дата" style="width: 120px">
+                <template #body="{ data }">
+                  {{ formatDate(data.arrivalDate) }}
+                </template>
+              </Column>
+            </DataTable>
+          </div>
+        </template>
+      </Card>
+
+      <!-- Долгохранящиеся товары (2 колонки) -->
+      <Card class="widget-card long-storage-widget" style="grid-column: span 2">
+        <template #content>
+          <div class="widget-header">
+            <div class="widget-icon">📦</div>
+            <div class="widget-title">Долгохранящиеся товары</div>
+          </div>
+          <div class="long-storage-content">
+            <div class="stat-item">
+              <div class="stat-label">Товаров на складе более 90 дней:</div>
+              <div class="stat-value warning">{{ longStorageCount }}</div>
+            </div>
+            <Button
+              label="Просмотреть"
+              icon="pi pi-eye"
+              severity="warning"
+              outlined
+              @click="viewLongStorage"
+            />
+          </div>
+        </template>
+      </Card>
+
       <!-- Последние действия (4 колонки) -->
       <Card class="widget-card actions-widget" style="grid-column: span 4">
         <template #content>
@@ -137,7 +212,10 @@ const stats = ref({
   totalValue: 0,
 });
 const lowStockCount = ref(0);
+const longStorageCount = ref(0);
 const recentActions = ref<Array<{ user: string; action: string; time: string }>>([]);
+const recentSales = ref<Array<{ productName: string; quantity: number; amount: number }>>([]);
+const newArrivals = ref<Array<{ name: string; quantity: number; arrivalDate: string }>>([]);
 const salesData = ref<Sale[]>([]);
 
 const chartOption = computed(() => {
@@ -253,11 +331,20 @@ const formatTime = (time: string) => {
   }).format(date);
 };
 
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+};
+
 const loadStats = async () => {
   loading.value = true;
   try {
     // Загружаем товары для статистики
-    const productsData = await apiService.getProducts({ limit: 1000 });
+    const productsData = await apiService.getProducts({ limit: 10 });
     stats.value.totalProducts = productsData.meta?.total || 0;
 
     // Вычисляем общую стоимость товаров
@@ -268,8 +355,9 @@ const loadStats = async () => {
     stats.value.totalValue = totalValue;
 
     // Подсчитываем товары с низким запасом
+    // Показываем только товары, у которых minStockLevel > 0 и quantity < minStockLevel
     lowStockCount.value = productsData.data.filter(
-      (product: Product) => product.quantity <= product.minStockLevel
+      (product: Product) => product.minStockLevel > 0 && product.quantity < product.minStockLevel
     ).length;
 
     // Загружаем продажи для графика
@@ -280,15 +368,51 @@ const loadStats = async () => {
     const salesResponse = await apiService.getSales({
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
-      limit: 1000,
+      limit: 10,
     });
     salesData.value = salesResponse.data;
+
+    // Формируем список последних продаж
+    recentSales.value = salesResponse.data.slice(0, 5).map((sale: Sale) => ({
+      productName: sale.product?.name || 'Неизвестный товар',
+      quantity: sale.quantity,
+      amount: Number(sale.salePrice) * sale.quantity,
+    }));
+
+    // Формируем список новых поступлений (товары, добавленные за последние 7 дней)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    newArrivals.value = productsData.data
+      .filter((product: Product) => {
+        if (!product.arrivalDate) return false;
+        const arrivalDate = new Date(product.arrivalDate);
+        return arrivalDate >= sevenDaysAgo;
+      })
+      .sort((a: Product, b: Product) => {
+        const dateA = new Date(a.arrivalDate || a.createdAt);
+        const dateB = new Date(b.arrivalDate || b.createdAt);
+        return dateB.getTime() - dateA.getTime();
+      })
+      .slice(0, 5)
+      .map((product: Product) => ({
+        name: product.name,
+        quantity: product.quantity,
+        arrivalDate: product.arrivalDate || product.createdAt,
+      }));
+
+    // Подсчитываем долгохранящиеся товары (на складе более 90 дней)
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    longStorageCount.value = productsData.data.filter((product: Product) => {
+      const arrivalDate = product.arrivalDate ? new Date(product.arrivalDate) : new Date(product.createdAt);
+      return arrivalDate < ninetyDaysAgo && product.quantity > 0;
+    }).length;
 
     // Формируем список последних действий из продаж
     recentActions.value = salesResponse.data.slice(0, 10).map((sale: Sale) => ({
       user: sale.user?.fullName || sale.user?.username || 'Неизвестно',
       action: `Продажа: ${sale.product?.name || 'Товар'} (${sale.quantity} шт.)`,
-      time: sale.createdAt || new Date().toISOString(),
+      time: sale.soldAt || sale.createdAt || new Date().toISOString(),
     }));
   } catch (error) {
     console.error('Failed to load dashboard stats', error);
@@ -299,6 +423,10 @@ const loadStats = async () => {
 
 const viewLowStock = () => {
   router.push({ name: 'products', query: { lowStock: 'true' } });
+};
+
+const viewLongStorage = () => {
+  router.push({ name: 'products', query: { longStorage: 'true' } });
 };
 
 onMounted(() => {

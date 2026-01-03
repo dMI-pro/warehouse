@@ -244,7 +244,8 @@ import Divider from 'primevue/divider';
 import ConfirmDialog from 'primevue/confirmdialog';
 import { useUsersStore } from '@/stores/usersStore';
 import { useAuthStore } from '@/stores/authStore';
-import type { User, Role } from '@/types/api';
+import type { User } from '@/types/api';
+import { Role } from '@/types/api';
 import { apiService } from '@/services/api';
 
 const usersStore = useUsersStore();
@@ -261,7 +262,7 @@ const userForm = reactive({
   username: '',
   fullName: '',
   password: '',
-  role: 'SELLER' as Role,
+  role: Role.SELLER as Role,
 });
 
 const formErrors = reactive({
@@ -272,10 +273,10 @@ const formErrors = reactive({
 });
 
 const roleOptions = [
-  { label: 'Гость', value: 'GUEST' },
-  { label: 'Продавец', value: 'SELLER' },
-  { label: 'Менеджер', value: 'MANAGER' },
-  { label: 'Администратор', value: 'ADMIN' },
+  { label: 'Гость', value: Role.GUEST },
+  { label: 'Продавец', value: Role.SELLER },
+  { label: 'Менеджер', value: Role.MANAGER },
+  { label: 'Администратор', value: Role.ADMIN },
 ];
 
 const userHistory = ref<Array<{ time: string; action: string }>>([
@@ -381,7 +382,7 @@ const resetUserForm = () => {
   userForm.username = '';
   userForm.fullName = '';
   userForm.password = '';
-  userForm.role = 'SELLER';
+  userForm.role = Role.SELLER;
   Object.keys(formErrors).forEach((key) => {
     formErrors[key as keyof typeof formErrors] = '';
   });

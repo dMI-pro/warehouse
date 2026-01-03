@@ -29,6 +29,8 @@ clean:
 
 migrate:
 	docker exec antiquar-backend npx prisma migrate dev
+# 	docker exec -it antiquar-backend npx prisma migrate dev --name add_warehouse_comittee_and_product_fields для запуска из папки warehouse
+
 
 seed:
 	docker exec antiquar-backend npx prisma db seed

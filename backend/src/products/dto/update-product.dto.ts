@@ -46,6 +46,20 @@ export class UpdateProductDto {
   @Type(() => Number)
   categoryId?: number;
 
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  warehouseId?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  committeeId?: number;
+
+  @IsOptional()
+  @Type(() => Date)
+  arrivalDate?: Date;
+
   @IsArray()
   @IsString({ each: true })
   @IsOptional()

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { User, LoginDto, RegisterDto, Role } from '@/types/api';
+import type { User, LoginDto, RegisterDto } from '@/types/api';
+import { Role } from '@/types/api';
 import { apiService } from '@/services/api';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -35,12 +36,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Проверка на админа
   const isAdmin = computed(() => {
-    return user.value?.role === 'ADMIN' || user.value?.isSuperAdmin;
+    return user.value?.role === Role.ADMIN || user.value?.isSuperAdmin;
   });
 
   // Вход
   const login = async (loginDto: LoginDto) => {
-    // debugger
     loading.value = true;
     error.value = null;
     try {

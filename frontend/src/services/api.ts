@@ -15,6 +15,13 @@ import type {
   CreateSaleDto,
   SalesStatistics,
   PaginatedResponse,
+  Warehouse,
+  CreateWarehouseDto,
+  UpdateWarehouseDto,
+  Committee,
+  CreateCommitteeDto,
+  UpdateCommitteeDto,
+  AuditLog,
 } from '@/types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -89,6 +96,8 @@ class ApiService {
   async getProducts(params?: {
     search?: string;
     category?: number;
+    warehouse?: number;
+    committee?: number;
     page?: number;
     limit?: number;
   }): Promise<PaginatedResponse<Product>> {
@@ -184,6 +193,70 @@ class ApiService {
     const response = await this.api.get<SalesStatistics>('/sales/statistics', {
       params: { startDate, endDate },
     });
+    return response.data;
+  }
+
+  // Warehouses endpoints
+  async getWarehouses(): Promise<Warehouse[]> {
+    const response = await this.api.get<Warehouse[]>('/warehouses');
+    return response.data;
+  }
+
+  async getWarehouse(id: number): Promise<Warehouse> {
+    const response = await this.api.get<Warehouse>(`/warehouses/${id}`);
+    return response.data;
+  }
+
+  async createWarehouse(createWarehouseDto: CreateWarehouseDto): Promise<Warehouse> {
+    const response = await this.api.post<Warehouse>('/warehouses', createWarehouseDto);
+    return response.data;
+  }
+
+  async updateWarehouse(id: number, updateWarehouseDto: UpdateWarehouseDto): Promise<Warehouse> {
+    const response = await this.api.patch<Warehouse>(`/warehouses/${id}`, updateWarehouseDto);
+    return response.data;
+  }
+
+  async deleteWarehouse(id: number): Promise<void> {
+    await this.api.delete(`/warehouses/${id}`);
+  }
+
+  // Committees endpoints
+  async getCommittees(): Promise<Committee[]> {
+    const response = await this.api.get<Committee[]>('/committees');
+    return response.data;
+  }
+
+  async getCommittee(id: number): Promise<Committee> {
+    const response = await this.api.get<Committee>(`/committees/${id}`);
+    return response.data;
+  }
+
+  async createCommittee(createCommitteeDto: CreateCommitteeDto): Promise<Committee> {
+    const response = await this.api.post<Committee>('/committees', createCommitteeDto);
+    return response.data;
+  }
+
+  async updateCommittee(id: number, updateCommitteeDto: UpdateCommitteeDto): Promise<Committee> {
+    const response = await this.api.patch<Committee>(`/committees/${id}`, updateCommitteeDto);
+    return response.data;
+  }
+
+  async deleteCommittee(id: number): Promise<void> {
+    await this.api.delete(`/committees/${id}`);
+  }
+
+  // Audit Logs endpoints
+  async getAuditLogs(params?: {
+    userId?: number;
+    action?: string;
+    entityType?: string;
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<AuditLog>> {
+    const response = await this.api.get<PaginatedResponse<AuditLog>>('/audit-logs', { params });
     return response.data;
   }
 }
