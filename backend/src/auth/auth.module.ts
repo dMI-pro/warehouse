@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { AuditLogModule } from '../audit-log/audit-log.module';
 
 // Проверка JWT_SECRET в production
 const jwtSecret = process.env.JWT_SECRET;
@@ -23,6 +24,7 @@ const jwtExpiresIn: string = process.env.JWT_EXPIRES_IN || '1h';
       secret: jwtSecret || 'your-secret-key-change-in-production-dev-only',
       signOptions: { expiresIn: jwtExpiresIn as any },
     }),
+    forwardRef(() => AuditLogModule),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

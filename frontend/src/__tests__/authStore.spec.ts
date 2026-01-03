@@ -3,6 +3,8 @@ import { setActivePinia, createPinia } from 'pinia';
 import { useAuthStore } from '@/stores/authStore';
 import { apiService } from '@/services/api';
 
+import { Role } from '@/types/api';
+
 vi.mock('@/services/api', () => ({
   apiService: {
     login: vi.fn(),
@@ -33,7 +35,7 @@ describe('authStore', () => {
         email: 'test@test.com',
         username: 'test',
         fullName: 'Test User',
-        role: 'GUEST' as const,
+        role: Role.GUEST as const,
         isSuperAdmin: false,
       },
     };
@@ -55,7 +57,7 @@ describe('authStore', () => {
       email: 'test@test.com',
       username: 'test',
       fullName: 'Test User',
-      role: 'GUEST' as const,
+      role: Role.GUEST as const,
       isSuperAdmin: false,
     };
     store.token = 'test-token';
@@ -77,12 +79,12 @@ describe('authStore', () => {
       email: 'test@test.com',
       username: 'admin',
       fullName: 'Admin',
-      role: 'ADMIN' as const,
+      role: Role.ADMIN as const,
       isSuperAdmin: false,
     };
 
     expect(store.isAdmin).toBe(true);
-    expect(store.hasRole('ADMIN')).toBe(true);
+    expect(store.hasRole(Role.ADMIN)).toBe(true);
   });
 });
 

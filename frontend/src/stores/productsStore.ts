@@ -17,6 +17,8 @@ export const useProductsStore = defineStore('products', () => {
   const filters = ref({
     search: '',
     category: undefined as number | undefined,
+    warehouse: undefined as number | undefined,
+    committee: undefined as number | undefined,
   });
 
   const filteredProducts = computed(() => {
@@ -26,6 +28,8 @@ export const useProductsStore = defineStore('products', () => {
   const fetchProducts = async (params?: {
     search?: string;
     category?: number;
+    warehouse?: number;
+    committee?: number;
     page?: number;
     limit?: number;
   }) => {
@@ -36,6 +40,8 @@ export const useProductsStore = defineStore('products', () => {
         ...params,
         search: params?.search || filters.value.search || undefined,
         category: params?.category || filters.value.category,
+        warehouse: params?.warehouse || filters.value.warehouse,
+        committee: params?.committee || filters.value.committee,
         page: params?.page || pagination.value.page,
         limit: params?.limit || pagination.value.limit,
       });
@@ -142,7 +148,7 @@ export const useProductsStore = defineStore('products', () => {
     }
   };
 
-  const setFilters = (newFilters: { search?: string; category?: number }) => {
+  const setFilters = (newFilters: { search?: string; category?: number; warehouse?: number; committee?: number }) => {
     filters.value = { ...filters.value, ...newFilters };
   };
 

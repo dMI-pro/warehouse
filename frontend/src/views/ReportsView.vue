@@ -406,7 +406,7 @@ const generateReport = async () => {
     await salesStore.fetchSales(params);
     // Не загружаем statistics, т.к. считаем самостоятельно
   } else if (reportType.value === 'stock') {
-    await productsStore.fetchProducts({ limit: 1000 });
+    await productsStore.fetchProducts({ limit: 10 });
   } else {
     // Для движения товаров
     await salesStore.fetchSales(params);

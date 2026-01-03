@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteLocationNormalized, NavigationGuardNext } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
-import type { Role } from '@/types/api';
+import { Role } from '@/types/api';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -41,25 +41,25 @@ const router = createRouter({
           path: 'users',
           name: 'users',
           component: () => import('@/views/UsersView.vue'),
-          meta: { requiredRole: 'ADMIN' },
+          meta: { requiredRole: Role.ADMIN },
         },
         {
           path: 'reports',
           name: 'reports',
           component: () => import('@/views/ReportsView.vue'),
-          meta: { requiredRole: 'MANAGER' },
+          meta: { requiredRole: Role.MANAGER },
         },
         {
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/SettingsView.vue'),
-          meta: { requiredRole: 'MANAGER' },
+          meta: { requiredRole: Role.ADMIN },
         },
         {
           path: 'audit-log',
           name: 'audit-log',
           component: () => import('@/views/AuditLogView.vue'),
-          meta: { requiredRole: 'MANAGER' },
+          meta: { requiredRole: Role.ADMIN },
         },
       ],
     },

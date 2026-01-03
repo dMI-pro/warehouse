@@ -28,7 +28,7 @@
             <div class="card-header">
               <span>Управление категориями</span>
               <Button
-                v-if="authStore.hasRole('MANAGER') || authStore.isAdmin"
+                v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
                 label="Добавить категорию"
                 icon="pi pi-plus"
                 @click="openAddCategoryDialog"
@@ -39,7 +39,6 @@
             <Message v-if="categoriesStore.error" severity="error" :closable="false" class="mb-3">
               {{ categoriesStore.error }}
             </Message>
-
             <Tree
               :value="categoryTree"
               :expandedKeys="expandedKeys"
@@ -47,12 +46,12 @@
               @node-collapse="onNodeCollapse"
               class="category-tree"
             >
-              <template #default="node">
+              <template #default="{ node }">
                 <div class="tree-node">
                   <span>{{ node.label }}</span>
                   <div class="tree-actions">
                     <Button
-                      v-if="authStore.hasRole('MANAGER') || authStore.isAdmin"
+                      v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
                       icon="pi pi-pencil"
                       severity="info"
                       text
@@ -75,6 +74,116 @@
                 </div>
               </template>
             </Tree>
+          </template>
+        </Card>
+
+        <!-- Вкладка: Склады -->
+        <Card v-if="activeTab === 'warehouses'" class="content-card">
+          <template #title>
+            <div class="card-header">
+              <span>Управление складами</span>
+              <Button
+                v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
+                label="Добавить склад"
+                icon="pi pi-plus"
+                @click="openAddWarehouseDialog"
+              />
+            </div>
+          </template>
+          <template #content>
+            <Message v-if="warehousesStore.error" severity="error" :closable="false" class="mb-3">
+              {{ warehousesStore.error }}
+            </Message>
+
+            <DataTable
+              :value="warehousesStore.warehouses"
+              :loading="warehousesStore.loading"
+              :emptyMessage="warehousesStore.loading ? 'Загрузка...' : 'Нет складов'"
+              class="warehouses-table"
+            >
+              <Column field="name" header="Название" :sortable="true" />
+              <Column field="description" header="Описание" />
+              <Column field="address" header="Адрес" />
+              <Column header="Действия" style="width: 150px">
+                <template #body="{ data }">
+                  <div class="action-buttons">
+                    <Button
+                      v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
+                      icon="pi pi-pencil"
+                      severity="info"
+                      text
+                      rounded
+                      v-tooltip.top="'Редактировать'"
+                      @click="openEditWarehouseDialog(data)"
+                    />
+                    <Button
+                      v-if="authStore.isAdmin"
+                      icon="pi pi-trash"
+                      severity="danger"
+                      text
+                      rounded
+                      v-tooltip.top="'Удалить'"
+                      @click="confirmDeleteWarehouse(data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+            </DataTable>
+          </template>
+        </Card>
+
+        <!-- Вкладка: Коммитеты -->
+        <Card v-if="activeTab === 'committees'" class="content-card">
+          <template #title>
+            <div class="card-header">
+              <span>Управление коммитетами</span>
+              <Button
+                v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
+                label="Добавить коммитет"
+                icon="pi pi-plus"
+                @click="openAddCommitteeDialog"
+              />
+            </div>
+          </template>
+          <template #content>
+            <Message v-if="committeesStore.error" severity="error" :closable="false" class="mb-3">
+              {{ committeesStore.error }}
+            </Message>
+
+            <DataTable
+              :value="committeesStore.committees"
+              :loading="committeesStore.loading"
+              :emptyMessage="committeesStore.loading ? 'Загрузка...' : 'Нет коммитетов'"
+              class="committees-table"
+            >
+              <Column field="name" header="Название" :sortable="true" />
+              <Column field="description" header="Описание" />
+              <Column field="contactInfo" header="Контактная информация" />
+              <Column header="Действия" style="width: 150px">
+                <template #body="{ data }">
+                  <div class="action-buttons">
+                    <Button
+                      v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
+                      icon="pi pi-pencil"
+                      severity="info"
+                      text
+                      rounded
+                      v-tooltip.top="'Редактировать'"
+                      @click="openEditCommitteeDialog(data)"
+                    />
+                    <Button
+                      v-if="authStore.isAdmin"
+                      icon="pi pi-trash"
+                      severity="danger"
+                      text
+                      rounded
+                      v-tooltip.top="'Удалить'"
+                      @click="confirmDeleteCommittee(data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+            </DataTable>
           </template>
         </Card>
 
@@ -211,6 +320,96 @@
       </div>
     </div>
 
+    <!-- Диалог добавления/редактирования склада -->
+    <Dialog
+      v-model:visible="warehouseDialogVisible"
+      :header="editingWarehouse ? 'Редактировать склад' : 'Добавить склад'"
+      :modal="true"
+      :style="{ width: '500px' }"
+      @hide="closeWarehouseDialog"
+    >
+      <form @submit.prevent="saveWarehouse" class="warehouse-form">
+        <div class="field">
+          <label for="warehouseName" class="label">Название *</label>
+          <InputText id="warehouseName" v-model="warehouseForm.name" class="w-full" required />
+          <small v-if="warehouseFormErrors.name" class="p-error">{{ warehouseFormErrors.name }}</small>
+        </div>
+
+        <div class="field">
+          <label for="warehouseDescription" class="label">Описание</label>
+          <Textarea
+            id="warehouseDescription"
+            v-model="warehouseForm.description"
+            rows="3"
+            class="w-full"
+          />
+        </div>
+
+        <div class="field">
+          <label for="warehouseAddress" class="label">Адрес</label>
+          <InputText id="warehouseAddress" v-model="warehouseForm.address" class="w-full" />
+        </div>
+
+        <Message v-if="warehousesStore.error" severity="error" :closable="false" class="mb-3">
+          {{ warehousesStore.error }}
+        </Message>
+
+        <div class="dialog-footer">
+          <Button label="Отмена" severity="secondary" outlined @click="closeWarehouseDialog" />
+          <Button
+            type="submit"
+            :label="editingWarehouse ? 'Сохранить' : 'Создать'"
+            :loading="warehousesStore.loading"
+          />
+        </div>
+      </form>
+    </Dialog>
+
+    <!-- Диалог добавления/редактирования коммитета -->
+    <Dialog
+      v-model:visible="committeeDialogVisible"
+      :header="editingCommittee ? 'Редактировать коммитет' : 'Добавить коммитет'"
+      :modal="true"
+      :style="{ width: '500px' }"
+      @hide="closeCommitteeDialog"
+    >
+      <form @submit.prevent="saveCommittee" class="committee-form">
+        <div class="field">
+          <label for="committeeName" class="label">Название *</label>
+          <InputText id="committeeName" v-model="committeeForm.name" class="w-full" required />
+          <small v-if="committeeFormErrors.name" class="p-error">{{ committeeFormErrors.name }}</small>
+        </div>
+
+        <div class="field">
+          <label for="committeeDescription" class="label">Описание</label>
+          <Textarea
+            id="committeeDescription"
+            v-model="committeeForm.description"
+            rows="3"
+            class="w-full"
+          />
+        </div>
+
+        <div class="field">
+          <label for="committeeContactInfo" class="label">Контактная информация</label>
+          <InputText id="committeeContactInfo" v-model="committeeForm.contactInfo" class="w-full" />
+        </div>
+
+        <Message v-if="committeesStore.error" severity="error" :closable="false" class="mb-3">
+          {{ committeesStore.error }}
+        </Message>
+
+        <div class="dialog-footer">
+          <Button label="Отмена" severity="secondary" outlined @click="closeCommitteeDialog" />
+          <Button
+            type="submit"
+            :label="editingCommittee ? 'Сохранить' : 'Создать'"
+            :loading="committeesStore.loading"
+          />
+        </div>
+      </form>
+    </Dialog>
+
     <!-- Диалог добавления/редактирования категории -->
     <Dialog
       v-model:visible="categoryDialogVisible"
@@ -287,19 +486,26 @@ import Message from 'primevue/message';
 import Divider from 'primevue/divider';
 import ConfirmDialog from 'primevue/confirmdialog';
 import { useCategoriesStore } from '@/stores/categoriesStore';
+import { useWarehousesStore } from '@/stores/warehousesStore';
+import { useCommitteesStore } from '@/stores/committeesStore';
 import { useAuthStore } from '@/stores/authStore';
-import type { Category, CreateCategoryDto, UpdateCategoryDto } from '@/types/api';
+import type { Category, CreateCategoryDto, UpdateCategoryDto, Warehouse, CreateWarehouseDto, UpdateWarehouseDto, Committee, CreateCommitteeDto, UpdateCommitteeDto } from '@/types/api';
+import { Role } from '@/types/api';
 
 const categoriesStore = useCategoriesStore();
+const warehousesStore = useWarehousesStore();
+const committeesStore = useCommitteesStore();
 const authStore = useAuthStore();
 const confirm = useConfirm();
 const toast = useToast();
 
-const activeTab = ref<'categories' | 'fields' | 'templates' | 'system'>('categories');
+const activeTab = ref<'categories' | 'warehouses' | 'committees' | 'fields' | 'templates' | 'system'>('categories');
 const expandedKeys = ref<Record<string, boolean>>({});
 
 const tabs = [
   { key: 'categories', label: 'Категории', icon: 'pi pi-sitemap' },
+  { key: 'warehouses', label: 'Склады', icon: 'pi pi-building' },
+  { key: 'committees', label: 'Коммитеты', icon: 'pi pi-users' },
   { key: 'fields', label: 'Дополнительные поля', icon: 'pi pi-list' },
   { key: 'templates', label: 'Шаблоны экспорта', icon: 'pi pi-file-export' },
   { key: 'system', label: 'Системные настройки', icon: 'pi pi-cog' },
@@ -307,6 +513,10 @@ const tabs = [
 
 const categoryDialogVisible = ref(false);
 const editingCategory = ref<Category | null>(null);
+const warehouseDialogVisible = ref(false);
+const editingWarehouse = ref<Warehouse | null>(null);
+const committeeDialogVisible = ref(false);
+const editingCommittee = ref<Committee | null>(null);
 
 const categoryForm = reactive<CreateCategoryDto>({
   name: '',
@@ -315,6 +525,26 @@ const categoryForm = reactive<CreateCategoryDto>({
 });
 
 const categoryFormErrors = reactive({
+  name: '',
+});
+
+const warehouseForm = reactive<CreateWarehouseDto>({
+  name: '',
+  description: '',
+  address: '',
+});
+
+const warehouseFormErrors = reactive({
+  name: '',
+});
+
+const committeeForm = reactive<CreateCommitteeDto>({
+  name: '',
+  description: '',
+  contactInfo: '',
+});
+
+const committeeFormErrors = reactive({
   name: '',
 });
 
@@ -355,18 +585,22 @@ const currencies = [
 ];
 
 const categoryTree = computed(() => {
-  const buildTree = (categories: Category[], parentId?: number): any[] => {
+  const allCategories = categoriesStore.categories || [];
+
+  const buildTree = (categories: Category[], pId: number | null = null): any[] => {
     return categories
-      .filter((cat) => cat.parentId === parentId)
-      .map((cat) => ({
-        key: cat.id.toString(),
-        label: cat.name,
-        data: cat,
-        children: buildTree(categories, cat.id),
-      }));
+      .filter((cat) => (cat.parentId ?? null) == (pId ?? null))
+      .map((cat) => {
+        return {
+          key: String(cat.id),     // Ключ для PrimeVue
+          label: cat.name,         // Заголовок для PrimeVue
+          data: cat,               // Оригинальный объект (для диалогов редактирования)
+          children: cat.children ? buildTree(cat.children, cat.id) : null
+        };
+      });
   };
 
-  return buildTree(categoriesStore.categories);
+  return buildTree(allCategories);
 });
 
 const parentCategoryOptions = computed(() => {
@@ -504,8 +738,168 @@ const saveSystemSettings = () => {
   toast.add({ severity: 'success', summary: 'Успешно', detail: 'Настройки сохранены', life: 3000 });
 };
 
+// Warehouse methods
+const openAddWarehouseDialog = () => {
+  editingWarehouse.value = null;
+  resetWarehouseForm();
+  warehouseDialogVisible.value = true;
+};
+
+const openEditWarehouseDialog = (warehouse: Warehouse) => {
+  editingWarehouse.value = warehouse;
+  warehouseForm.name = warehouse.name;
+  warehouseForm.description = warehouse.description || '';
+  warehouseForm.address = warehouse.address || '';
+  warehouseDialogVisible.value = true;
+};
+
+const closeWarehouseDialog = () => {
+  warehouseDialogVisible.value = false;
+  resetWarehouseForm();
+};
+
+const resetWarehouseForm = () => {
+  warehouseForm.name = '';
+  warehouseForm.description = '';
+  warehouseForm.address = '';
+  warehouseFormErrors.name = '';
+};
+
+const validateWarehouseForm = () => {
+  warehouseFormErrors.name = '';
+  if (!warehouseForm.name.trim()) {
+    warehouseFormErrors.name = 'Название обязательно';
+    return false;
+  }
+  return true;
+};
+
+const saveWarehouse = async () => {
+  if (!validateWarehouseForm()) return;
+
+  try {
+    if (editingWarehouse.value) {
+      const updateDto: UpdateWarehouseDto = {
+        name: warehouseForm.name,
+        description: warehouseForm.description,
+        address: warehouseForm.address,
+      };
+      await warehousesStore.updateWarehouse(editingWarehouse.value.id, updateDto);
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Склад обновлен', life: 3000 });
+    } else {
+      const createDto: CreateWarehouseDto = {
+        name: warehouseForm.name,
+        description: warehouseForm.description,
+        address: warehouseForm.address,
+      };
+      await warehousesStore.createWarehouse(createDto);
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Склад создан', life: 3000 });
+    }
+    closeWarehouseDialog();
+  } catch (error) {
+    // Ошибка уже обработана в store
+  }
+};
+
+const confirmDeleteWarehouse = (warehouse: Warehouse) => {
+  confirm.require({
+    message: `Вы уверены, что хотите удалить склад "${warehouse.name}"?`,
+    header: 'Подтверждение удаления',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      try {
+        await warehousesStore.deleteWarehouse(warehouse.id);
+        toast.add({ severity: 'success', summary: 'Успешно', detail: 'Склад удален', life: 3000 });
+      } catch (error) {
+        // Ошибка уже обработана в store
+      }
+    },
+  });
+};
+
+// Committee methods
+const openAddCommitteeDialog = () => {
+  editingCommittee.value = null;
+  resetCommitteeForm();
+  committeeDialogVisible.value = true;
+};
+
+const openEditCommitteeDialog = (committee: Committee) => {
+  editingCommittee.value = committee;
+  committeeForm.name = committee.name;
+  committeeForm.description = committee.description || '';
+  committeeForm.contactInfo = committee.contactInfo || '';
+  committeeDialogVisible.value = true;
+};
+
+const closeCommitteeDialog = () => {
+  committeeDialogVisible.value = false;
+  resetCommitteeForm();
+};
+
+const resetCommitteeForm = () => {
+  committeeForm.name = '';
+  committeeForm.description = '';
+  committeeForm.contactInfo = '';
+  committeeFormErrors.name = '';
+};
+
+const validateCommitteeForm = () => {
+  committeeFormErrors.name = '';
+  if (!committeeForm.name.trim()) {
+    committeeFormErrors.name = 'Название обязательно';
+    return false;
+  }
+  return true;
+};
+
+const saveCommittee = async () => {
+  if (!validateCommitteeForm()) return;
+
+  try {
+    if (editingCommittee.value) {
+      const updateDto: UpdateCommitteeDto = {
+        name: committeeForm.name,
+        description: committeeForm.description,
+        contactInfo: committeeForm.contactInfo,
+      };
+      await committeesStore.updateCommittee(editingCommittee.value.id, updateDto);
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Коммитет обновлен', life: 3000 });
+    } else {
+      const createDto: CreateCommitteeDto = {
+        name: committeeForm.name,
+        description: committeeForm.description,
+        contactInfo: committeeForm.contactInfo,
+      };
+      await committeesStore.createCommittee(createDto);
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Коммитет создан', life: 3000 });
+    }
+    closeCommitteeDialog();
+  } catch (error) {
+    // Ошибка уже обработана в store
+  }
+};
+
+const confirmDeleteCommittee = (committee: Committee) => {
+  confirm.require({
+    message: `Вы уверены, что хотите удалить коммитет "${committee.name}"?`,
+    header: 'Подтверждение удаления',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      try {
+        await committeesStore.deleteCommittee(committee.id);
+        toast.add({ severity: 'success', summary: 'Успешно', detail: 'Коммитет удален', life: 3000 });
+      } catch (error) {
+        // Ошибка уже обработана в store
+      }
+    },
+  });
+};
+
 onMounted(async () => {
   await categoriesStore.fetchCategories();
+  await warehousesStore.fetchWarehouses();
+  await committeesStore.fetchCommittees();
 });
 </script>
 
@@ -566,12 +960,18 @@ onMounted(async () => {
   border-radius: 4px;
 }
 
+:deep(.p-tree-node-content) {
+  display: flex;
+  width: 100%;
+}
+:deep(.p-tree-node-label) {
+  flex-grow: 1;
+}
 .tree-node {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 0.5rem;
 }
 
 .tree-actions {
@@ -635,6 +1035,18 @@ onMounted(async () => {
 
 .setting-label {
   font-weight: 500;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.warehouse-form,
+.committee-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 @media (max-width: 1024px) {

@@ -33,6 +33,8 @@ import Button from 'primevue/button';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import { useAuthStore } from '@/stores/authStore';
 
+import { Role } from '@/types/api';
+
 const router = useRouter();
 const authStore = useAuthStore();
 
@@ -50,7 +52,7 @@ const menuItems = computed(() => {
     },
   ];
 
-  if (authStore.hasRole('MANAGER') || authStore.isAdmin) {
+  if (authStore.hasRole(Role.MANAGER) || authStore.isAdmin) {
     items.push({
       label: 'Отчеты',
       icon: 'pi pi-chart-bar',

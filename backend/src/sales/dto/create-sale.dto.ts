@@ -17,4 +17,8 @@ export class CreateSaleDto {
   @Type(() => Number)
   @IsOptional()
   salePrice?: number; // Если не указана, используется цена из товара
+
+  @IsOptional()
+  @Type(() => Date)
+  soldAt?: Date; // Дата продажи (по умолчанию текущая дата)
 }

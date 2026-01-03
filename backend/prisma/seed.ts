@@ -7,12 +7,12 @@ async function main() {
   console.log('🌱 Starting seed...');
 
   // Очистка существующих данных (опционально, для тестов)
-  console.log('🧹 Cleaning existing data...');
-  await prisma.auditLog.deleteMany();
-  await prisma.sale.deleteMany();
-  await prisma.product.deleteMany();
-  await prisma.category.deleteMany();
-  await prisma.user.deleteMany();
+  // console.log('🧹 Cleaning existing data...');
+  // await prisma.auditLog.deleteMany();
+  // await prisma.sale.deleteMany();
+  // await prisma.product.deleteMany();
+  // await prisma.category.deleteMany();
+  // await prisma.user.deleteMany();
 
   // 1. Создание супер-админа
   console.log('👤 Creating super admin...');

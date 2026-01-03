@@ -42,6 +42,24 @@ export interface Category {
   updatedAt: string;
 }
 
+export interface Warehouse {
+  id: number;
+  name: string;
+  description?: string;
+  address?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Committee {
+  id: number;
+  name: string;
+  description?: string;
+  contactInfo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -53,6 +71,11 @@ export interface Product {
   minStockLevel: number;
   categoryId?: number;
   category?: Category;
+  warehouseId?: number;
+  warehouse?: Warehouse;
+  committeeId?: number;
+  committee?: Committee;
+  arrivalDate?: string;
   images: string[];
   createdAt: string;
   updatedAt: string;
@@ -67,6 +90,9 @@ export interface CreateProductDto {
   quantity: number;
   minStockLevel?: number;
   categoryId?: number;
+  warehouseId?: number;
+  committeeId?: number;
+  arrivalDate?: string;
   images?: string[];
 }
 
@@ -79,6 +105,9 @@ export interface UpdateProductDto {
   quantity?: number;
   minStockLevel?: number;
   categoryId?: number;
+  warehouseId?: number;
+  committeeId?: number;
+  arrivalDate?: string;
   images?: string[];
 }
 
@@ -103,6 +132,7 @@ export interface Sale {
   totalAmount: number;
   userId: number;
   user?: User;
+  soldAt?: string;
   createdAt: string;
 }
 
@@ -110,6 +140,7 @@ export interface CreateSaleDto {
   productId: number;
   quantity: number;
   salePrice?: number;
+  soldAt?: string; // Дата продажи (ISO string)
 }
 
 export interface SalesStatistics {
@@ -157,6 +188,45 @@ export interface ApiErrorResponse {
   error?: string;
   statusCode: number;
   validationErrors?: ValidationError[];
+}
+
+export interface AuditLog {
+  id: number;
+  userId?: number;
+  user?: User;
+  action: string;
+  entityType?: string;
+  entityId?: number;
+  oldValues?: any;
+  newValues?: any;
+  ipAddress?: string;
+  userAgent?: string;
+  success?: boolean;
+  createdAt: string;
+}
+
+export interface CreateWarehouseDto {
+  name: string;
+  description?: string;
+  address?: string;
+}
+
+export interface UpdateWarehouseDto {
+  name?: string;
+  description?: string;
+  address?: string;
+}
+
+export interface CreateCommitteeDto {
+  name: string;
+  description?: string;
+  contactInfo?: string;
+}
+
+export interface UpdateCommitteeDto {
+  name?: string;
+  description?: string;
+  contactInfo?: string;
 }
 
 

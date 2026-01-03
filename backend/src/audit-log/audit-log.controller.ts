@@ -1,0 +1,72 @@
+import { Controller, Get, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { AuditLogService } from './audit-log.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Role } from '../common/enums/role.enum';
+import { Type } from 'class-transformer';
+import { IsOptional, IsInt, IsString, IsDateString, Min } from 'class-validator';
+
+class QueryAuditLogDto {
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  userId?: number;
+
+  @IsString()
+  @IsOptional()
+  action?: string;
+
+  @IsString()
+  @IsOptional()
+  entityType?: string;
+
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
+
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
+
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  @IsOptional()
+  page?: number = 1;
+
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  @IsOptional()
+  limit?: number = 20;
+}
+
+@Controller('audit-logs')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.ADMIN)
+export class AuditLogController {
+  constructor(private readonly auditLogService: AuditLogService) {}
+
+  @Get()
+  async findAll(@Query() query: QueryAuditLogDto) {
+    const params: any = {
+      userId: query.userId,
+      action: query.action,
+      entityType: query.entityType,
+      page: query.page,
+      limit: query.limit,
+    };
+
+    if (query.startDate) {
+      params.startDate = new Date(query.startDate);
+    }
+
+    if (query.endDate) {
+      params.endDate = new Date(query.endDate);
+    }
+
+    return this.auditLogService.findAll(params);
+  }
+}
+

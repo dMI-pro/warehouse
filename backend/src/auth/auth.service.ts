@@ -1,16 +1,19 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, Inject, forwardRef } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { Role } from '../common/enums/role.enum';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    @Inject(forwardRef(() => AuditLogService))
+    private auditLogService?: AuditLogService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -59,7 +62,7 @@ export class AuthService {
     };
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, ipAddress?: string, userAgent?: string) {
     const { username, password } = loginDto;
 
     // Поиск пользователя
@@ -75,9 +78,33 @@ export class AuthService {
     // Проверка пароля (всегда выполняется для защиты от timing attacks)
     const isPasswordValid = await bcrypt.compare(password, hashToCompare);
 
+    // Логирование попытки входа
+    if (this.auditLogService) {
+      await this.auditLogService.create({
+        userId: user?.id,
+        action: 'login_attempt',
+        entityType: 'Auth',
+        success: !!(user && isPasswordValid),
+        ipAddress,
+        userAgent,
+      });
+    }
+
     // Проверяем существование пользователя и валидность пароля одновременно
     if (!user || !isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Логирование успешного входа
+    if (this.auditLogService) {
+      await this.auditLogService.create({
+        userId: user.id,
+        action: 'login',
+        entityType: 'Auth',
+        success: true,
+        ipAddress,
+        userAgent,
+      });
     }
 
     // Генерация JWT токена

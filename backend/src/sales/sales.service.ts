@@ -48,6 +48,7 @@ export class SalesService {
           quantity: createSaleDto.quantity,
           salePrice: salePrice,
           soldBy: userId,
+          soldAt: createSaleDto.soldAt || new Date(),
         },
         include: {
           product: {

@@ -8,6 +8,9 @@ import { UsersModule } from './users/users.module';
 import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
 import { SalesModule } from './sales/sales.module';
+import { WarehousesModule } from './warehouses/warehouses.module';
+import { CommitteesModule } from './committees/committees.module';
+import { AuditLogModule } from './audit-log/audit-log.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 @Module({
@@ -18,6 +21,9 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     ProductsModule,
     CategoriesModule,
     SalesModule,
+    WarehousesModule,
+    CommitteesModule,
+    AuditLogModule,
   ],
   controllers: [AppController],
   providers: [

@@ -5,6 +5,8 @@ import { createRouter, createWebHistory } from 'vue-router';
 import LoginView from '@/views/LoginView.vue';
 import { useAuthStore } from '@/stores/authStore';
 
+import { Role } from '@/types/api';
+
 describe('LoginView', () => {
   let router: ReturnType<typeof createRouter>;
   let pinia: ReturnType<typeof createPinia>;
@@ -64,7 +66,7 @@ describe('LoginView', () => {
         email: 'test@test.com',
         username: 'test',
         fullName: 'Test User',
-        role: 'GUEST' as const,
+        role: Role.GUEST as const,
         isSuperAdmin: false,
       },
     });

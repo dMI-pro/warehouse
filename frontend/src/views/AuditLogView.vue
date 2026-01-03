@@ -1,5 +1,5 @@
 <template>
-  <div class="audit-log">
+  <div class="audit-log" v-if="authStore.isAdmin || authStore.user?.isSuperAdmin">
     <h1 class="page-title">Журнал действий</h1>
 
     <!-- Фильтры -->
@@ -69,26 +69,30 @@
           :value="filteredLogs"
           :loading="loading"
           :paginator="true"
-          :rows="20"
+          :rows="pagination.limit"
+          :totalRecords="pagination.total"
+          :first="(pagination.page - 1) * pagination.limit"
           :rowsPerPageOptions="[20, 50, 100]"
           paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
           currentPageReportTemplate="{first} - {last} из {totalRecords}"
           :emptyMessage="loading ? 'Загрузка...' : 'Нет записей'"
           class="audit-table"
+          @page="onPageChange"
         >
           <Column header="Время" :sortable="true" style="width: 150px">
             <template #body="{ data }">
-              {{ formatDateTime(data.time) }}
+              {{ formatDateTime(data.createdAt) }}
             </template>
           </Column>
           <Column header="Пользователь" :sortable="true" style="width: 200px">
             <template #body="{ data }">
-              <div class="user-cell">
+              <div v-if="data.user" class="user-cell">
                 <div class="avatar-small" :style="{ backgroundColor: getAvatarColor(data.user.role) }">
                   {{ getInitials(data.user.fullName || data.user.username) }}
                 </div>
                 <span>{{ data.user.fullName || data.user.username }}</span>
               </div>
+              <span v-else>Система</span>
             </template>
           </Column>
           <Column header="Действие" :sortable="true">
@@ -96,6 +100,12 @@
               <div class="action-cell">
                 <i :class="getActionIcon(data.action)" :style="{ color: getActionColor(data.action) }"></i>
                 <span>{{ getActionLabel(data.action) }}</span>
+                <Tag
+                  v-if="data.success === false"
+                  value="Неудачно"
+                  severity="danger"
+                  style="margin-left: 0.5rem"
+                />
               </div>
             </template>
           </Column>
@@ -110,7 +120,7 @@
           <Column header="Подробности" style="width: 120px">
             <template #body="{ data }">
               <Button
-                v-if="data.details"
+                v-if="data.oldValues || data.newValues"
                 label="Показать"
                 icon="pi pi-eye"
                 severity="info"
@@ -144,21 +154,31 @@
           <h4>Время</h4>
           <p>{{ formatDateTime(selectedLog.time) }}</p>
         </div>
-        <div v-if="selectedLog.details" class="detail-section">
+        <div v-if="selectedLog.ipAddress || selectedLog.userAgent" class="detail-section">
+          <h4>Информация о подключении</h4>
+          <p v-if="selectedLog.ipAddress"><strong>IP адрес:</strong> {{ selectedLog.ipAddress }}</p>
+          <p v-if="selectedLog.userAgent"><strong>User Agent:</strong> {{ selectedLog.userAgent }}</p>
+        </div>
+        <div v-if="selectedLog.oldValues || selectedLog.newValues" class="detail-section">
           <h4>Изменения</h4>
           <div class="changes">
-            <div v-if="selectedLog.details.old" class="change-item">
+            <div v-if="selectedLog.oldValues" class="change-item">
               <strong>Было:</strong>
-              <pre>{{ JSON.stringify(selectedLog.details.old, null, 2) }}</pre>
+              <pre>{{ JSON.stringify(selectedLog.oldValues, null, 2) }}</pre>
             </div>
-            <div v-if="selectedLog.details.new" class="change-item">
+            <div v-if="selectedLog.newValues" class="change-item">
               <strong>Стало:</strong>
-              <pre>{{ JSON.stringify(selectedLog.details.new, null, 2) }}</pre>
+              <pre>{{ JSON.stringify(selectedLog.newValues, null, 2) }}</pre>
             </div>
           </div>
         </div>
       </div>
     </Dialog>
+  </div>
+  <div v-else class="audit-log">
+    <Message severity="error" :closable="false">
+      У вас нет доступа к этой странице. Только администраторы могут просматривать журнал действий.
+    </Message>
   </div>
 </template>
 
@@ -172,15 +192,27 @@ import Calendar from 'primevue/calendar';
 import Dropdown from 'primevue/dropdown';
 import AutoComplete from 'primevue/autocomplete';
 import Dialog from 'primevue/dialog';
+import Tag from 'primevue/tag';
+import Message from 'primevue/message';
 import { useUsersStore } from '@/stores/usersStore';
-import type { User, Role } from '@/types/api';
+import { useAuthStore } from '@/stores/authStore';
+import { apiService } from '@/services/api';
+import type { User, Role, AuditLog, PaginatedResponse } from '@/types/api';
 
 const usersStore = useUsersStore();
+const authStore = useAuthStore();
 const loading = ref(false);
 const selectedUser = ref<User | null>(null);
 const userSuggestions = ref<User[]>([]);
 const detailsDialogVisible = ref(false);
-const selectedLog = ref<any>(null);
+const selectedLog = ref<AuditLog | null>(null);
+const auditLogs = ref<AuditLog[]>([]);
+const pagination = ref({
+  total: 0,
+  page: 1,
+  limit: 20,
+  totalPages: 0,
+});
 
 const filters = reactive({
   actionType: null as string | null,
@@ -190,6 +222,8 @@ const filters = reactive({
 
 const actionTypeOptions = [
   { label: 'Все типы', value: null },
+  { label: 'Вход в систему', value: 'login' },
+  { label: 'Попытка входа', value: 'login_attempt' },
   { label: 'Создание товара', value: 'product.create' },
   { label: 'Обновление товара', value: 'product.update' },
   { label: 'Удаление товара', value: 'product.delete' },
@@ -198,66 +232,47 @@ const actionTypeOptions = [
   { label: 'Обновление пользователя', value: 'user.update' },
 ];
 
-// Моковые данные для журнала
-const auditLogs = ref([
-  {
-    id: 1,
-    time: new Date().toISOString(),
-    user: { id: 1, username: 'admin', fullName: 'Администратор', role: 'ADMIN' as Role },
-    action: 'product.create',
-    entityType: 'Товар',
-    entityId: 123,
-    details: {
-      old: null,
-      new: { name: 'Новый товар', price: 1000 },
-    },
-  },
-  {
-    id: 2,
-    time: new Date(Date.now() - 3600000).toISOString(),
-    user: { id: 2, username: 'seller1', fullName: 'Иван Иванов', role: 'SELLER' as Role },
-    action: 'sale.create',
-    entityType: 'Продажа',
-    entityId: 456,
-    details: {
-      old: null,
-      new: { quantity: 5, total: 5000 },
-    },
-  },
-  {
-    id: 3,
-    time: new Date(Date.now() - 7200000).toISOString(),
-    user: { id: 3, username: 'manager1', fullName: 'Петр Петров', role: 'MANAGER' as Role },
-    action: 'product.update',
-    entityType: 'Товар',
-    entityId: 123,
-    details: {
-      old: { price: 1000 },
-      new: { price: 1200 },
-    },
-  },
-]);
+const fetchAuditLogs = async () => {
+  loading.value = true;
+  try {
+    const params: any = {
+      page: pagination.value.page,
+      limit: pagination.value.limit,
+    };
+
+    if (selectedUser.value) {
+      params.userId = selectedUser.value.id;
+    }
+
+    if (filters.actionType) {
+      params.action = filters.actionType;
+    }
+
+    if (filters.startDate) {
+      params.startDate = filters.startDate.toISOString().split('T')[0];
+    }
+
+    if (filters.endDate) {
+      params.endDate = filters.endDate.toISOString().split('T')[0];
+    }
+
+    const response: PaginatedResponse<AuditLog> = await apiService.getAuditLogs(params);
+    auditLogs.value = response.data;
+    pagination.value = {
+      total: response.meta.total,
+      page: response.meta.page,
+      limit: response.meta.limit,
+      totalPages: response.meta.totalPages,
+    };
+  } catch (error) {
+    console.error('Failed to load audit logs', error);
+  } finally {
+    loading.value = false;
+  }
+};
 
 const filteredLogs = computed(() => {
-  let logs = auditLogs.value;
-
-  if (selectedUser.value) {
-    logs = logs.filter((log) => log.user.id === selectedUser.value!.id);
-  }
-
-  if (filters.actionType) {
-    logs = logs.filter((log) => log.action === filters.actionType);
-  }
-
-  if (filters.startDate) {
-    logs = logs.filter((log) => new Date(log.time) >= filters.startDate!);
-  }
-
-  if (filters.endDate) {
-    logs = logs.filter((log) => new Date(log.time) <= filters.endDate!);
-  }
-
-  return logs;
+  return auditLogs.value;
 });
 
 const formatDateTime = (dateString: string) => {
@@ -272,6 +287,8 @@ const formatDateTime = (dateString: string) => {
 
 const getActionIcon = (action: string): string => {
   const iconMap: Record<string, string> = {
+    'login': 'pi pi-sign-in',
+    'login_attempt': 'pi pi-exclamation-triangle',
     'product.create': 'pi pi-plus-circle',
     'product.update': 'pi pi-pencil',
     'product.delete': 'pi pi-trash',
@@ -284,6 +301,8 @@ const getActionIcon = (action: string): string => {
 
 const getActionColor = (action: string): string => {
   const colorMap: Record<string, string> = {
+    'login': '#52c41a',
+    'login_attempt': '#ff4d4f',
     'product.create': '#52c41a',
     'product.update': '#1890ff',
     'product.delete': '#ff4d4f',
@@ -296,6 +315,8 @@ const getActionColor = (action: string): string => {
 
 const getActionLabel = (action: string): string => {
   const labelMap: Record<string, string> = {
+    'login': 'Вход в систему',
+    'login_attempt': 'Попытка входа',
     'product.create': 'Создание товара',
     'product.update': 'Обновление товара',
     'product.delete': 'Удаление товара',
@@ -335,11 +356,12 @@ const searchUsers = (event: any) => {
   );
 };
 
-const applyFilters = () => {
-  // Фильтры применяются через computed свойство
+const applyFilters = async () => {
+  pagination.value.page = 1;
+  await fetchAuditLogs();
 };
 
-const showDetails = (log: any) => {
+const showDetails = (log: AuditLog) => {
   selectedLog.value = log;
   detailsDialogVisible.value = true;
 };
@@ -349,8 +371,16 @@ const viewEntity = (log: any) => {
   console.log('View entity:', log);
 };
 
-onMounted(() => {
-  usersStore.fetchUsers();
+const onPageChange = async (event: any) => {
+  pagination.value.page = event.page + 1;
+  await fetchAuditLogs();
+};
+
+onMounted(async () => {
+  if (authStore.isAdmin || authStore.user?.isSuperAdmin) {
+    await usersStore.fetchUsers();
+    await fetchAuditLogs();
+  }
 });
 </script>
 
