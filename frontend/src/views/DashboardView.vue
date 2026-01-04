@@ -32,8 +32,13 @@
           </div>
           <div class="low-stock-content">
             <div class="stat-item">
-              <div class="stat-label">Товаров с низким запасом:</div>
-              <div class="stat-value warning">{{ lowStockCount }}</div>
+              <div class="stat-label">
+                Товаров с низким запасом:
+                <span class="stat-value warning">{{ lowStockProducts.length }}</span>
+              </div>
+              <div class="stats__container">
+                <Tag v-for="product of lowStockProducts" :value="product.name" severity="info"/>
+              </div>
             </div>
             <Button
               label="Просмотреть"
@@ -125,8 +130,13 @@
           </div>
           <div class="long-storage-content">
             <div class="stat-item">
-              <div class="stat-label">Товаров на складе более 90 дней:</div>
-              <div class="stat-value warning">{{ longStorageCount }}</div>
+              <div class="stat-label">
+                Товаров на складе более 90 дней:
+                <span class="stat-value warning">{{ longStorageProducts.length }}</span>
+              </div>
+              <div class="stats__container">
+                <Tag v-for="product of longStorageProducts" :value="product.name" severity="info"/>
+              </div>
             </div>
             <Button
               label="Просмотреть"
@@ -183,6 +193,7 @@ import {
 } from 'echarts/components';
 import VChart from 'vue-echarts';
 import Card from 'primevue/card';
+import Tag from 'primevue/tag';
 import Button from 'primevue/button';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
@@ -211,8 +222,8 @@ const stats = ref({
   totalProducts: 0,
   totalValue: 0,
 });
-const lowStockCount = ref(0);
-const longStorageCount = ref(0);
+const lowStockProducts = ref(0);
+const longStorageProducts = ref(0);
 const recentActions = ref<Array<{ user: string; action: string; time: string }>>([]);
 const recentSales = ref<Array<{ productName: string; quantity: number; amount: number }>>([]);
 const newArrivals = ref<Array<{ name: string; quantity: number; arrivalDate: string }>>([]);
@@ -345,7 +356,11 @@ const loadStats = async () => {
   try {
     // Загружаем товары для статистики
     const productsData = await apiService.getProducts({ limit: 10 });
-    stats.value.totalProducts = productsData.meta?.total || 0;
+
+    // считаем общее количество товаров
+    stats.value.totalProducts = productsData.data.reduce((sum, product: Product) => {
+      return sum + product.quantity;
+    }, 0);
 
     // Вычисляем общую стоимость товаров
     let totalValue = 0;
@@ -356,9 +371,9 @@ const loadStats = async () => {
 
     // Подсчитываем товары с низким запасом
     // Показываем только товары, у которых minStockLevel > 0 и quantity < minStockLevel
-    lowStockCount.value = productsData.data.filter(
+    lowStockProducts.value = productsData.data.filter(
       (product: Product) => product.minStockLevel > 0 && product.quantity < product.minStockLevel
-    ).length;
+    );
 
     // Загружаем продажи для графика
     const endDate = new Date();
@@ -403,10 +418,10 @@ const loadStats = async () => {
     // Подсчитываем долгохранящиеся товары (на складе более 90 дней)
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    longStorageCount.value = productsData.data.filter((product: Product) => {
+    longStorageProducts.value = productsData.data.filter((product: Product) => {
       const arrivalDate = product.arrivalDate ? new Date(product.arrivalDate) : new Date(product.createdAt);
       return arrivalDate < ninetyDaysAgo && product.quantity > 0;
-    }).length;
+    });
 
     // Формируем список последних действий из продаж
     recentActions.value = salesResponse.data.slice(0, 10).map((sale: Sale) => ({
@@ -493,7 +508,7 @@ onMounted(() => {
 .stat-item {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
 }
 
 .stat-label {
@@ -508,10 +523,19 @@ onMounted(() => {
 }
 
 .stat-value.warning {
+  padding-left: 2px;
   color: var(--orange-500);
 }
 
-.low-stock-content {
+.stats__container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.low-stock-content,
+.long-storage-content {
   display: flex;
   flex-direction: column;
   gap: 1rem;

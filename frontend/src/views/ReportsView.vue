@@ -446,8 +446,10 @@ const updateChart = async () => {
     const sortedDates = Object.keys(salesByDate).sort();
     
     const dates = sortedDates.map(dateStr => {
-      const date = new Date(dateStr);
-      return `${date.getDate()}.${date.getMonth() + 1}`;
+      return new Intl.DateTimeFormat('ru-RU', {
+        day: '2-digit',
+        month: '2-digit'
+      }).format(new Date(dateStr));
     });
     
     const revenues = sortedDates.map(date => salesByDate[date].revenue);
@@ -477,7 +479,7 @@ const updateChart = async () => {
       grid: {
         left: '3%',
         right: '4%',
-        bottom: '3%',
+        bottom: '40px',
         containLabel: true,
       },
       xAxis: {
