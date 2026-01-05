@@ -54,9 +54,9 @@
                       v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
                       icon="pi pi-pencil"
                       severity="info"
-                      text
-                      rounded
                       size="small"
+                      outlined
+                      rounded
                       v-tooltip.top="'Редактировать'"
                       @click.stop="openEditCategoryDialog(node.data)"
                     />
@@ -64,9 +64,9 @@
                       v-if="authStore.isAdmin"
                       icon="pi pi-trash"
                       severity="danger"
-                      text
-                      rounded
                       size="small"
+                      outlined
+                      rounded
                       v-tooltip.top="'Удалить'"
                       @click.stop="confirmDeleteCategory(node.data)"
                     />
@@ -111,7 +111,8 @@
                       v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
                       icon="pi pi-pencil"
                       severity="info"
-                      text
+                      size="small"
+                      outlined
                       rounded
                       v-tooltip.top="'Редактировать'"
                       @click="openEditWarehouseDialog(data)"
@@ -120,7 +121,8 @@
                       v-if="authStore.isAdmin"
                       icon="pi pi-trash"
                       severity="danger"
-                      text
+                      size="small"
+                      outlined
                       rounded
                       v-tooltip.top="'Удалить'"
                       @click="confirmDeleteWarehouse(data)"
@@ -166,16 +168,19 @@
                       v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
                       icon="pi pi-pencil"
                       severity="info"
-                      text
+                      size="small"
+                      outlined
                       rounded
                       v-tooltip.top="'Редактировать'"
                       @click="openEditCommitteeDialog(data)"
                     />
                     <Button
                       v-if="authStore.isAdmin"
+                      class="p-button-xs"
                       icon="pi pi-trash"
                       severity="danger"
-                      text
+                      size="small"
+                      outlined
                       rounded
                       v-tooltip.top="'Удалить'"
                       @click="confirmDeleteCommittee(data)"
@@ -211,7 +216,8 @@
                       <Button
                         icon="pi pi-trash"
                         severity="danger"
-                        text
+                        size="small"
+                        outlined
                         rounded
                         @click="deleteField(data.id)"
                       />
@@ -279,8 +285,20 @@
                 <Column field="format" header="Формат" />
                 <Column header="Действия" style="width: 100px">
                   <template #body="{ data }">
-                    <Button icon="pi pi-pencil" severity="info" text rounded @click="editTemplate(data)" />
-                    <Button icon="pi pi-trash" severity="danger" text rounded @click="deleteTemplate(data.id)" />
+                    <Button
+                      icon="pi pi-pencil"
+                      severity="info"
+                      size="small"
+                      outlined
+                      rounded
+                      @click="editTemplate(data)" />
+                    <Button
+                      icon="pi pi-trash"
+                      severity="danger" 
+                      size="small"
+                      outlined
+                      rounded
+                      @click="deleteTemplate(data.id)" />
                   </template>
                 </Column>
               </DataTable>

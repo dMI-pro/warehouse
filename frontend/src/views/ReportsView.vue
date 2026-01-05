@@ -131,7 +131,7 @@
             <div ref="mainChartRef" class="chart-container"></div>
           </template>
         </Card>
-
+        
         <!-- Таблица -->
         <Card>
           <template #title>Детализация отчета</template>
@@ -147,6 +147,7 @@
               :emptyMessage="salesStore.loading ? 'Загрузка...' : 'Нет данных'"
               class="report-table"
             >
+              <!-- Динамические колонки данных -->
               <Column
                 v-for="column in tableColumns"
                 :key="column.field"
@@ -164,6 +165,37 @@
                   <template v-else>
                     {{ data[column.field] }}
                   </template>
+                </template>
+              </Column>
+
+              <Column header="Действия" :exportable="false" style="min-width: 8rem">
+                <template #body="{ data }">
+                  <div class="report-table__actions">
+                    <!-- Редактировать: только для ADMIN -->
+                    <Button 
+                      v-if="authStore.hasRole(Role.ADMIN)"
+                      class="p-button-xs"
+                      icon="pi pi-pencil"
+                      severity="info"
+                      size="small"
+                      outlined
+                      rounded
+                      v-tooltip.top="'Редактировать'"
+                      @click="editItem(data)" 
+                    />
+                    
+                    <!-- Удалить: для ADMIN и MANAGER -->
+                    <Button
+                      class="p-button-xs"
+                      icon="pi pi-trash"
+                      size="small"
+                      outlined 
+                      rounded 
+                      severity="danger"
+                      v-tooltip.top="'Удалить'"
+                      @click="deleteItem(data)" 
+                    />
+                  </div>
                 </template>
               </Column>
             </DataTable>
@@ -187,8 +219,10 @@ import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import { useSalesStore } from '@/stores/salesStore';
 import { useProductsStore } from '@/stores/productsStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useToast } from 'primevue/usetoast';
 import type { Sale, Product } from '@/types/api';
+import { Role } from '@/types/api';
 
 // Типы для нормализованных данных
 interface NormalizedSale {
@@ -230,11 +264,19 @@ interface CalculatedStats {
 
 const salesStore = useSalesStore();
 const productsStore = useProductsStore();
+const authStore = useAuthStore();
 const toast = useToast();
 
 const reportType = ref<'sales' | 'stock' | 'movement'>('sales');
 const mainChartRef = ref<HTMLDivElement | null>(null);
 let mainChart: echarts.ECharts | null = null;
+
+// Предположим, роль берется из вашего store
+// const userRole = computed(() => authStore.user?.role); 
+// const userRole = 'ADMIN'; // Для теста: 'ADMIN' или 'MANAGER'
+const userRole = authStore.hasRole(Role.MANAGER)
+console.log('userRole:', userRole);
+
 
 const filters = reactive({
   startDate: null as Date | null,
@@ -243,7 +285,7 @@ const filters = reactive({
 
 const exportFormat = ref<'excel' | 'csv'>('csv');
 const exportFormats = [
-  { label: 'Excel', value: 'excel' },
+  // { label: 'Excel', value: 'excel' },
   { label: 'CSV', value: 'csv' },
 ];
 
@@ -337,11 +379,9 @@ const tableColumns = computed<ReportColumn[]>(() => {
       { field: 'id', header: 'ID чека', sortable: true },
       { field: 'productName', header: 'Товар', sortable: true },
       { field: 'quantity', header: 'Количество', sortable: true },
-      { field: 'salePrice', header: 'Цена продажи', sortable: true, format: 'price' },
-      { field: 'purchasePrice', header: 'Цена закупки', sortable: true, format: 'price' },
       { field: 'totalAmount', header: 'Сумма продажи', sortable: true, format: 'price' },
       { field: 'totalProfit', header: 'Прибыль', sortable: true, format: 'price' },
-      { field: 'seller', header: 'Продавец', sortable: false },
+      { field: 'seller', header: 'Продавец', sortable: true },
       { field: 'date', header: 'Дата', sortable: true, format: 'date' },
     ];
   } else if (reportType.value === 'stock') {
@@ -359,11 +399,22 @@ const tableColumns = computed<ReportColumn[]>(() => {
       { field: 'productName', header: 'Товар', sortable: true },
       { field: 'quantity', header: 'Количество', sortable: true },
       { field: 'totalAmount', header: 'Сумма', sortable: true, format: 'price' },
-      { field: 'seller', header: 'Продавец', sortable: false },
+      { field: 'seller', header: 'Продавец', sortable: true },
       { field: 'date', header: 'Дата', sortable: true, format: 'date' },
     ];
   }
 });
+
+// Ваши методы
+const editItem = (item: any) => {
+  console.log('Редактирование записи:', item.id);
+};
+
+const deleteItem = (item: any) => {
+  if (confirm(`Вы уверены, что хотите удалить запись ${item.id}?`)) {
+    console.log('Удаление записи:', item.id);
+  }
+};
 
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('ru-RU', {
@@ -762,6 +813,11 @@ onMounted(async () => {
 
 .report-table {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.report-table__actions {
+  display: flex;
+  gap: 8px;
 }
 
 @media (max-width: 1200px) {

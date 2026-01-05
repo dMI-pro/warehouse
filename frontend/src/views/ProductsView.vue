@@ -15,6 +15,7 @@
           icon="pi pi-file-excel"
           severity="secondary"
           outlined
+          disabled
           @click="exportToExcel"
         />
         <Button
@@ -41,7 +42,6 @@
             </div>
           </div>
           <div class="filter-item">
-            <label for="category" class="filter-label">Категория</label>
             <Dropdown
               id="category"
               v-model="selectedCategory"
@@ -54,7 +54,6 @@
             />
           </div>
           <div class="filter-item">
-            <label for="warehouse" class="filter-label">Склад</label>
             <Dropdown
               id="warehouse"
               v-model="selectedWarehouse"
@@ -67,7 +66,6 @@
             />
           </div>
           <div class="filter-item">
-            <label for="committee" class="filter-label">Коммитет</label>
             <Dropdown
               id="committee"
               v-model="selectedCommittee"
@@ -161,7 +159,8 @@
                 <Button
                   icon="pi pi-pencil"
                   severity="info"
-                  text
+                  size="small"
+                  outlined
                   rounded
                   v-tooltip.top="'Редактировать'"
                   @click="openEditDialog(data)"
@@ -169,7 +168,8 @@
                 <Button
                   icon="pi pi-trash"
                   severity="danger"
-                  text
+                  size="small"
+                  outlined
                   rounded
                   v-tooltip.top="'Удалить'"
                   @click="confirmDelete(data)"
@@ -177,7 +177,8 @@
                 <Button
                   icon="pi pi-shopping-cart"
                   severity="success"
-                  text
+                  size="small"
+                  outlined
                   rounded
                   v-tooltip.top="'Продать'"
                   @click="openSaleDialog(data)"
@@ -1036,11 +1037,6 @@ onMounted(async () => {
   gap: 0.5rem;
 }
 
-.filter-label {
-  font-weight: 500;
-  font-size: 0.875rem;
-}
-
 .product-image {
   width: 60px;
   height: 60px;
@@ -1110,6 +1106,9 @@ onMounted(async () => {
 }
 
 .tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   padding: 1rem 0;
   min-height: 300px;
 }

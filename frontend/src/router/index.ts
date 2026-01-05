@@ -38,12 +38,6 @@ const router = createRouter({
           component: () => import('@/views/ProductsView.vue'),
         },
         {
-          path: 'users',
-          name: 'users',
-          component: () => import('@/views/UsersView.vue'),
-          meta: { requiredRole: Role.ADMIN },
-        },
-        {
           path: 'reports',
           name: 'reports',
           component: () => import('@/views/ReportsView.vue'),
@@ -53,12 +47,18 @@ const router = createRouter({
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/SettingsView.vue'),
-          meta: { requiredRole: Role.ADMIN },
+          meta: { requiredRole: Role.MANAGER },
         },
         {
           path: 'audit-log',
           name: 'audit-log',
           component: () => import('@/views/AuditLogView.vue'),
+          meta: { requiredRole: Role.ADMIN },
+        },
+        {
+          path: 'users',
+          name: 'users',
+          component: () => import('@/views/UsersView.vue'),
           meta: { requiredRole: Role.ADMIN },
         },
       ],
