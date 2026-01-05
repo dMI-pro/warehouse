@@ -544,6 +544,7 @@ const saleDialogVisible = ref(false);
 const editingProduct = ref<Product | null>(null);
 const selectedProduct = ref<Product | null>(null);
 const selectedProducts = ref<Product[]>([]);
+const pendingFiles = ref<File[]>([]);
 
 const productForm = reactive<CreateProductDto & { images?: string[]; arrivalDate?: Date }>({
   name: '',
@@ -824,6 +825,9 @@ const handleImageSelect = async (event: any) => {
         }
       } else {
         // Для нового товара сохраняем файлы для загрузки после создания
+        pendingFiles.value.push(file);
+        
+        // Создаем превью
         const reader = new FileReader();
         reader.onload = (e) => {
           if (e.target?.result && typeof e.target.result === 'string') {
@@ -853,6 +857,9 @@ const removeImage = async (index: number) => {
     }
   } else {
     productForm.images?.splice(index, 1);
+    if (pendingFiles.value.length > index) {
+      pendingFiles.value.splice(index, 1);
+    }
   }
 };
 
@@ -861,6 +868,13 @@ const setMainImage = (index: number) => {
     const image = productForm.images[index];
     productForm.images.splice(index, 1);
     productForm.images.unshift(image);
+    
+    // Если есть отложенные файлы (при создании), меняем их порядок тоже
+    if (pendingFiles.value.length > index && pendingFiles.value.length === productForm.images.length) {
+      const file = pendingFiles.value[index];
+      pendingFiles.value.splice(index, 1);
+      pendingFiles.value.unshift(file);
+    }
   }
 };
 
@@ -1187,6 +1201,22 @@ onMounted(async () => {
   margin-top: 1rem;
 }
 
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .filters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
