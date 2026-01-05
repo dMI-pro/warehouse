@@ -2,7 +2,7 @@
   <div class="layout-wrapper">
     <Menubar :model="menuItems" class="main-menu">
       <template #start>
-        <div class="logo">Warehouse</div>
+        <div class="logo">Склад Анти...</div>
       </template>
       <template #end>
         <div class="user-info">
@@ -63,14 +63,14 @@ const menuItems = computed(() => {
       icon: 'pi pi-cog',
       command: () => router.push({ name: 'settings' }),
     });
+  }
+
+  if (authStore.isAdmin) {
     items.push({
       label: 'Журнал действий',
       icon: 'pi pi-history',
       command: () => router.push({ name: 'audit-log' }),
     });
-  }
-
-  if (authStore.isAdmin) {
     items.push({
       label: 'Пользователи',
       icon: 'pi pi-users',
