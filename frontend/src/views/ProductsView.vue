@@ -228,18 +228,26 @@
                   {{ (productForm.description || '').length }}/1000 символов
                 </small>
               </div>
-
+              
               <div class="field">
                 <label for="categoryId" class="label">Категория</label>
                 <Dropdown
                   id="categoryId"
                   v-model="productForm.categoryId"
-                  :options="categoryOptions"
+                  :options="categoriesStore.flatCategoriesLabels"
                   optionLabel="label"
                   optionValue="value"
                   placeholder="Выберите категорию"
                   class="w-full"
                 />
+                <!-- <TreeSelect
+                  id="categoryId"
+                  v-model="productForm.categoryId"
+                  :options="categoriesStore.categoriesTreePrimeVue"
+                  placeholder="Выберите категорию"
+                  class="w-full"
+                  selectionMode="single"
+                /> -->
               </div>
 
               <div class="field">
@@ -513,6 +521,7 @@ import ConfirmDialog from 'primevue/confirmdialog';
 import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
 import Calendar from 'primevue/calendar';
+import TreeSelect from 'primevue/treeselect';
 import { useProductsStore } from '@/stores/productsStore';
 import { useCategoriesStore } from '@/stores/categoriesStore';
 import { useSalesStore } from '@/stores/salesStore';
@@ -581,6 +590,7 @@ const saleFormErrors = reactive({
 
 const categoryOptions = computed(() => {
   const options = [{ label: 'Все категории', value: null }];
+
   categoriesStore.categories.forEach((cat) => {
     options.push({ label: cat.name, value: cat.id });
   });
@@ -613,8 +623,22 @@ const sortOptions = [
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const getImageUrl = (imagePath: string) => {
+  // if (imagePath.startsWith('http')) return imagePath;
+  // return `${API_BASE_URL}${imagePath}`;
+
+  if (!imagePath) return '';
+  
+  // Если это уже полный URL
   if (imagePath.startsWith('http')) return imagePath;
-  return `${API_BASE_URL}${imagePath}`;
+  
+  // Если это относительный путь
+  if (imagePath.startsWith('/uploads/')) {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    return `${API_BASE_URL}${imagePath}`;
+  }
+  
+  // Если это просто имя файла (для новых загрузок)
+  return imagePath;
 };
 
 const formatPrice = (price: number) => {

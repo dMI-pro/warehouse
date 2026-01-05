@@ -40,7 +40,7 @@
               {{ categoriesStore.error }}
             </Message>
             <Tree
-              :value="categoryTree"
+              :value="categoriesStore.categoriesTreePrimeVue"
               :expandedKeys="expandedKeys"
               @node-expand="onNodeExpand"
               @node-collapse="onNodeCollapse"
@@ -601,25 +601,6 @@ const currencies = [
   { label: 'Доллар США ($)', value: 'USD' },
   { label: 'Евро (€)', value: 'EUR' },
 ];
-
-const categoryTree = computed(() => {
-  const allCategories = categoriesStore.categories || [];
-
-  const buildTree = (categories: Category[], pId: number | null = null): any[] => {
-    return categories
-      .filter((cat) => (cat.parentId ?? null) == (pId ?? null))
-      .map((cat) => {
-        return {
-          key: String(cat.id),     // Ключ для PrimeVue
-          label: cat.name,         // Заголовок для PrimeVue
-          data: cat,               // Оригинальный объект (для диалогов редактирования)
-          children: cat.children ? buildTree(cat.children, cat.id) : null
-        };
-      });
-  };
-
-  return buildTree(allCategories);
-});
 
 const parentCategoryOptions = computed(() => {
   const options = [{ label: 'Нет родительской категории', value: undefined }];
