@@ -28,7 +28,45 @@ export const useCategoriesStore = defineStore('categories', () => {
       }
     });
 
-    return roots;
+    return roots
+  });
+
+  // возвращает дерево со вложенной структурой .children
+  const categoriesTreePrimeVue = computed(() => {
+    const buildTree = (categories: Category[], pId: number | null = null): any[] => {
+      return categories
+        .filter((cat) => (cat.parentId ?? null) == (pId ?? null))
+        .map((cat) => {
+          return {
+            key: String(cat.id),     // Ключ для PrimeVue
+            label: cat.name,         // Заголовок для PrimeVue
+            data: cat,               // Оригинальный объект (для диалогов редактирования)
+            children: cat.children ? buildTree(cat.children, cat.id) : null
+          };
+        });
+    };
+
+  return buildTree(categories.value);
+  });
+
+  // возвращает дерево категорий (в списком списке) с отступом и -
+  // Картины
+  // — Картины Пейзаж
+  const flatCategoriesLabels = computed(() => {
+    const flatten = (cats: Category[], level = 0): any[] => {
+      let result: any[] = [];
+      cats.forEach(cat => {
+        result.push({
+          label: `${'— '.repeat(level)}${cat.name}`,
+          value: cat.id
+        });
+        if (cat.children) {
+          result.push(...flatten(cat.children, level + 1));
+        }
+      });
+      return result;
+    };
+    return flatten(categories.value);
   });
 
   const fetchCategories = async () => {
@@ -91,6 +129,8 @@ export const useCategoriesStore = defineStore('categories', () => {
   return {
     categories,
     categoriesTree,
+    categoriesTreePrimeVue,
+    flatCategoriesLabels,
     loading,
     error,
     fetchCategories,

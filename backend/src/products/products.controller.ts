@@ -80,6 +80,10 @@ export class ProductsController {
           if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });
           }
+
+          console.log('Current working directory:', process.cwd());
+          console.log('Upload path:', uploadPath);
+
           cb(null, uploadPath);
         },
         filename: (req, file, cb) => {

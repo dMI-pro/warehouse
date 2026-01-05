@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ConflictException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -21,7 +27,9 @@ export class ProductsService {
     });
 
     if (existingProduct) {
-      throw new ConflictException(`Product with SKU ${createProductDto.sku} already exists`);
+      throw new ConflictException(
+        `Product with SKU ${createProductDto.sku} already exists`,
+      );
     }
 
     // Проверка существования категории, если указана
@@ -31,7 +39,9 @@ export class ProductsService {
       });
 
       if (!category) {
-        throw new NotFoundException(`Category with ID ${createProductDto.categoryId} not found`);
+        throw new NotFoundException(
+          `Category with ID ${createProductDto.categoryId} not found`,
+        );
       }
     }
 
@@ -42,7 +52,9 @@ export class ProductsService {
       });
 
       if (!warehouse) {
-        throw new NotFoundException(`Warehouse with ID ${createProductDto.warehouseId} not found`);
+        throw new NotFoundException(
+          `Warehouse with ID ${createProductDto.warehouseId} not found`,
+        );
       }
     }
 
@@ -53,7 +65,9 @@ export class ProductsService {
       });
 
       if (!committee) {
-        throw new NotFoundException(`Committee with ID ${createProductDto.committeeId} not found`);
+        throw new NotFoundException(
+          `Committee with ID ${createProductDto.committeeId} not found`,
+        );
       }
     }
 
@@ -83,7 +97,14 @@ export class ProductsService {
   }
 
   async findAll(query: QueryProductsDto) {
-    const { search, category, warehouse, committee, page = 1, limit = 10 } = query;
+    const {
+      search,
+      category,
+      warehouse,
+      committee,
+      page = 1,
+      limit = 10,
+    } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.ProductWhereInput = {};
@@ -157,7 +178,11 @@ export class ProductsService {
     return product;
   }
 
-  async update(id: number, updateProductDto: UpdateProductDto, userId?: number) {
+  async update(
+    id: number,
+    updateProductDto: UpdateProductDto,
+    userId?: number,
+  ) {
     // Проверка существования товара
     const oldProduct = await this.prisma.product.findUnique({
       where: { id },
@@ -179,40 +204,57 @@ export class ProductsService {
       });
 
       if (existingProduct) {
-        throw new ConflictException(`Product with SKU ${updateProductDto.sku} already exists`);
+        throw new ConflictException(
+          `Product with SKU ${updateProductDto.sku} already exists`,
+        );
       }
     }
 
     // Проверка существования категории, если она изменяется
-    if (updateProductDto.categoryId !== undefined && updateProductDto.categoryId !== null) {
+    if (
+      updateProductDto.categoryId !== undefined &&
+      updateProductDto.categoryId !== null
+    ) {
       const category = await this.prisma.category.findUnique({
         where: { id: updateProductDto.categoryId },
       });
 
       if (!category) {
-        throw new NotFoundException(`Category with ID ${updateProductDto.categoryId} not found`);
+        throw new NotFoundException(
+          `Category with ID ${updateProductDto.categoryId} not found`,
+        );
       }
     }
 
     // Проверка существования склада, если он изменяется
-    if (updateProductDto.warehouseId !== undefined && updateProductDto.warehouseId !== null) {
+    if (
+      updateProductDto.warehouseId !== undefined &&
+      updateProductDto.warehouseId !== null
+    ) {
       const warehouse = await this.prisma.warehouse.findUnique({
         where: { id: updateProductDto.warehouseId },
       });
 
       if (!warehouse) {
-        throw new NotFoundException(`Warehouse with ID ${updateProductDto.warehouseId} not found`);
+        throw new NotFoundException(
+          `Warehouse with ID ${updateProductDto.warehouseId} not found`,
+        );
       }
     }
 
     // Проверка существования коммитета, если он изменяется
-    if (updateProductDto.committeeId !== undefined && updateProductDto.committeeId !== null) {
+    if (
+      updateProductDto.committeeId !== undefined &&
+      updateProductDto.committeeId !== null
+    ) {
       const committee = await this.prisma.committee.findUnique({
         where: { id: updateProductDto.committeeId },
       });
 
       if (!committee) {
-        throw new NotFoundException(`Committee with ID ${updateProductDto.committeeId} not found`);
+        throw new NotFoundException(
+          `Committee with ID ${updateProductDto.committeeId} not found`,
+        );
       }
     }
 
@@ -282,7 +324,7 @@ export class ProductsService {
     });
   }
 
-  async addImage(id: number, imageUrl: string,  thumbnailUrl: string) {
+  async addImage(id: number, imageUrl: string, thumbnailUrl: string) {
     const product = await this.prisma.product.findUnique({
       where: { id },
     });
@@ -315,7 +357,9 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    const updatedImages = (product.images || []).filter((img) => img !== imageUrl);
+    const updatedImages = (product.images || []).filter(
+      (img) => img !== imageUrl,
+    );
 
     return this.prisma.product.update({
       where: { id },
@@ -330,4 +374,3 @@ export class ProductsService {
     });
   }
 }
-
