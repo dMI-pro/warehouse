@@ -803,9 +803,26 @@ const saveProduct = async () => {
         warehouseId: productForm.warehouseId,
         committeeId: productForm.committeeId,
         arrivalDate: productForm.arrivalDate ? productForm.arrivalDate.toISOString() : undefined,
-        images: productForm.images,
+        images: [], // Images are uploaded separately
       };
-      await productsStore.createProduct(createDto);
+      const createdProduct = await productsStore.createProduct(createDto);
+      
+      // Upload pending images
+      if (pendingFiles.value.length > 0) {
+        let uploadedCount = 0;
+        for (const file of pendingFiles.value) {
+          try {
+            await productsStore.uploadImage(createdProduct.id, file);
+            uploadedCount++;
+          } catch (err) {
+            console.error('Error uploading image:', err);
+          }
+        }
+        if (uploadedCount < pendingFiles.value.length) {
+          toast.add({ severity: 'warn', summary: 'Внимание', detail: `Загружено ${uploadedCount} из ${pendingFiles.value.length} изображений`, life: 3000 });
+        }
+      }
+
       toast.add({ severity: 'success', summary: 'Успешно', detail: 'Товар создан', life: 3000 });
     }
     closeDialog();
