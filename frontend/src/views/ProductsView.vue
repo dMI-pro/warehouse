@@ -1233,7 +1233,6 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 }
-</style>
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
