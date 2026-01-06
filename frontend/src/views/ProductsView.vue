@@ -276,6 +276,19 @@
                 />
               </div>
 
+              <div class="field">
+                <label for="transactionTypeId" class="label">Тип транзакции</label>
+                <Dropdown
+                  id="transactionTypeId"
+                  v-model="productForm.transactionTypeId"
+                  :options="transactionTypeOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Выберите тип"
+                  class="w-full"
+                />
+              </div>
+
               <div class="field" v-if="authStore.isAdmin">
                 <label for="arrivalDate" class="label">Дата поступления</label>
                 <Calendar
@@ -468,6 +481,16 @@
             class="w-full"
           />
           <small class="text-gray-500">По умолчанию: {{ formatPrice(selectedProduct.salePrice) }}</small>
+          <div v-if="selectedProduct?.transactionType?.name === 'Комиссия 20%'" class="mt-2">
+            <Button
+              label="с 20% надбавкой"
+              icon="pi pi-percentage"
+              severity="secondary"
+              outlined
+              @click="applyCommissionMarkup"
+            />
+            <small class="text-gray-500 ml-2">Установить цену: закупка × 1.25</small>
+          </div>
         </div>
 
         <div class="field" v-if="authStore.isAdmin">
@@ -528,6 +551,7 @@ import { useSalesStore } from '@/stores/salesStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useWarehousesStore } from '@/stores/warehousesStore';
 import { useCommitteesStore } from '@/stores/committeesStore';
+import { useTransactionTypesStore } from '@/stores/transactionTypesStore';
 import type { Product, CreateProductDto, UpdateProductDto } from '@/types/api';
 import { Role } from '@/types/api';
 import { apiService } from '@/services/api';
@@ -540,6 +564,7 @@ const salesStore = useSalesStore();
 const authStore = useAuthStore();
 const warehousesStore = useWarehousesStore();
 const committeesStore = useCommitteesStore();
+const transactionTypesStore = useTransactionTypesStore();
 const confirm = useConfirm();
 const toast = useToast();
 
@@ -566,6 +591,7 @@ const productForm = reactive<CreateProductDto & { images?: string[]; arrivalDate
   categoryId: undefined,
   warehouseId: undefined,
   committeeId: undefined,
+  transactionTypeId: undefined,
   arrivalDate: undefined,
   images: [],
 });
@@ -609,6 +635,14 @@ const committeeOptions = computed(() => {
   const options = [{ label: 'Все коммитеты', value: null }];
   committeesStore.committees.forEach((com) => {
     options.push({ label: com.name, value: com.id });
+  });
+  return options;
+});
+
+const transactionTypeOptions = computed(() => {
+  const options = [{ label: 'Без типа', value: undefined }];
+  transactionTypesStore.transactionTypes.forEach((tt) => {
+    options.push({ label: tt.name, value: tt.id });
   });
   return options;
 });
@@ -730,6 +764,7 @@ const openEditDialog = (product: Product) => {
   productForm.categoryId = product.categoryId || undefined;
   productForm.warehouseId = product.warehouseId || undefined;
   productForm.committeeId = product.committeeId || undefined;
+  productForm.transactionTypeId = product.transactionTypeId || undefined;
   productForm.arrivalDate = product.arrivalDate ? new Date(product.arrivalDate) : undefined;
   productForm.images = [...(product.images || [])];
   productDialogVisible.value = true;
@@ -751,6 +786,7 @@ const resetProductForm = () => {
   productForm.categoryId = undefined;
   productForm.warehouseId = undefined;
   productForm.committeeId = undefined;
+  productForm.transactionTypeId = undefined;
   productForm.arrivalDate = undefined;
   productForm.images = [];
   Object.keys(formErrors).forEach((key) => {
@@ -809,6 +845,7 @@ const saveProduct = async () => {
         categoryId: productForm.categoryId,
         warehouseId: productForm.warehouseId,
         committeeId: productForm.committeeId,
+        transactionTypeId: productForm.transactionTypeId,
         arrivalDate: productForm.arrivalDate ? productForm.arrivalDate.toISOString() : undefined,
         images: productForm.images,
       };
@@ -826,6 +863,7 @@ const saveProduct = async () => {
         categoryId: productForm.categoryId,
         warehouseId: productForm.warehouseId,
         committeeId: productForm.committeeId,
+        transactionTypeId: productForm.transactionTypeId,
         arrivalDate: productForm.arrivalDate ? productForm.arrivalDate.toISOString() : undefined,
         images: [], // Images are uploaded separately
       };
@@ -933,6 +971,12 @@ const openSaleDialog = (product: Product) => {
   saleForm.salePrice = Number(product.salePrice);
   saleForm.soldAt = new Date();
   saleDialogVisible.value = true;
+};
+
+const applyCommissionMarkup = () => {
+  if (!selectedProduct.value) return;
+  const base = Number(selectedProduct.value.purchasePrice) || 0;
+  saleForm.salePrice = Math.round(base * 1.25 * 100) / 100;
 };
 
 const closeSaleDialog = () => {
@@ -1045,6 +1089,7 @@ onMounted(async () => {
   await categoriesStore.fetchCategories();
   await warehousesStore.fetchWarehouses();
   await committeesStore.fetchCommittees();
+  await transactionTypesStore.fetchTransactionTypes();
   await productsStore.fetchProducts();
 });
 </script>

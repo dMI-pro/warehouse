@@ -47,7 +47,22 @@ async function main() {
 
   console.log('✅ Categories created:', category1.name, category2.name);
 
-  // 3. Создание тестовых товаров
+  // 3. Создание типов транзакций
+  console.log('🔁 Creating transaction types...');
+  const existingTypes = await prisma.transactionType.findMany();
+  if (existingTypes.length === 0) {
+    const buyout = await prisma.transactionType.create({
+      data: { name: 'Выкуп' },
+    });
+    const commission20 = await prisma.transactionType.create({
+      data: { name: 'Комиссия 20%' },
+    });
+    console.log('✅ Transaction types created:', buyout.name, commission20.name);
+  } else {
+    console.log('ℹ️ Transaction types already exist, skipping creation');
+  }
+
+  // 4. Создание тестовых товаров
   console.log('📦 Creating products...');
   const products = [
     {

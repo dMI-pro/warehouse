@@ -60,6 +60,13 @@ export interface Committee {
   updatedAt: string;
 }
 
+export interface TransactionType {
+  id: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -75,6 +82,8 @@ export interface Product {
   warehouse?: Warehouse;
   committeeId?: number;
   committee?: Committee;
+  transactionTypeId?: number;
+  transactionType?: TransactionType;
   arrivalDate?: string;
   images: string[];
   createdAt: string;
@@ -92,6 +101,7 @@ export interface CreateProductDto {
   categoryId?: number;
   warehouseId?: number;
   committeeId?: number;
+  transactionTypeId?: number;
   arrivalDate?: string;
   images?: string[];
 }
@@ -107,6 +117,7 @@ export interface UpdateProductDto {
   categoryId?: number;
   warehouseId?: number;
   committeeId?: number;
+  transactionTypeId?: number;
   arrivalDate?: string;
   images?: string[];
 }
@@ -227,6 +238,14 @@ export interface UpdateCommitteeDto {
   name?: string;
   description?: string;
   contactInfo?: string;
+}
+
+export interface CreateTransactionTypeDto {
+  name: string;
+}
+
+export interface UpdateTransactionTypeDto {
+  name?: string;
 }
 
 

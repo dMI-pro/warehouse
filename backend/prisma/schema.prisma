@@ -89,6 +89,7 @@ model Product {
   categoryId     Int?
   warehouseId    Int?
   committeeId    Int?
+  transactionTypeId Int?
   arrivalDate    DateTime? // Дата поступления товара
   images         String[]  @default([]) // Массив URL изображений
   createdAt      DateTime  @default(now())
@@ -98,9 +99,23 @@ model Product {
   category  Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   warehouse Warehouse?  @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
   committee Committee? @relation(fields: [committeeId], references: [id], onDelete: SetNull)
+  transactionType TransactionType? @relation(fields: [transactionTypeId], references: [id], onDelete: SetNull)
   sales     Sale[]
 
   @@map("products")
+}
+
+// Тип транзакции товара (выкуп/комиссия и др.)
+model TransactionType {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Отношения
+  products Product[]
+
+  @@map("transaction_type")
 }
 
 // Модель продажи

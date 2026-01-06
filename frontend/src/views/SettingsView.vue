@@ -335,6 +335,62 @@
             </div>
           </template>
         </Card>
+
+        <!-- Вкладка: Типы транзакций -->
+        <Card v-if="activeTab === 'transactionTypes'" class="content-card">
+          <template #title>
+            <div class="card-header">
+              <span>Типы транзакций</span>
+              <Button
+                v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
+                label="Добавить тип"
+                icon="pi pi-plus"
+                @click="openAddTransactionTypeDialog"
+              />
+            </div>
+          </template>
+          <template #content>
+            <Message v-if="transactionTypesStore.error" severity="error" :closable="false" class="mb-3">
+              {{ transactionTypesStore.error }}
+            </Message>
+
+            <DataTable
+              :value="transactionTypesStore.transactionTypes"
+              :loading="transactionTypesStore.loading"
+              :emptyMessage="transactionTypesStore.loading ? 'Загрузка...' : 'Нет типов транзакций'"
+              class="transaction-types-table"
+            >
+              <Column field="name" header="Название" :sortable="true" />
+              <Column header="Действия" style="width: 150px">
+                <template #body="{ data }">
+                  <div class="action-buttons">
+                    <Button
+                      v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
+                      icon="pi pi-pencil"
+                      severity="info"
+                      size="small"
+                      outlined
+                      rounded
+                      v-tooltip.top="'Редактировать'"
+                      @click="openEditTransactionTypeDialog(data)"
+                    />
+                    <Button
+                      v-if="authStore.isAdmin"
+                      icon="pi pi-trash"
+                      severity="danger"
+                      size="small"
+                      outlined
+                      rounded
+                      v-tooltip.top="'Удалить'"
+                      @click="confirmDeleteTransactionType(data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+            </DataTable>
+          </template>
+        </Card>
+
       </div>
     </div>
 
@@ -481,6 +537,36 @@
       </form>
     </Dialog>
 
+    <!-- Диалог добавления/редактирования типа транзакции -->
+    <Dialog
+      v-model:visible="transactionTypeDialogVisible"
+      :header="editingTransactionType ? 'Редактировать тип транзакции' : 'Добавить тип транзакции'"
+      :modal="true"
+      :style="{ width: '500px' }"
+      @hide="closeTransactionTypeDialog"
+    >
+      <form @submit.prevent="saveTransactionType" class="transaction-type-form">
+        <div class="field">
+          <label for="transactionTypeName" class="label">Название *</label>
+          <InputText id="transactionTypeName" v-model="transactionTypeForm.name" class="w-full" required />
+          <small v-if="transactionTypeFormErrors.name" class="p-error">{{ transactionTypeFormErrors.name }}</small>
+        </div>
+
+        <Message v-if="transactionTypesStore.error" severity="error" :closable="false" class="mb-3">
+          {{ transactionTypesStore.error }}
+        </Message>
+
+        <div class="dialog-footer">
+          <Button label="Отмена" severity="secondary" outlined @click="closeTransactionTypeDialog" />
+          <Button
+            type="submit"
+            :label="editingTransactionType ? 'Сохранить' : 'Создать'"
+            :loading="transactionTypesStore.loading"
+          />
+        </div>
+      </form>
+    </Dialog>
+
     <ConfirmDialog />
   </div>
 </template>
@@ -507,23 +593,26 @@ import { useCategoriesStore } from '@/stores/categoriesStore';
 import { useWarehousesStore } from '@/stores/warehousesStore';
 import { useCommitteesStore } from '@/stores/committeesStore';
 import { useAuthStore } from '@/stores/authStore';
-import type { Category, CreateCategoryDto, UpdateCategoryDto, Warehouse, CreateWarehouseDto, UpdateWarehouseDto, Committee, CreateCommitteeDto, UpdateCommitteeDto } from '@/types/api';
+import { useTransactionTypesStore } from '@/stores/transactionTypesStore';
+import type { Category, CreateCategoryDto, UpdateCategoryDto, Warehouse, CreateWarehouseDto, UpdateWarehouseDto, Committee, CreateCommitteeDto, UpdateCommitteeDto, TransactionType, CreateTransactionTypeDto, UpdateTransactionTypeDto } from '@/types/api';
 import { Role } from '@/types/api';
 
 const categoriesStore = useCategoriesStore();
 const warehousesStore = useWarehousesStore();
 const committeesStore = useCommitteesStore();
+const transactionTypesStore = useTransactionTypesStore();
 const authStore = useAuthStore();
 const confirm = useConfirm();
 const toast = useToast();
 
-const activeTab = ref<'categories' | 'warehouses' | 'committees' | 'fields' | 'templates' | 'system'>('categories');
+const activeTab = ref<'categories' | 'warehouses' | 'committees' | 'transactionTypes' | 'fields' | 'templates' | 'system'>('categories');
 const expandedKeys = ref<Record<string, boolean>>({});
 
 const tabs = [
   { key: 'categories', label: 'Категории', icon: 'pi pi-sitemap' },
   { key: 'warehouses', label: 'Склады', icon: 'pi pi-building' },
   { key: 'committees', label: 'Коммитеты', icon: 'pi pi-users' },
+  { key: 'transactionTypes', label: 'Типы транзакций', icon: 'pi pi-tags' },
   { key: 'fields', label: 'Дополнительные поля', icon: 'pi pi-list' },
   { key: 'templates', label: 'Шаблоны экспорта', icon: 'pi pi-file-export' },
   { key: 'system', label: 'Системные настройки', icon: 'pi pi-cog' },
@@ -535,6 +624,8 @@ const warehouseDialogVisible = ref(false);
 const editingWarehouse = ref<Warehouse | null>(null);
 const committeeDialogVisible = ref(false);
 const editingCommittee = ref<Committee | null>(null);
+const transactionTypeDialogVisible = ref(false);
+const editingTransactionType = ref<TransactionType | null>(null);
 
 const categoryForm = reactive<CreateCategoryDto>({
   name: '',
@@ -563,6 +654,14 @@ const committeeForm = reactive<CreateCommitteeDto>({
 });
 
 const committeeFormErrors = reactive({
+  name: '',
+});
+
+const transactionTypeForm = reactive<CreateTransactionTypeDto>({
+  name: '',
+});
+
+const transactionTypeFormErrors = reactive({
   name: '',
 });
 
@@ -895,10 +994,81 @@ const confirmDeleteCommittee = (committee: Committee) => {
   });
 };
 
+// Transaction types methods
+const openAddTransactionTypeDialog = () => {
+  editingTransactionType.value = null;
+  resetTransactionTypeForm();
+  transactionTypeDialogVisible.value = true;
+};
+
+const openEditTransactionTypeDialog = (type: TransactionType) => {
+  editingTransactionType.value = type;
+  transactionTypeForm.name = type.name;
+  transactionTypeDialogVisible.value = true;
+};
+
+const closeTransactionTypeDialog = () => {
+  transactionTypeDialogVisible.value = false;
+  resetTransactionTypeForm();
+};
+
+const resetTransactionTypeForm = () => {
+  transactionTypeForm.name = '';
+  transactionTypeFormErrors.name = '';
+};
+
+const validateTransactionTypeForm = () => {
+  transactionTypeFormErrors.name = '';
+  if (!transactionTypeForm.name.trim()) {
+    transactionTypeFormErrors.name = 'Название обязательно';
+    return false;
+  }
+  return true;
+};
+
+const saveTransactionType = async () => {
+  if (!validateTransactionTypeForm()) return;
+  try {
+    if (editingTransactionType.value) {
+      const updateDto: UpdateTransactionTypeDto = {
+        name: transactionTypeForm.name,
+      };
+      await transactionTypesStore.updateTransactionType(editingTransactionType.value.id, updateDto);
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Тип транзакции обновлен', life: 3000 });
+    } else {
+      const createDto: CreateTransactionTypeDto = {
+        name: transactionTypeForm.name,
+      };
+      await transactionTypesStore.createTransactionType(createDto);
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Тип транзакции создан', life: 3000 });
+    }
+    closeTransactionTypeDialog();
+  } catch (error) {
+    // Ошибка уже обработана в store
+  }
+};
+
+const confirmDeleteTransactionType = (type: TransactionType) => {
+  confirm.require({
+    message: `Вы уверены, что хотите удалить тип "${type.name}"?`,
+    header: 'Подтверждение удаления',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      try {
+        await transactionTypesStore.deleteTransactionType(type.id);
+        toast.add({ severity: 'success', summary: 'Успешно', detail: 'Тип транзакции удален', life: 3000 });
+      } catch (error) {
+        // Ошибка уже обработана в store
+      }
+    },
+  });
+};
+
 onMounted(async () => {
   await categoriesStore.fetchCategories();
   await warehousesStore.fetchWarehouses();
   await committeesStore.fetchCommittees();
+  await transactionTypesStore.fetchTransactionTypes();
 });
 </script>
 

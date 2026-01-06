@@ -21,6 +21,9 @@ import type {
   Committee,
   CreateCommitteeDto,
   UpdateCommitteeDto,
+  TransactionType,
+  CreateTransactionTypeDto,
+  UpdateTransactionTypeDto,
   AuditLog,
 } from '@/types/api';
 
@@ -244,6 +247,26 @@ class ApiService {
 
   async deleteCommittee(id: number): Promise<void> {
     await this.api.delete(`/committees/${id}`);
+  }
+
+  // Transaction Types endpoints
+  async getTransactionTypes(): Promise<TransactionType[]> {
+    const response = await this.api.get<TransactionType[]>('/transaction-types');
+    return response.data;
+  }
+
+  async createTransactionType(createDto: CreateTransactionTypeDto): Promise<TransactionType> {
+    const response = await this.api.post<TransactionType>('/transaction-types', createDto);
+    return response.data;
+  }
+
+  async updateTransactionType(id: number, updateDto: UpdateTransactionTypeDto): Promise<TransactionType> {
+    const response = await this.api.patch<TransactionType>(`/transaction-types/${id}`, updateDto);
+    return response.data;
+  }
+
+  async deleteTransactionType(id: number): Promise<void> {
+    await this.api.delete(`/transaction-types/${id}`);
   }
 
   // Audit Logs endpoints
