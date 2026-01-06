@@ -70,6 +70,15 @@ export class ProductsService {
         );
       }
     }
+    // Проверка существования типа транзакции, если указан
+    if (createProductDto.transactionTypeId) {
+      const tt = await this.prisma.transactionType.findUnique({
+        where: { id: createProductDto.transactionTypeId },
+      });
+      if (!tt) {
+        throw new NotFoundException(`Transaction type with ID ${createProductDto.transactionTypeId} not found`);
+      }
+    }
 
     const product = await this.prisma.product.create({
       data: {
@@ -83,6 +92,7 @@ export class ProductsService {
         categoryId: createProductDto.categoryId,
         warehouseId: createProductDto.warehouseId,
         committeeId: createProductDto.committeeId,
+        transactionTypeId: createProductDto.transactionTypeId,
         arrivalDate: createProductDto.arrivalDate || new Date(),
         images: createProductDto.images ?? [],
       },
@@ -90,6 +100,7 @@ export class ProductsService {
         category: true,
         warehouse: true,
         committee: true,
+        transactionType: true,
       },
     });
 
@@ -142,6 +153,7 @@ export class ProductsService {
           category: true,
           warehouse: true,
           committee: true,
+          transactionType: true,
         },
         orderBy: {
           createdAt: 'desc',
@@ -168,6 +180,7 @@ export class ProductsService {
         category: true,
         warehouse: true,
         committee: true,
+        transactionType: true,
       },
     });
 
@@ -257,6 +270,15 @@ export class ProductsService {
         );
       }
     }
+    // Проверка существования типа транзакции, если он изменяется
+    if (updateProductDto.transactionTypeId !== undefined && updateProductDto.transactionTypeId !== null) {
+      const tt = await this.prisma.transactionType.findUnique({
+        where: { id: updateProductDto.transactionTypeId },
+      });
+      if (!tt) {
+        throw new NotFoundException(`Transaction type with ID ${updateProductDto.transactionTypeId} not found`);
+      }
+    }
 
     const updatedProduct = await this.prisma.product.update({
       where: { id },
@@ -265,6 +287,7 @@ export class ProductsService {
         category: true,
         warehouse: true,
         committee: true,
+        transactionType: true,
       },
     });
 

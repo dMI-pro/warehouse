@@ -53,6 +53,11 @@ export class CreateProductDto {
   @Type(() => Number)
   committeeId?: number;
 
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  transactionTypeId?: number;
+
   @IsOptional()
   @Type(() => Date)
   arrivalDate?: Date;
