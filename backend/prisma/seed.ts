@@ -55,7 +55,7 @@ async function main() {
       data: { name: 'Выкуп' },
     });
     const commission20 = await prisma.transactionType.create({
-      data: { name: 'Комиссия 20%' },
+      data: { name: 'Комиссия' },
     });
     console.log('✅ Transaction types created:', buyout.name, commission20.name);
   } else {
