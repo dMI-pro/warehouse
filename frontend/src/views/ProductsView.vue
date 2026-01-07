@@ -554,7 +554,7 @@
 
         <div class="field">
           <label class="label">Доступно</label>
-          <InputNumber :value="selectedProduct.quantity" disabled class="w-full" />
+          <InputNumber v-model="selectedProduct.quantity" disabled class="w-full" />
         </div>
 
         <div class="field">
@@ -677,6 +677,7 @@ const saleForm = reactive({
 const returnForm = reactive({
   quantity: 1,
   reason: '',
+  returnedAt: new Date(),
 });
 
 const formErrors = reactive({
@@ -1107,6 +1108,7 @@ const openReturnDialog = (product: Product) => {
   selectedProduct.value = product;
   returnForm.quantity = 1;
   returnForm.reason = '';
+  returnForm.returnedAt = new Date();
   returnDialogVisible.value = true;
 };
 
@@ -1115,6 +1117,7 @@ const closeReturnDialog = () => {
   selectedProduct.value = null;
   returnForm.quantity = 1;
   returnForm.reason = '';
+  returnForm.returnedAt = new Date();
 };
 
 const handleReturn = async () => {
@@ -1145,6 +1148,7 @@ const handleReturn = async () => {
       productId: selectedProduct.value.id,
       quantity: returnForm.quantity,
       reason: returnForm.reason,
+      returnedAt: returnForm.returnedAt.toISOString(),
     });
 
     toast.add({
