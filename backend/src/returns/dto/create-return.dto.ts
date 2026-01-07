@@ -11,4 +11,8 @@ export class CreateReturnDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  @IsOptional()
+  @IsString()
+  returnedAt?: string;
 }
