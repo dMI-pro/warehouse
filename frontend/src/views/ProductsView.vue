@@ -183,6 +183,15 @@
                   v-tooltip.top="'Продать'"
                   @click="openSaleDialog(data)"
                 />
+                <Button
+                  icon="pi pi-replay"
+                  severity="warning"
+                  size="small"
+                  outlined
+                  rounded
+                  v-tooltip.top="'Возврат'"
+                  @click="openReturnDialog(data)"
+                />
               </div>
             </template>
           </Column>
@@ -529,6 +538,55 @@
       </form>
     </Dialog>
 
+    <!-- Диалог возврата -->
+    <Dialog
+      v-model:visible="returnDialogVisible"
+      header="Возврат товара"
+      :modal="true"
+      :style="{ width: '400px' }"
+      @hide="closeReturnDialog"
+    >
+      <form v-if="selectedProduct" @submit.prevent="handleReturn" class="return-form">
+        <div class="field">
+          <label class="label">Товар</label>
+          <InputText :value="selectedProduct.name" disabled class="w-full" />
+        </div>
+
+        <div class="field">
+          <label class="label">Доступно</label>
+          <InputNumber :value="selectedProduct.quantity" disabled class="w-full" />
+        </div>
+
+        <div class="field">
+          <label for="returnQuantity" class="label">Количество к возврату *</label>
+          <InputNumber
+            id="returnQuantity"
+            v-model="returnForm.quantity"
+            :min="1"
+            :max="selectedProduct.quantity"
+            class="w-full"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="returnReason" class="label">Причина возврата</label>
+          <Textarea
+            id="returnReason"
+            v-model="returnForm.reason"
+            rows="3"
+            class="w-full"
+            placeholder="Почему товар возвращается?"
+          />
+        </div>
+
+        <div class="dialog-footer">
+          <Button label="Отмена" severity="secondary" outlined @click="closeReturnDialog" />
+          <Button type="submit" label="Оформить возврат" severity="warning" :loading="returnsStore.loading" />
+        </div>
+      </form>
+    </Dialog>
+
     <!-- Диалог подтверждения удаления -->
     <ConfirmDialog />
   </div>
@@ -563,6 +621,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useWarehousesStore } from '@/stores/warehousesStore';
 import { useCommitteesStore } from '@/stores/committeesStore';
 import { useTransactionTypesStore } from '@/stores/transactionTypesStore';
+import { useReturnsStore } from '@/stores/returnsStore';
 import type { Product, CreateProductDto, UpdateProductDto } from '@/types/api';
 import { Role } from '@/types/api';
 import { apiService } from '@/services/api';
@@ -576,6 +635,7 @@ const authStore = useAuthStore();
 const warehousesStore = useWarehousesStore();
 const committeesStore = useCommitteesStore();
 const transactionTypesStore = useTransactionTypesStore();
+const returnsStore = useReturnsStore();
 const confirm = useConfirm();
 const toast = useToast();
 
@@ -1019,14 +1079,84 @@ const handleSale = async () => {
     await salesStore.createSale({
       productId: selectedProduct.value.id,
       quantity: saleForm.quantity,
-      salePrice: saleForm.salePrice,
+      salePrice: saleForm.salePrice || selectedProduct.value.salePrice,
       soldAt: saleForm.soldAt ? saleForm.soldAt.toISOString() : undefined,
     });
-    toast.add({ severity: 'success', summary: 'Успешно', detail: 'Продажа оформлена', life: 3000 });
+
+    toast.add({
+      severity: 'success',
+      summary: 'Успешно',
+      detail: 'Продажа успешно оформлена',
+      life: 3000,
+    });
+
     closeSaleDialog();
     await productsStore.fetchProducts();
   } catch (error) {
-    // Ошибка уже обработана в store
+    // Ошибка обрабатывается в store
+  }
+};
+
+const openReturnDialog = (product: Product) => {
+  selectedProduct.value = product;
+  returnForm.quantity = 1;
+  returnForm.reason = '';
+  returnDialogVisible.value = true;
+};
+
+const closeReturnDialog = () => {
+  returnDialogVisible.value = false;
+  selectedProduct.value = null;
+  returnForm.quantity = 1;
+  returnForm.reason = '';
+};
+
+const handleReturn = async () => {
+  if (!selectedProduct.value) return;
+
+  if (returnForm.quantity < 1) {
+    toast.add({
+      severity: 'error',
+      summary: 'Ошибка',
+      detail: 'Количество должно быть больше 0',
+      life: 3000,
+    });
+    return;
+  }
+
+  if (returnForm.quantity > selectedProduct.value.quantity) {
+    toast.add({
+      severity: 'error',
+      summary: 'Ошибка',
+      detail: 'Нельзя вернуть больше, чем есть на остатке',
+      life: 3000,
+    });
+    return;
+  }
+
+  try {
+    await returnsStore.createReturn({
+      productId: selectedProduct.value.id,
+      quantity: returnForm.quantity,
+      reason: returnForm.reason,
+    });
+
+    toast.add({
+      severity: 'success',
+      summary: 'Успешно',
+      detail: 'Возврат успешно оформлен',
+      life: 3000,
+    });
+
+    closeReturnDialog();
+    await productsStore.fetchProducts();
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Ошибка',
+      detail: 'Не удалось оформить возврат',
+      life: 3000,
+    });
   }
 };
 

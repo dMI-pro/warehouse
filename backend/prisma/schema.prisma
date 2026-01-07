@@ -1,4 +1,3 @@
-// backend/prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -23,6 +22,7 @@ model User {
   // Отношения
   sales      Sale[]
   auditLogs  AuditLog[]
+  returns    Return[]
 
   @@map("users")
 }
@@ -53,7 +53,7 @@ model Warehouse {
   description String?
   address     String?
   createdAt   DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  updatedAt   DateTime  @updatedAt
 
   // Отношения
   products Product[]
@@ -101,6 +101,7 @@ model Product {
   committee Committee? @relation(fields: [committeeId], references: [id], onDelete: SetNull)
   transactionType TransactionType? @relation(fields: [transactionTypeId], references: [id], onDelete: SetNull)
   sales     Sale[]
+  returns   Return[]
 
   @@map("products")
 }
@@ -152,4 +153,20 @@ model AuditLog {
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
+}
+
+// Модель возврата товара (поставщику/владельцу)
+model Return {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  quantity    Int
+  reason      String?
+  returnedAt  DateTime @default(now())
+  returnedBy  Int      // ID пользователя, который оформил возврат
+
+  // Отношения
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [returnedBy], references: [id], onDelete: Restrict)
+
+  @@map("returns")
 }

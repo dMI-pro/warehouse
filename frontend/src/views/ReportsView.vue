@@ -25,6 +25,12 @@
                 class="report-type-btn"
                 @click="reportType = 'movement'"
               />
+              <Button
+                :label="'Возвраты товара'"
+                :class="{ active: reportType === 'returns' }"
+                class="report-type-btn"
+                @click="reportType = 'returns'"
+              />
             </div>
 
             <Divider />
@@ -219,6 +225,7 @@ import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import { useSalesStore } from '@/stores/salesStore';
 import { useProductsStore } from '@/stores/productsStore';
+import { useReturnsStore } from '@/stores/returnsStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from 'primevue/usetoast';
 import type { Sale, Product } from '@/types/api';
@@ -248,6 +255,16 @@ interface NormalizedProduct {
   originalData?: Product;
 }
 
+interface NormalizedReturn {
+  id: number;
+  productName: string;
+  quantity: number;
+  reason: string;
+  returnedBy: string;
+  date: string;
+  originalData?: any;
+}
+
 interface ReportColumn {
   field: string;
   header: string;
@@ -264,10 +281,11 @@ interface CalculatedStats {
 
 const salesStore = useSalesStore();
 const productsStore = useProductsStore();
+const returnsStore = useReturnsStore();
 const authStore = useAuthStore();
 const toast = useToast();
 
-const reportType = ref<'sales' | 'stock' | 'movement'>('sales');
+const reportType = ref<'sales' | 'stock' | 'movement' | 'returns'>('sales');
 const mainChartRef = ref<HTMLDivElement | null>(null);
 let mainChart: echarts.ECharts | null = null;
 
@@ -322,6 +340,16 @@ const normalizedReportData = computed(() => {
       minStockLevel: product.minStockLevel,
       salePrice: Number(product.salePrice) || 0,
       originalData: product
+    }));
+  } else if (reportType.value === 'returns') {
+    return returnsStore.returns.map((ret): NormalizedReturn => ({
+      id: ret.id,
+      productName: ret.product?.name || 'Неизвестный товар',
+      quantity: ret.quantity,
+      reason: ret.reason || '-',
+      returnedBy: ret.user?.fullName || 'Неизвестно',
+      date: ret.returnedAt,
+      originalData: ret
     }));
   } else {
     // Для движения товаров
@@ -457,7 +485,9 @@ const generateReport = async () => {
     await salesStore.fetchSales(params);
     // Не загружаем statistics, т.к. считаем самостоятельно
   } else if (reportType.value === 'stock') {
-    await productsStore.fetchProducts({ limit: 10 });
+    await productsStore.fetchProducts({ limit: 1000 });
+  } else if (reportType.value === 'returns') {
+    await returnsStore.fetchReturns(params);
   } else {
     // Для движения товаров
     await salesStore.fetchSales(params);

@@ -13,6 +13,7 @@ import { CommitteesModule } from './committees/committees.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TransactionTypesModule } from './transaction-types/transaction-types.module';
+import { ReturnsModule } from './returns/returns.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { TransactionTypesModule } from './transaction-types/transaction-types.mo
     CommitteesModule,
     AuditLogModule,
     TransactionTypesModule,
+    ReturnsModule,
   ],
   controllers: [AppController],
   providers: [
