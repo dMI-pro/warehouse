@@ -631,11 +631,11 @@ import { handleApiError, validateSKU } from '@/utils/errorHandler';
 const productsStore = useProductsStore();
 const categoriesStore = useCategoriesStore();
 const salesStore = useSalesStore();
+const returnsStore = useReturnsStore();
 const authStore = useAuthStore();
 const warehousesStore = useWarehousesStore();
 const committeesStore = useCommitteesStore();
 const transactionTypesStore = useTransactionTypesStore();
-const returnsStore = useReturnsStore();
 const confirm = useConfirm();
 const toast = useToast();
 
@@ -646,6 +646,7 @@ const selectedCommittee = ref<number | null>(null);
 const sortField = ref('name');
 const productDialogVisible = ref(false);
 const saleDialogVisible = ref(false);
+const returnDialogVisible = ref(false);
 const editingProduct = ref<Product | null>(null);
 const selectedProduct = ref<Product | null>(null);
 const selectedProducts = ref<Product[]>([]);
@@ -671,6 +672,11 @@ const saleForm = reactive({
   quantity: 1,
   salePrice: undefined as number | undefined,
   soldAt: undefined as Date | undefined,
+});
+
+const returnForm = reactive({
+  quantity: 1,
+  reason: '',
 });
 
 const formErrors = reactive({

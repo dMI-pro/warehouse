@@ -505,116 +505,183 @@ const initChart = async () => {
 };
 
 const updateChart = async () => {
-  if (!mainChart || reportType.value !== 'sales') return;
+  if (!mainChart || (reportType.value !== 'sales' && reportType.value !== 'returns')) return;
 
-  // Группируем продажи по дате для графика
-  if (normalizedReportData.value.length) {
-    const salesByDate: Record<string, { revenue: number; profit: number }> = {};
-    
-    normalizedReportData.value.forEach(sale => {
-      const date = new Date(sale.date);
-      const dateKey = date.toISOString().split('T')[0];
+  mainChart.clear();
+
+  if (reportType.value === 'sales') {
+    // Группируем продажи по дате для графика
+    if (normalizedReportData.value.length) {
+      const salesByDate: Record<string, { revenue: number; profit: number }> = {};
       
-      if (!salesByDate[dateKey]) {
-        salesByDate[dateKey] = { revenue: 0, profit: 0 };
-      }
+      normalizedReportData.value.forEach(sale => {
+        const date = new Date(sale.date);
+        const dateKey = date.toISOString().split('T')[0];
+        
+        if (!salesByDate[dateKey]) {
+          salesByDate[dateKey] = { revenue: 0, profit: 0 };
+        }
+        
+        salesByDate[dateKey].revenue += sale.totalAmount;
+        salesByDate[dateKey].profit += sale.totalProfit;
+      });
+
+      // Сортируем даты по возрастанию
+      const sortedDates = Object.keys(salesByDate).sort();
       
-      salesByDate[dateKey].revenue += sale.totalAmount;
-      salesByDate[dateKey].profit += sale.totalProfit;
-    });
+      const dates = sortedDates.map(dateStr => {
+        return new Intl.DateTimeFormat('ru-RU', {
+          day: '2-digit',
+          month: '2-digit'
+        }).format(new Date(dateStr));
+      });
+      
+      const revenues = sortedDates.map(date => salesByDate[date].revenue);
+      const profits = sortedDates.map(date => salesByDate[date].profit);
 
-    // Сортируем даты по возрастанию
-    const sortedDates = Object.keys(salesByDate).sort();
-    
-    const dates = sortedDates.map(dateStr => {
-      return new Intl.DateTimeFormat('ru-RU', {
-        day: '2-digit',
-        month: '2-digit'
-      }).format(new Date(dateStr));
-    });
-    
-    const revenues = sortedDates.map(date => salesByDate[date].revenue);
-    const profits = sortedDates.map(date => salesByDate[date].profit);
-
-    mainChart.setOption({
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: {
-          type: 'cross'
-        },
-        formatter: (params: any) => {
-          let result = `${params[0].axisValueLabel}<br/>`;
-          params.forEach((param: any) => {
-            if (param.seriesName === 'Выручка') {
-              result += `${param.seriesName}: ${formatPrice(param.value)}<br/>`;
-            } else if (param.seriesName === 'Прибыль') {
-              result += `${param.seriesName}: ${formatPrice(param.value)}<br/>`;
-            }
-          });
-          return result;
-        },
-      },
-      legend: {
-        data: ['Выручка', 'Прибыль']
-      },
-      grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '40px',
-        containLabel: true,
-      },
-      xAxis: {
-        type: 'category',
-        boundaryGap: false,
-        data: dates,
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: {
-          formatter: (value: number) => {
-            if (value >= 1000000) return `${(value / 1000000).toFixed(1)}М`;
-            if (value >= 1000) return `${(value / 1000).toFixed(0)}К`;
-            return value.toString();
+      mainChart.setOption({
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            type: 'cross'
+          },
+          formatter: (params: any) => {
+            let result = `${params[0].axisValueLabel}<br/>`;
+            params.forEach((param: any) => {
+              if (param.seriesName === 'Выручка') {
+                result += `${param.seriesName}: ${formatPrice(param.value)}<br/>`;
+              } else if (param.seriesName === 'Прибыль') {
+                result += `${param.seriesName}: ${formatPrice(param.value)}<br/>`;
+              }
+            });
+            return result;
           },
         },
-      },
-      series: [
-        {
-          name: 'Выручка',
-          type: 'line',
-          smooth: true,
-          data: revenues,
-          itemStyle: {
-            color: '#1890ff',
-          },
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: 'rgba(24, 144, 255, 0.3)' },
-                { offset: 1, color: 'rgba(24, 144, 255, 0.05)' },
-              ],
+        legend: {
+          data: ['Выручка', 'Прибыль']
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '40px',
+          containLabel: true,
+        },
+        xAxis: {
+          type: 'category',
+          boundaryGap: false,
+          data: dates,
+        },
+        yAxis: {
+          type: 'value',
+          axisLabel: {
+            formatter: (value: number) => {
+              if (value >= 1000000) return `${(value / 1000000).toFixed(1)}М`;
+              if (value >= 1000) return `${(value / 1000).toFixed(0)}К`;
+              return value.toString();
             },
           },
         },
-        {
-          name: 'Прибыль',
-          type: 'line',
-          smooth: true,
-          data: profits,
-          itemStyle: {
-            color: '#52c41a',
+        series: [
+          {
+            name: 'Выручка',
+            type: 'line',
+            smooth: true,
+            data: revenues,
+            itemStyle: {
+              color: '#1890ff',
+            },
+            areaStyle: {
+              color: {
+                type: 'linear',
+                x: 0,
+                y: 0,
+                x2: 0,
+                y2: 1,
+                colorStops: [
+                  { offset: 0, color: 'rgba(24, 144, 255, 0.3)' },
+                  { offset: 1, color: 'rgba(24, 144, 255, 0.05)' },
+                ],
+              },
+            },
           },
-          lineStyle: {
-            type: 'dashed'
+          {
+            name: 'Прибыль',
+            type: 'line',
+            smooth: true,
+            data: profits,
+            itemStyle: {
+              color: '#52c41a',
+            },
+            lineStyle: {
+              type: 'dashed'
+            }
+          },
+        ],
+      });
+    }
+  } else if (reportType.value === 'returns') {
+    // График возвратов
+    if (normalizedReportData.value.length) {
+      const returnsByDate: Record<string, number> = {};
+      
+      normalizedReportData.value.forEach(ret => {
+        const date = new Date(ret.date);
+        const dateKey = date.toISOString().split('T')[0];
+        
+        if (!returnsByDate[dateKey]) {
+          returnsByDate[dateKey] = 0;
+        }
+        
+        returnsByDate[dateKey] += ret.quantity;
+      });
+
+      const sortedDates = Object.keys(returnsByDate).sort();
+      
+      const dates = sortedDates.map(dateStr => {
+        return new Intl.DateTimeFormat('ru-RU', {
+          day: '2-digit',
+          month: '2-digit'
+        }).format(new Date(dateStr));
+      });
+      
+      const quantities = sortedDates.map(date => returnsByDate[date]);
+
+      mainChart.setOption({
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            type: 'shadow'
           }
         },
-      ],
-    });
+        legend: {
+          data: ['Количество возвратов']
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '40px',
+          containLabel: true,
+        },
+        xAxis: {
+          type: 'category',
+          data: dates,
+        },
+        yAxis: {
+          type: 'value',
+        },
+        series: [
+          {
+            name: 'Количество возвратов',
+            type: 'bar',
+            data: quantities,
+            itemStyle: {
+              color: '#fa8c16',
+            },
+            barMaxWidth: 50
+          }
+        ]
+      });
+    }
   }
 };
 
