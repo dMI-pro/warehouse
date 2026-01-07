@@ -228,7 +228,7 @@
                   {{ (productForm.description || '').length }}/1000 символов
                 </small>
               </div>
-              
+
               <div class="field">
                 <label for="categoryId" class="label">Категория</label>
                 <Dropdown
@@ -240,6 +240,7 @@
                   placeholder="Выберите категорию"
                   class="w-full"
                 />
+                <!-- Дерево с вложенной структурой категорий -->
                 <!-- <TreeSelect
                   id="categoryId"
                   v-model="productForm.categoryId"
@@ -288,7 +289,6 @@
                   class="w-full"
                 />
               </div>
-
               <div class="field" v-if="authStore.isAdmin">
                 <label for="arrivalDate" class="label">Дата поступления</label>
                 <Calendar
@@ -296,8 +296,11 @@
                   v-model="productForm.arrivalDate"
                   dateFormat="yy-mm-dd"
                   showIcon
+                  showTime
+                  hourFormat="24"
                   class="w-full"
                 />
+                <small v-if="!editingProduct" class="text-gray-500">По умолчанию: сейчас</small>
               </div>
             </div>
           </TabPanel>
@@ -331,6 +334,17 @@
                   required
                 />
                 <small v-if="formErrors.salePrice" class="p-error">{{ formErrors.salePrice }}</small>
+
+                <!-- Если transactionType === "Комиссия" (transactionTypeId=2) показываем кнопку -->
+                <div v-if="productForm?.transactionTypeId === 2" class="mt-2">
+                  <Button
+                    label="с 20% надбавкой"
+                    size="small"
+                    severity="info"
+                    v-tooltip.top="'Установить цену: продажи × 1.25'"
+                    @click="applyCommissionMarkup"
+                  />
+                </div>
               </div>
 
               <div class="field">
@@ -451,10 +465,9 @@
           <label class="label">Товар</label>
           <InputText :value="selectedProduct.name" disabled class="w-full" />
         </div>
-
         <div class="field">
           <label class="label">Доступно</label>
-          <InputNumber :value="selectedProduct.quantity" disabled class="w-full" />
+          <InputNumber v-model="selectedProduct.quantity" disabled class="w-full" />
         </div>
 
         <div class="field">
@@ -480,16 +493,14 @@
             :maxFractionDigits="2"
             class="w-full"
           />
-          <small class="text-gray-500">По умолчанию: {{ formatPrice(selectedProduct.salePrice) }}</small>
-          <div v-if="selectedProduct?.transactionType?.name === 'Комиссия 20%'" class="mt-2">
+          <div v-if="selectedProduct?.transactionType?.name === 'Комиссия'" class="mt-2">
             <Button
               label="с 20% надбавкой"
-              icon="pi pi-percentage"
-              severity="secondary"
-              outlined
+              size="small"
+              severity="info"
+              v-tooltip.top="'Установить цену: продажи × 1.25'"
               @click="applyCommissionMarkup"
             />
-            <small class="text-gray-500 ml-2">Установить цену: закупка × 1.25</small>
           </div>
         </div>
 
@@ -504,7 +515,7 @@
             hourFormat="24"
             class="w-full"
           />
-          <small class="text-gray-500">По умолчанию: сегодня</small>
+          <small class="text-gray-500">По умолчанию: сейчас</small>
         </div>
 
         <Message v-if="salesStore.error" severity="error" :closable="false" class="mb-3">
@@ -749,6 +760,7 @@ const onPageChange = (event: any) => {
 const openAddDialog = () => {
   editingProduct.value = null;
   resetProductForm();
+  productForm.arrivalDate = new Date();
   productDialogVisible.value = true;
 };
 
@@ -973,10 +985,10 @@ const openSaleDialog = (product: Product) => {
   saleDialogVisible.value = true;
 };
 
+// рассчитываем поле "Цена продажи" с 25% надбавкой от цены закупа
 const applyCommissionMarkup = () => {
-  if (!selectedProduct.value) return;
-  const base = Number(selectedProduct.value.purchasePrice) || 0;
-  saleForm.salePrice = Math.round(base * 1.25 * 100) / 100;
+  const startPrice = Number(productForm.purchasePrice) || 0;
+  productForm.salePrice = Math.round(startPrice * 1.25 * 100) / 100;
 };
 
 const closeSaleDialog = () => {
