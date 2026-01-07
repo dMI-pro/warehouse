@@ -248,5 +248,22 @@ export interface UpdateTransactionTypeDto {
   name?: string;
 }
 
+export interface Return {
+  id: number;
+  productId: number;
+  product?: Product;
+  quantity: number;
+  reason?: string;
+  returnedAt: string;
+  returnedBy: number;
+  user?: User;
+}
+
+export interface CreateReturnDto {
+  productId: number;
+  quantity: number;
+  reason?: string;
+}
+
 
 

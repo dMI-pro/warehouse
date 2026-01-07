@@ -269,6 +269,24 @@ class ApiService {
     await this.api.delete(`/transaction-types/${id}`);
   }
 
+  // Returns endpoints
+  async createReturn(createReturnDto: CreateReturnDto): Promise<Return> {
+    const response = await this.api.post<Return>('/returns', createReturnDto);
+    return response.data;
+  }
+
+  async getReturns(params?: {
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<Return[]> {
+    // Note: Backend returns Return[], not PaginatedResponse<Return> yet based on service
+    // But usually we want consistency. My backend service returns Return[].
+    const response = await this.api.get<Return[]>('/returns', { params });
+    return response.data;
+  }
+
   // Audit Logs endpoints
   async getAuditLogs(params?: {
     userId?: number;
