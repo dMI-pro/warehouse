@@ -67,7 +67,8 @@
                   v-if="!data.isSuperAdmin || authStore.user?.isSuperAdmin"
                   icon="pi pi-pencil"
                   severity="info"
-                  text
+                  size="small"
+                  outlined
                   rounded
                   v-tooltip.top="'Редактировать'"
                   @click="openEditUserDialog(data)"

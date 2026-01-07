@@ -580,6 +580,20 @@
           />
         </div>
 
+        <div class="field" v-if="authStore.isAdmin">
+          <label for="soldAt" class="label">Дата возврат</label>
+          <Calendar
+            id="soldAt"
+            v-model="returnForm.returnedAt"
+            dateFormat="yy-mm-dd"
+            showIcon
+            showTime
+            hourFormat="24"
+            class="w-full"
+          />
+          <small class="text-gray-500">По умолчанию: сейчас</small>
+        </div>
+
         <div class="dialog-footer">
           <Button label="Отмена" severity="secondary" outlined @click="closeReturnDialog" />
           <Button type="submit" label="Оформить возврат" severity="warning" :loading="returnsStore.loading" />
