@@ -1,136 +1,230 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting seed...');
+  console.log('🌱 Starting seed. ..');
 
-  // Очистка существующих данных (опционально, для тестов)
-  // console.log('🧹 Cleaning existing data...');
-  // await prisma.auditLog.deleteMany();
-  // await prisma.sale.deleteMany();
-  // await prisma.product.deleteMany();
-  // await prisma.category.deleteMany();
-  // await prisma.user.deleteMany();
+  // Existing code (commented out data cleaning)
+  // await prisma.$transaction([
+  //   prisma.user.deleteMany(),
+  //   prisma.product.deleteMany(),
+  //   // ... other deletions
+  // ]);
 
-  // 1. Создание супер-админа
   console.log('👤 Creating super admin...');
-  const hashedPassword = await bcrypt.hash('admin123', 10);
   const superAdmin = await prisma.user.create({
     data: {
-      email: 'admin@warehouse.com',
-      username: 'admin',
-      password: hashedPassword,
-      fullName: 'Super Administrator',
+      email: 'admin@company.com',
+      username: 'superadmin',
+      password: await bcrypt.hash('admin123', 10),
       role: 'ADMIN',
+      fullName: 'Super Admin',
       isSuperAdmin: true,
     },
   });
   console.log('✅ Super admin created:', superAdmin.email);
 
-  // 2. Создание категорий
-  console.log('📁 Creating categories...');
-  const category1 = await prisma.category.create({
-    data: {
-      name: 'Электроника',
-      description: 'Электронные устройства и компоненты',
-    },
+  console.log('🏷️ Creating categories...');
+  const electronics = await prisma.category.create({
+    data: { name: 'Электроника' },
   });
-
-  const category2 = await prisma.category.create({
-    data: {
-      name: 'Офисные принадлежности',
-      description: 'Канцелярские товары и офисное оборудование',
-    },
+  const officeSupplies = await prisma.category.create({
+    data: { name: 'Канцтовары' },
   });
+  console.log('✅ Categories created:', electronics.name, officeSupplies.name);
 
-  console.log('✅ Categories created:', category1.name, category2.name);
+  console.log('💳 Creating transaction types...');
+  const saleType = await prisma.transactionType.create({
+    data: { name: 'Выкуп' },
+  });
+  const returnType = await prisma.transactionType.create({
+    data: { name: 'Комиссия' },
+  });
+  console.log('✅ Transaction types created:', saleType.name, returnType.name);
 
-  // 3. Создание типов транзакций
-  console.log('🔁 Creating transaction types...');
-  const existingTypes = await prisma.transactionType.findMany();
-  if (existingTypes.length === 0) {
-    const buyout = await prisma.transactionType.create({
-      data: { name: 'Выкуп' },
-    });
-    const commission20 = await prisma.transactionType.create({
-      data: { name: 'Комиссия' },
-    });
-    console.log('✅ Transaction types created:', buyout.name, commission20.name);
-  } else {
-    console.log('ℹ️ Transaction types already exist, skipping creation');
-  }
-
-  // 4. Создание тестовых товаров
   console.log('📦 Creating products...');
   const products = [
     {
-      name: 'Ноутбук Dell XPS 15',
-      sku: 'LAP-DELL-XPS15-001',
-      description: '15-дюймовый ноутбук с процессором Intel i7, 16GB RAM, 512GB SSD',
-      purchasePrice: 85000,
-      salePrice: 120000,
-      quantity: 5,
-      minStockLevel: 2,
-      categoryId: category1.id,
-      images: [
-        'https://example.com/images/laptop-dell-xps15-1.jpg',
-        'https://example.com/images/laptop-dell-xps15-2.jpg',
-      ],
+      name: 'Ноутбук Dell XPS 13',
+      sku: 'SKU-DELL-XPS-13',
+      description: 'Мощный ноутбук с высоким разрешением',
+      purchasePrice: new Prisma.Decimal(95000),
+      salePrice: new Prisma.Decimal(120000),
+      quantity: 10,
+      categoryId: electronics.id,
+      transactionTypeId: saleType.id,
+      images: ['dell-xps.jpg'],
     },
     {
-      name: 'Мышь Logitech MX Master 3',
-      sku: 'MOU-LOG-MX3-001',
-      description: 'Беспроводная мышь для продуктивной работы',
-      purchasePrice: 3500,
-      salePrice: 5500,
-      quantity: 25,
-      minStockLevel: 10,
-      categoryId: category1.id,
-      images: ['https://example.com/images/mouse-logitech-mx3.jpg'],
+      name: 'Мышь беспроводная',
+      sku: 'SKU-WIRELESS-MOUSE',
+      description: 'Беспроводная мышь с высокой чувствительностью',
+      purchasePrice: new Prisma.Decimal(2000),
+      salePrice: new Prisma.Decimal(2500),
+      quantity: 50,
+      categoryId: electronics.id,
+      transactionTypeId: saleType.id,
+      images: ['wireless-mouse.jpg'],
     },
     {
-      name: 'Клавиатура механическая Keychron K2',
-      sku: 'KEY-KEY-K2-001',
-      description: 'Механическая клавиатура с подсветкой, Bluetooth',
-      purchasePrice: 6500,
-      salePrice: 9500,
-      quantity: 15,
-      minStockLevel: 5,
-      categoryId: category1.id,
-      images: ['https://example.com/images/keyboard-keychron-k2.jpg'],
+      name: 'Клавиатура механическая',
+      sku: 'SKU-MECH-KEYBOARD',
+      description: 'Механическая клавиатура с RGB подсветкой',
+      purchasePrice: new Prisma.Decimal(8000),
+      salePrice: new Prisma.Decimal(9500),
+      quantity: 30,
+      categoryId: electronics.id,
+      transactionTypeId: saleType.id,
+      images: ['mechanical-keyboard.jpg'],
     },
     {
-      name: 'Бумага офисная А4',
-      sku: 'PAP-A4-500-001',
-      description: 'Офисная бумага А4, 500 листов, плотность 80г/м²',
-      purchasePrice: 250,
-      salePrice: 450,
-      quantity: 100,
-      minStockLevel: 30,
-      categoryId: category2.id,
-      images: ['https://example.com/images/paper-a4.jpg'],
-    },
-    {
-      name: 'Ручка шариковая синяя',
-      sku: 'PEN-BLUE-001',
-      description: 'Шариковая ручка синего цвета, упаковка 12 штук',
-      purchasePrice: 120,
-      salePrice: 250,
+      name: 'Бумага A4',
+      sku: 'SKU-A4-PAPER-80G',
+      description: 'Бумага формата A4, 80 г/м²',
+      purchasePrice: new Prisma.Decimal(120),
+      salePrice: new Prisma.Decimal(150),
       quantity: 200,
-      minStockLevel: 50,
-      categoryId: category2.id,
-      images: ['https://example.com/images/pen-blue.jpg'],
+      categoryId: officeSupplies.id,
+      transactionTypeId: returnType.id,
+      images: ['a4-paper.jpg'],
+    },
+    {
+      name: 'Ручка шариковая',
+      sku: 'SKU-BALL-PEN-BLUE',
+      description: 'Шариковая ручка с синей пастой',
+      purchasePrice: new Prisma.Decimal(35),
+      salePrice: new Prisma.Decimal(50),
+      quantity: 100,
+      categoryId: officeSupplies.id,
+      transactionTypeId: returnType.id,
+      images: ['pen.jpg'],
     },
   ];
 
+  const createdProducts: { id: number; name: string }[] = [];
   for (const productData of products) {
     const product = await prisma.product.create({
       data: productData,
     });
-    console.log(`✅ Product created: ${product.name} (SKU: ${product.sku})`);
+    createdProducts.push(product);
+    console.log(`✅ Product created: ${product.name} (SKU: ${product.id})`);
   }
+
+  console.log('📦 Creating warehouses...');
+  const warehouse1 = await prisma.warehouse.create({
+    data: {
+      name: 'Интер',
+      description: 'Основной склад для хранения товаров',
+      address: 'ул. Примерная, д. 1',
+    },
+  });
+  const warehouse2 = await prisma.warehouse.create({
+    data: {
+      name: 'Ленина',
+      description: 'Резервный склад для хранения товаров',
+      address: 'ул. Резервная, д. 2',
+    },
+  });
+  console.log('✅ Warehouses created:', warehouse1.name, warehouse2.name);
+
+  console.log('🤝 Creating committees...');
+  const committee1 = await prisma.committee.create({
+    data: {
+      name: 'ООО ТехноСервис',
+      description: 'Поставщик электроники',
+      contactInfo: 'contact@technoservice.ru, +7 (495) 123-45-67',
+    },
+  });
+  const committee2 = await prisma.committee.create({
+    data: {
+      name: 'ООО КанцТорг',
+      description: 'Поставщик канцелярских товаров',
+      contactInfo: 'info@kantorg.ru, +7 (495) 987-65-43',
+    },
+  });
+  console.log('✅ Committees created:', committee1.name, committee2.name);
+
+  console.log('💰 Creating sales...');
+  const sale1 = await prisma.sale.create({
+    data: {
+      productId: createdProducts[0].id,
+      quantity: 2,
+      salePrice: new Prisma.Decimal(120000),
+      soldBy: superAdmin.id,
+    },
+  });
+  const sale2 = await prisma.sale.create({
+    data: {
+      productId: createdProducts[2].id,
+      quantity: 1,
+      salePrice: new Prisma.Decimal(9500),
+      soldBy: superAdmin.id,
+    },
+  });
+  console.log('✅ Sales created:', sale1.productId, sale2.productId);
+
+  console.log('🔄 Creating returns...');
+  const return1 = await prisma.return.create({
+    data: {
+      productId: createdProducts[1].id,
+      quantity: 1,
+      reason: 'Бракованный товар',
+      returnedBy: superAdmin.id,
+    },
+  });
+  const return2 = await prisma.return.create({
+    data: {
+      productId: createdProducts[3].id,
+      quantity: 10,
+      reason: 'Изменение заказа',
+      returnedBy: superAdmin.id,
+    },
+  });
+  console.log('✅ Returns created:', return1.productId, return2.productId);
+
+  console.log('📝 Creating audit logs...');
+  await prisma.auditLog.create({
+    data: {
+      userId: superAdmin.id,
+      action: 'login',
+      entityType: 'Auth',
+      success: true,
+      ipAddress: '127.0.0.1',
+      userAgent: 'seed-script',
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId: superAdmin.id,
+      action: 'product.create',
+      entityType: 'Product',
+      entityId: createdProducts[0].id,
+      newValues: { name: createdProducts[0].name },
+      success: true,
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId: superAdmin.id,
+      action: 'sale.create',
+      entityType: 'Sale',
+      entityId: sale1.id,
+      newValues: { productId: sale1.productId, quantity: sale1.quantity },
+      success: true,
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId: superAdmin.id,
+      action: 'return.create',
+      entityType: 'Return',
+      entityId: return1.id,
+      newValues: { productId: return1.productId, quantity: return1.quantity },
+      success: true,
+    },
+  });
 
   console.log('🎉 Seed completed successfully!');
 }
@@ -143,4 +237,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
