@@ -144,24 +144,84 @@
           :header="getEditDialogHeader()"
           :modal="true"
           class="p-fluid"
-          style="width: 450px"
+          style="width: 500px"
         >
           <div v-if="editingItem" class="field mb-3">
             <label for="product" class="block mb-2">Товар</label>
-            <InputText id="product" :modelValue="editingItem.productName" disabled class="w-full" />
+            <InputText 
+              id="product" 
+              :modelValue="editingItem.productName" 
+              disabled 
+              class="w-full" 
+            />
           </div>
+          
           <div class="field mb-3">
             <label for="quantity" class="block mb-2">Количество</label>
-            <InputNumber id="quantity" v-model="editForm.quantity" :min="1" showButtons class="w-full" />
+            <InputNumber 
+              id="quantity" 
+              v-model="editForm.quantity" 
+              :min="1" 
+              showButtons 
+              class="w-full" 
+            />
           </div>
+          
           <div v-if="reportType === 'sales'" class="field mb-3">
             <label for="price" class="block mb-2">Цена продажи</label>
-            <InputNumber id="price" v-model="editForm.salePrice" mode="currency" currency="RUB" locale="ru-RU" class="w-full" />
+            <InputNumber 
+              id="price" 
+              v-model="editForm.salePrice" 
+              mode="currency" 
+              currency="RUB" 
+              locale="ru-RU" 
+              class="w-full" 
+            />
           </div>
+          
           <div v-if="reportType === 'returns'" class="field mb-3">
             <label for="reason" class="block mb-2">Причина возврата</label>
-            <Textarea id="reason" v-model="editForm.reason" rows="3" class="w-full" />
+            <Textarea 
+              id="reason" 
+              v-model="editForm.reason" 
+              rows="3" 
+              class="w-full" 
+            />
           </div>
+          
+          <!-- Поле для редактирования даты (только для ADMIN) -->
+          <div 
+            v-if="authStore.hasRole(Role.ADMIN) && reportType === 'sales'" 
+            class="field mb-3"
+          >
+            <label for="saleDate" class="block mb-2">Дата продажи</label>
+            <Calendar
+              id="saleDate"
+              v-model="editForm.date"
+              dateFormat="yy-mm-dd"
+              showIcon
+              :showTime="true"
+              hourFormat="24"
+              class="w-full"
+            />
+          </div>
+          
+          <div 
+            v-if="authStore.hasRole(Role.ADMIN) && reportType === 'returns'" 
+            class="field mb-3"
+          >
+            <label for="returnDate" class="block mb-2">Дата возврата</label>
+            <Calendar
+              id="returnDate"
+              v-model="editForm.date"
+              dateFormat="yy-mm-dd"
+              showIcon
+              :showTime="true"
+              hourFormat="24"
+              class="w-full"
+            />
+          </div>
+          
           <template #footer>
             <Button label="Отмена" icon="pi pi-times" text @click="editDialogVisible = false" />
             <Button label="Сохранить" icon="pi pi-check" @click="saveEdit" autofocus />
@@ -320,6 +380,7 @@ interface EditForm {
   quantity: number;
   salePrice: number;
   reason: string;
+  date: Date | null;
 }
 
 const salesStore = useSalesStore();
@@ -350,6 +411,7 @@ const editForm = reactive<EditForm>({
   quantity: 0,
   salePrice: 0,
   reason: '',
+  date: null,
 });
 
 // Нормализация данных для таблицы
@@ -489,6 +551,7 @@ const tableColumns = computed<ReportColumn[]>(() => {
 
 // Проверка прав для редактирования
 const canEditItem = (item: NormalizedItem): boolean => {
+  // Редактировать может только АДМИН
   if (!authStore.hasRole(Role.ADMIN)) return false;
   
   // Редактировать можно только продажи и возвраты
@@ -518,13 +581,24 @@ const editItem = (item: NormalizedItem) => {
   
   editingItem.value = item;
   editForm.quantity = item.quantity;
+  editForm.date = null; // Сбрасываем дату
   
   if (reportType.value === 'sales') {
     const saleItem = item as NormalizedSale;
     editForm.salePrice = saleItem.salePrice;
+    
+    // Устанавливаем дату продажи если есть
+    if (saleItem.date) {
+      editForm.date = new Date(saleItem.date);
+    }
   } else if (reportType.value === 'returns') {
     const returnItem = item as NormalizedReturn;
     editForm.reason = returnItem.reason;
+    
+    // Устанавливаем дату возврата если есть
+    if (returnItem.date) {
+      editForm.date = new Date(returnItem.date);
+    }
   }
   
   editDialogVisible.value = true;
@@ -545,38 +619,50 @@ const saveEdit = async () => {
         throw new Error('Не удалось определить ID товара');
       }
       
-      // Отправляем productId (обязательно!) но тот же самый
-      await salesStore.updateSale(saleItem.id, {
-        productId: productId, // Обязательное поле
+      // Формируем объект для обновления
+      const updateData: any = {
+        productId: productId,
         quantity: editForm.quantity,
         salePrice: editForm.salePrice,
-        // soldAt можно не отправлять, если не меняем
-      });
+      };
+      
+      // Добавляем дату только если пользователь ADMIN и дата изменена
+      if (authStore.hasRole(Role.ADMIN) && editForm.date) {
+        updateData.soldAt = editForm.date.toISOString();
+      }
+      
+      await salesStore.updateSale(saleItem.id, updateData);
       
       toast.add({ severity: 'success', summary: 'Успешно', detail: 'Продажа обновлена', life: 3000 });
     } else if (reportType.value === 'returns') {
       const returnItem = editingItem.value as NormalizedReturn;
       const originalData = returnItem.originalData as Return;
       
-      // Для возвратов также нужен productId
       const productId = originalData.productId || originalData.product?.id;
       
       if (!productId) {
         throw new Error('Не удалось определить ID товара');
       }
       
-      // Для возвратов отправляем тот же productId
-      await returnsStore.updateReturn(returnItem.id, {
-        productId: productId, // Обязательное поле
+      // Формируем объект для обновления
+      const updateData: any = {
+        productId: productId,
         quantity: editForm.quantity,
         reason: editForm.reason,
-      });
+      };
+      
+      // Добавляем дату только если пользователь ADMIN и дата изменена
+      if (authStore.hasRole(Role.ADMIN) && editForm.date) {
+        updateData.returnedAt = editForm.date.toISOString();
+      }
+      
+      await returnsStore.updateReturn(returnItem.id, updateData);
       
       toast.add({ severity: 'success', summary: 'Успешно', detail: 'Возврат обновлен', life: 3000 });
     }
     
     editDialogVisible.value = false;
-    await generateReport(); // Refresh data
+    await generateReport();
   } catch (e: any) {
     const action = reportType.value === 'sales' ? 'продажу' : 'возврат';
     toast.add({ 
