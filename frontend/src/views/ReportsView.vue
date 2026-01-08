@@ -156,36 +156,18 @@
             />
           </div>
           
-          <!-- Поле "Доступно" (только для чтения) -->
-          <div class="field mb-3">
-            <label class="block mb-2">Доступно на складе</label>
-            <InputNumber 
-              :modelValue="availableQuantity"
-              disabled
-              class="w-full"
-              :min="0"
-            />
-            <small class="text-gray-500">Текущее количество товара на складе</small>
-          </div>
-          
-          <!-- Поле для ввода количества -->
-          <div class="field mb-3">
-            <label for="quantity" class="block mb-2">Количество *</label>
-            <InputNumber 
-              id="quantity" 
-              v-model="editForm.quantity" 
-              :min="1"
-              :max="availableQuantity"
-              showButtons 
-              class="w-full"
-              :class="{ 'p-invalid': quantityError }"
-              @input="validateQuantity"
-            />
-            <small v-if="quantityError" class="p-error">{{ quantityError }}</small>
-            <small v-else class="text-gray-500">
-              Можно ввести от 1 до {{ availableQuantity }}
-            </small>
-          </div>
+          <QuantityInput
+            v-model="editForm.quantity"
+            class="mb-3"
+            :available-quantity="availableQuantity"
+            :label="'Количество'"
+            :available-label="'Доступно на складе'"
+            :required="true"
+            :min="1"
+            :max="availableQuantity"
+            :show-available-field="true"
+            @error="handleQuantityError"
+          />
           
           <div v-if="reportType === 'sales'" class="field mb-3">
             <label for="price" class="block mb-2">Цена продажи</label>
@@ -346,6 +328,8 @@ import { useToast } from 'primevue/usetoast';
 import type { Sale, Product, Return as ApiReturn, Return } from '@/types/api';
 import { Role } from '@/types/api';
 
+import QuantityInput from '@/components/forms/QuantityInput.vue'; // Импорт компонента 2 поля доступно и ввод количества 
+
 // Типы для нормализованных данных
 interface NormalizedSale {
   id: number;
@@ -434,9 +418,8 @@ const editForm = reactive<EditForm>({
   date: null,
 });
 
-// Добавляем новые переменные
-const quantityError = ref<string>('');
 const availableQuantity = ref<number>(0);
+const quantityInputRef = ref<InstanceType<typeof QuantityInput> | null>(null);
 
 // Добавляем вычисляемое свойство для получения текущего товара
 const currentProduct = computed(() => {
@@ -615,20 +598,25 @@ const getEditDialogHeader = (): string => {
 };
 
 // Метод для валидации количества
-const validateQuantity = () => {
-  quantityError.value = '';
+// const validateQuantity = () => {
+//   quantityError.value = '';
   
-  if (editForm.quantity < 1) {
-    quantityError.value = 'Количество должно быть больше 0';
-    return false;
-  }
+//   if (editForm.quantity < 1) {
+//     quantityError.value = 'Количество должно быть больше 0';
+//     return false;
+//   }
   
-  if (editForm.quantity > availableQuantity.value) {
-    quantityError.value = `Нельзя указать больше ${availableQuantity.value} единиц`;
-    return false;
-  }
+//   if (editForm.quantity > availableQuantity.value) {
+//     quantityError.value = `Нельзя указать больше ${availableQuantity.value} единиц`;
+//     return false;
+//   }
   
-  return true;
+//   return true;
+// };
+// Обработчик ошибок из компонента QuantityInput
+const handleQuantityError = (error: string | null) => {
+  // Можно обработать ошибку, если нужно
+  console.log('Quantity error:', error);
 };
 
 // Обновляем метод editItem для установки доступного количества
@@ -638,7 +626,6 @@ const editItem = (item: NormalizedItem) => {
   editingItem.value = item;
   editForm.quantity = item.quantity;
   editForm.date = null;
-  quantityError.value = '';
   
   // Устанавливаем доступное количество на складе
   if (reportType.value === 'sales') {
@@ -673,15 +660,18 @@ const editItem = (item: NormalizedItem) => {
 const saveEdit = async () => {
   if (!editingItem.value) return;
   
-  // Проверяем валидность количества
-  if (!validateQuantity()) {
-    toast.add({ 
-      severity: 'error', 
-      summary: 'Ошибка', 
-      detail: quantityError.value, 
-      life: 3000 
-    });
-    return;
+  // Проверяем валидность через компонент
+  if (quantityInputRef.value) {
+    const isValid = quantityInputRef.value.validate();
+    if (!isValid) {
+      toast.add({ 
+        severity: 'error', 
+        summary: 'Ошибка', 
+        detail: 'Пожалуйста, проверьте количество', 
+        life: 3000 
+      });
+      return;
+    }
   }
   
   try {
@@ -1121,7 +1111,7 @@ watch(
 watch(editDialogVisible, (newValue) => {
   if (!newValue) {
     // Сбрасываем ошибки при закрытии диалога
-    quantityError.value = '';
+    // quantityError.value = '';
     availableQuantity.value = 0;
   }
 });

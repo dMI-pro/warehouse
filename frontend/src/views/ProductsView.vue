@@ -474,23 +474,17 @@
           <label class="label">Товар</label>
           <InputText :value="selectedProduct.name" disabled class="w-full" />
         </div>
-        <div class="field">
-          <label class="label">Доступно</label>
-          <InputNumber v-model="selectedProduct.quantity" disabled class="w-full" />
-        </div>
 
-        <div class="field">
-          <label for="saleQuantity" class="label">Количество *</label>
-          <InputNumber
-            id="saleQuantity"
-            v-model="saleForm.quantity"
-            :min="1"
-            :max="selectedProduct.quantity"
-            class="w-full"
-            required
-          />
-          <small v-if="saleFormErrors.quantity" class="p-error">{{ saleFormErrors.quantity }}</small>
-        </div>
+        <QuantityInput
+          v-model="saleForm.quantity"
+          :available-quantity="selectedProduct?.quantity || 0"
+          :label="'Количество'"
+          :available-label="'Доступно на складе'"
+          :required="true"
+          :min="1"
+          :show-available-field="true"
+          ref="saleQuantityInputRef"
+        />
 
         <div class="field">
           <label for="salePrice" class="label">Цена продажи</label>
@@ -552,22 +546,16 @@
           <InputText :value="selectedProduct.name" disabled class="w-full" />
         </div>
 
-        <div class="field">
-          <label class="label">Доступно</label>
-          <InputNumber v-model="selectedProduct.quantity" disabled class="w-full" />
-        </div>
-
-        <div class="field">
-          <label for="returnQuantity" class="label">Количество к возврату *</label>
-          <InputNumber
-            id="returnQuantity"
-            v-model="returnForm.quantity"
-            :min="1"
-            :max="selectedProduct.quantity"
-            class="w-full"
-            required
-          />
-        </div>
+        <QuantityInput
+          v-model="returnForm.quantity"
+          :available-quantity="selectedProduct?.quantity || 0"
+          :label="'Количество к возврату'"
+          :available-label="'Доступно на складе'"
+          :required="true"
+          :min="1"
+          :show-available-field="true"
+          ref="returnQuantityInputRef"
+        />
 
         <div class="field">
           <label for="returnReason" class="label">Причина возврата</label>
@@ -642,6 +630,8 @@ import { apiService } from '@/services/api';
 import { compressImageFile, createImagePreview } from '@/utils/imageCompression';
 import { handleApiError, validateSKU } from '@/utils/errorHandler';
 
+import QuantityInput from '@/components/forms/QuantityInput.vue';
+
 const productsStore = useProductsStore();
 const categoriesStore = useCategoriesStore();
 const salesStore = useSalesStore();
@@ -665,6 +655,10 @@ const editingProduct = ref<Product | null>(null);
 const selectedProduct = ref<Product | null>(null);
 const selectedProducts = ref<Product[]>([]);
 const pendingFiles = ref<File[]>([]);
+
+// Ref для компонента Доступно и ввода количества QuantityInput.vue
+const saleQuantityInputRef = ref<InstanceType<typeof QuantityInput> | null>(null);
+const returnQuantityInputRef = ref<InstanceType<typeof QuantityInput> | null>(null);
 
 const productForm = reactive<CreateProductDto & { images?: string[]; arrivalDate?: Date }>({
   name: '',
@@ -1084,8 +1078,23 @@ const closeSaleDialog = () => {
 const handleSale = async () => {
   if (!selectedProduct.value) return;
 
-  saleFormErrors.quantity = '';
+  // Проверяем валидность через компонент
+  if (saleQuantityInputRef.value) {
+    const isValid = saleQuantityInputRef.value.validate();
+    if (!isValid) {
+      toast.add({ 
+        severity: 'error', 
+        summary: 'Ошибка', 
+        detail: 'Пожалуйста, проверьте количество', 
+        life: 3000 
+      });
+      return;
+    }
+  }
 
+  saleFormErrors.quantity = '';
+  
+  // две проверки ниже нужны, после проверить и удалить
   if (saleForm.quantity < 1) {
     saleFormErrors.quantity = 'Количество должно быть больше 0';
     return;
@@ -1137,6 +1146,21 @@ const closeReturnDialog = () => {
 const handleReturn = async () => {
   if (!selectedProduct.value) return;
 
+  // Проверяем валидность через компонент
+  if (returnQuantityInputRef.value) {
+    const isValid = returnQuantityInputRef.value.validate();
+    if (!isValid) {
+      toast.add({ 
+        severity: 'error', 
+        summary: 'Ошибка', 
+        detail: 'Пожалуйста, проверьте количество', 
+        life: 3000 
+      });
+      return;
+    }
+  }
+
+  // две проверки ниже нужны, после проверить и удалить
   if (returnForm.quantity < 1) {
     toast.add({
       severity: 'error',
