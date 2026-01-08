@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { Sale, CreateSaleDto, SalesStatistics, PaginatedResponse } from '@/types/api';
+import type { Sale, CreateSaleDto, UpdateSaleDto, SalesStatistics, PaginatedResponse } from '@/types/api';
 import { apiService } from '@/services/api';
 
 export const useSalesStore = defineStore('sales', () => {
@@ -60,6 +60,35 @@ export const useSalesStore = defineStore('sales', () => {
     }
   };
 
+  const updateSale = async (id: number, updateSaleDto: UpdateSaleDto) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const sale = await apiService.updateSale(id, updateSaleDto);
+      await fetchSales();
+      return sale;
+    } catch (err: any) {
+      error.value = err.response?.data?.message || 'Ошибка обновления продажи';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const deleteSale = async (id: number) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      await apiService.deleteSale(id);
+      await fetchSales();
+    } catch (err: any) {
+      error.value = err.response?.data?.message || 'Ошибка удаления продажи';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   const fetchStatistics = async (startDate?: string, endDate?: string) => {
     loading.value = true;
     error.value = null;
@@ -86,6 +115,8 @@ export const useSalesStore = defineStore('sales', () => {
     pagination,
     fetchSales,
     createSale,
+    updateSale,
+    deleteSale,
     fetchStatistics,
     setPage,
   };

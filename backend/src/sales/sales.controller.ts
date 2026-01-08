@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -10,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { SalesService } from './sales.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
+import { UpdateSaleDto } from './dto/update-sale.dto';
 import { QuerySalesDto } from './dto/query-sales.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -44,6 +47,21 @@ export class SalesController {
   @Roles(Role.MANAGER, Role.ADMIN)
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.salesService.findOne(id);
+  }
+
+  @Patch(':id')
+  @Roles(Role.MANAGER, Role.ADMIN)
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateSaleDto: UpdateSaleDto,
+  ) {
+    return this.salesService.update(id, updateSaleDto);
+  }
+
+  @Delete(':id')
+  @Roles(Role.MANAGER, Role.ADMIN)
+  async remove(@Param('id', ParseIntPipe) id: number) {
+    return this.salesService.remove(id);
   }
 }
 

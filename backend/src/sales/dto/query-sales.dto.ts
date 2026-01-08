@@ -28,7 +28,7 @@ export class QuerySalesDto {
 
   @IsInt()
   @Min(1)
-  @Max(100) // Максимальный лимит для предотвращения DoS
+  @Max(10000) // Максимальный лимит для предотвращения DoS был 100
   @Type(() => Number)
   @IsOptional()
   limit?: number = 10;

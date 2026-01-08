@@ -154,6 +154,13 @@ export interface CreateSaleDto {
   soldAt?: string; // Дата продажи (ISO string)
 }
 
+export interface UpdateSaleDto {
+  productId?: number;
+  quantity?: number;
+  salePrice?: number;
+  soldAt?: string;
+}
+
 export interface SalesStatistics {
   totalSales: number;
   totalRevenue: number;
@@ -263,6 +270,14 @@ export interface CreateReturnDto {
   productId: number;
   quantity: number;
   reason?: string;
+  soldAt?: string;
+}
+
+export interface UpdateReturnDto {
+  productId: number;
+  quantity: number;
+  reason?: string;
+  soldAt?: string;
 }
 
 
