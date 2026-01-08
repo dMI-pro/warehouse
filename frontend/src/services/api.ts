@@ -13,7 +13,11 @@ import type {
   UpdateCategoryDto,
   Sale,
   CreateSaleDto,
+  UpdateSaleDto,
   SalesStatistics,
+  Return,
+  CreateReturnDto,
+  UpdateReturnDto,
   PaginatedResponse,
   Warehouse,
   CreateWarehouseDto,
@@ -176,6 +180,15 @@ class ApiService {
     return response.data;
   }
 
+  async updateSale(id: number, updateSaleDto: UpdateSaleDto): Promise<Sale> {
+    const response = await this.api.patch<Sale>(`/sales/${id}`, updateSaleDto);
+    return response.data;
+  }
+
+  async deleteSale(id: number): Promise<void> {
+    await this.api.delete(`/sales/${id}`);
+  }
+
   async getSales(params?: {
     productId?: number;
     startDate?: string;
@@ -273,6 +286,15 @@ class ApiService {
   async createReturn(createReturnDto: CreateReturnDto): Promise<Return> {
     const response = await this.api.post<Return>('/returns', createReturnDto);
     return response.data;
+  }
+
+  async updateReturn(id: number, UpdateReturnDto: UpdateReturnDto): Promise<Return> {
+    const response = await this.api.patch<Return>(`/returns/${id}`, UpdateReturnDto);
+    return response.data;
+  }
+
+  async deleteReturn(id: number): Promise<void> {
+    await this.api.delete(`/returns/${id}`);
   }
 
   async getReturns(params?: {

@@ -138,19 +138,49 @@
           </template>
         </Card>
         
+        <!-- Диалог редактирования продажи -->
+        <Dialog
+          v-model:visible="editDialogVisible"
+          :header="getEditDialogHeader()"
+          :modal="true"
+          class="p-fluid"
+          style="width: 450px"
+        >
+          <div v-if="editingItem" class="field mb-3">
+            <label for="product" class="block mb-2">Товар</label>
+            <InputText id="product" :modelValue="editingItem.productName" disabled class="w-full" />
+          </div>
+          <div class="field mb-3">
+            <label for="quantity" class="block mb-2">Количество</label>
+            <InputNumber id="quantity" v-model="editForm.quantity" :min="1" showButtons class="w-full" />
+          </div>
+          <div v-if="reportType === 'sales'" class="field mb-3">
+            <label for="price" class="block mb-2">Цена продажи</label>
+            <InputNumber id="price" v-model="editForm.salePrice" mode="currency" currency="RUB" locale="ru-RU" class="w-full" />
+          </div>
+          <div v-if="reportType === 'returns'" class="field mb-3">
+            <label for="reason" class="block mb-2">Причина возврата</label>
+            <Textarea id="reason" v-model="editForm.reason" rows="3" class="w-full" />
+          </div>
+          <template #footer>
+            <Button label="Отмена" icon="pi pi-times" text @click="editDialogVisible = false" />
+            <Button label="Сохранить" icon="pi pi-check" @click="saveEdit" autofocus />
+          </template>
+        </Dialog>
+
         <!-- Таблица -->
         <Card>
           <template #title>Детализация отчета</template>
           <template #content>
             <DataTable
               :value="normalizedReportData"
-              :loading="salesStore.loading"
+              :loading="isLoading"
               :paginator="true"
               :rows="20"
               :rowsPerPageOptions="[20, 50, 100]"
               paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
               currentPageReportTemplate="{first} - {last} из {totalRecords}"
-              :emptyMessage="salesStore.loading ? 'Загрузка...' : 'Нет данных'"
+              :emptyMessage="isLoading ? 'Загрузка...' : 'Нет данных'"
               class="report-table"
             >
               <!-- Динамические колонки данных -->
@@ -177,9 +207,9 @@
               <Column header="Действия" :exportable="false" style="min-width: 8rem">
                 <template #body="{ data }">
                   <div class="report-table__actions">
-                    <!-- Редактировать: только для ADMIN -->
+                    <!-- Редактировать: только для ADMIN и если доступно для текущего типа -->
                     <Button 
-                      v-if="authStore.hasRole(Role.ADMIN)"
+                      v-if="canEditItem(data)"
                       class="p-button-xs"
                       icon="pi pi-pencil"
                       severity="info"
@@ -187,11 +217,12 @@
                       outlined
                       rounded
                       v-tooltip.top="'Редактировать'"
-                      @click="editItem(data)" 
+                      @click="editItem(data)"
                     />
                     
-                    <!-- Удалить: для ADMIN и MANAGER -->
+                    <!-- Удалить: для ADMIN и MANAGER если доступно -->
                     <Button
+                      v-if="canDeleteItem(data)"
                       class="p-button-xs"
                       icon="pi pi-trash"
                       size="small"
@@ -223,12 +254,16 @@ import Dropdown from 'primevue/dropdown';
 import Divider from 'primevue/divider';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
+import Dialog from 'primevue/dialog';
+import InputText from 'primevue/inputtext';
+import InputNumber from 'primevue/inputnumber';
+import Textarea from 'primevue/textarea';
 import { useSalesStore } from '@/stores/salesStore';
 import { useProductsStore } from '@/stores/productsStore';
 import { useReturnsStore } from '@/stores/returnsStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useToast } from 'primevue/usetoast';
-import type { Sale, Product } from '@/types/api';
+import type { Sale, Product, Return as ApiReturn, Return } from '@/types/api';
 import { Role } from '@/types/api';
 
 // Типы для нормализованных данных
@@ -237,9 +272,9 @@ interface NormalizedSale {
   productName: string;
   quantity: number;
   salePrice: number;
-  purchasePrice: number; // Добавляем закупочную цену
+  purchasePrice: number;
   totalAmount: number;
-  totalProfit: number; // Добавляем прибыль по позиции
+  totalProfit: number;
   seller: string;
   date: string;
   originalData?: Sale;
@@ -262,8 +297,10 @@ interface NormalizedReturn {
   reason: string;
   returnedBy: string;
   date: string;
-  originalData?: any;
+  originalData?: ApiReturn;
 }
+
+type NormalizedItem = NormalizedSale | NormalizedProduct | NormalizedReturn;
 
 interface ReportColumn {
   field: string;
@@ -279,6 +316,12 @@ interface CalculatedStats {
   totalItemsSold: number;
 }
 
+interface EditForm {
+  quantity: number;
+  salePrice: number;
+  reason: string;
+}
+
 const salesStore = useSalesStore();
 const productsStore = useProductsStore();
 const returnsStore = useReturnsStore();
@@ -288,13 +331,7 @@ const toast = useToast();
 const reportType = ref<'sales' | 'stock' | 'movement' | 'returns'>('sales');
 const mainChartRef = ref<HTMLDivElement | null>(null);
 let mainChart: echarts.ECharts | null = null;
-
-// Предположим, роль берется из вашего store
-// const userRole = computed(() => authStore.user?.role); 
-// const userRole = 'ADMIN'; // Для теста: 'ADMIN' или 'MANAGER'
-const userRole = authStore.hasRole(Role.MANAGER)
-console.log('userRole:', userRole);
-
+const isLoading = ref(false);
 
 const filters = reactive({
   startDate: null as Date | null,
@@ -303,9 +340,17 @@ const filters = reactive({
 
 const exportFormat = ref<'excel' | 'csv'>('csv');
 const exportFormats = [
-  // { label: 'Excel', value: 'excel' },
   { label: 'CSV', value: 'csv' },
 ];
+
+// Редактирование
+const editDialogVisible = ref(false);
+const editingItem = ref<NormalizedItem | null>(null);
+const editForm = reactive<EditForm>({
+  quantity: 0,
+  salePrice: 0,
+  reason: '',
+});
 
 // Нормализация данных для таблицы
 const normalizedReportData = computed(() => {
@@ -352,7 +397,6 @@ const normalizedReportData = computed(() => {
       originalData: ret
     }));
   } else {
-    // Для движения товаров
     return salesStore.sales.map((sale): NormalizedSale => {
       const salePrice = Number(sale.salePrice) || 0;
       const quantity = sale.quantity;
@@ -386,14 +430,15 @@ const calculatedStats = computed<CalculatedStats>(() => {
   }
 
   const stats = normalizedReportData.value.reduce((acc, item) => {
-    acc.totalRevenue += item.totalAmount;
-    acc.totalProfit += item.totalProfit;
-    acc.totalItemsSold += item.quantity;
+    const saleItem = item as NormalizedSale;
+    acc.totalRevenue += saleItem.totalAmount;
+    acc.totalProfit += saleItem.totalProfit;
+    acc.totalItemsSold += saleItem.quantity;
     return acc;
   }, {
     totalRevenue: 0,
     totalProfit: 0,
-    totalInvoices: normalizedReportData.value.length, // Каждая запись - это отдельный чек
+    totalInvoices: normalizedReportData.value.length,
     totalItemsSold: 0
   });
 
@@ -421,6 +466,15 @@ const tableColumns = computed<ReportColumn[]>(() => {
       { field: 'minStockLevel', header: 'Мин. запас', sortable: true },
       { field: 'salePrice', header: 'Цена', sortable: true, format: 'price' },
     ];
+  } else if (reportType.value === 'returns') {
+    return [
+      { field: 'id', header: 'ID возврата', sortable: true },
+      { field: 'productName', header: 'Товар', sortable: true },
+      { field: 'quantity', header: 'Количество', sortable: true },
+      { field: 'reason', header: 'Причина', sortable: true },
+      { field: 'returnedBy', header: 'Кто вернул', sortable: true },
+      { field: 'date', header: 'Дата', sortable: true, format: 'date' },
+    ];
   } else {
     return [
       { field: 'id', header: 'ID', sortable: true },
@@ -433,14 +487,133 @@ const tableColumns = computed<ReportColumn[]>(() => {
   }
 });
 
-// Ваши методы
-const editItem = (item: any) => {
-  console.log('Редактирование записи:', item.id);
+// Проверка прав для редактирования
+const canEditItem = (item: NormalizedItem): boolean => {
+  if (!authStore.hasRole(Role.ADMIN)) return false;
+  
+  // Редактировать можно только продажи и возвраты
+  return reportType.value === 'sales' || reportType.value === 'returns';
 };
 
-const deleteItem = (item: any) => {
-  if (confirm(`Вы уверены, что хотите удалить запись ${item.id}?`)) {
-    console.log('Удаление записи:', item.id);
+// Проверка прав для удаления
+const canDeleteItem = (item: NormalizedItem): boolean => {
+  // Удалять могут ADMIN и MANAGER
+  if (!authStore.hasRole(Role.ADMIN) && !authStore.hasRole(Role.MANAGER)) return false;
+  
+  // Удалять можно только продажи и возвраты
+  return reportType.value === 'sales' || reportType.value === 'returns';
+};
+
+// Получить заголовок диалога редактирования
+const getEditDialogHeader = (): string => {
+  switch (reportType.value) {
+    case 'sales': return 'Редактировать продажу';
+    case 'returns': return 'Редактировать возврат';
+    default: return 'Редактировать запись';
+  }
+};
+
+const editItem = (item: NormalizedItem) => {
+  if (!canEditItem(item)) return;
+  
+  editingItem.value = item;
+  editForm.quantity = item.quantity;
+  
+  if (reportType.value === 'sales') {
+    const saleItem = item as NormalizedSale;
+    editForm.salePrice = saleItem.salePrice;
+  } else if (reportType.value === 'returns') {
+    const returnItem = item as NormalizedReturn;
+    editForm.reason = returnItem.reason;
+  }
+  
+  editDialogVisible.value = true;
+};
+
+const saveEdit = async () => {
+  if (!editingItem.value) return;
+  
+  try {
+    if (reportType.value === 'sales') {
+      const saleItem = editingItem.value as NormalizedSale;
+      const originalData = saleItem.originalData as Sale;
+      
+      // Получаем productId из оригинальных данных
+      const productId = originalData.productId || originalData.product?.id;
+      
+      if (!productId) {
+        throw new Error('Не удалось определить ID товара');
+      }
+      
+      // Отправляем productId (обязательно!) но тот же самый
+      await salesStore.updateSale(saleItem.id, {
+        productId: productId, // Обязательное поле
+        quantity: editForm.quantity,
+        salePrice: editForm.salePrice,
+        // soldAt можно не отправлять, если не меняем
+      });
+      
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Продажа обновлена', life: 3000 });
+    } else if (reportType.value === 'returns') {
+      const returnItem = editingItem.value as NormalizedReturn;
+      const originalData = returnItem.originalData as Return;
+      
+      // Для возвратов также нужен productId
+      const productId = originalData.productId || originalData.product?.id;
+      
+      if (!productId) {
+        throw new Error('Не удалось определить ID товара');
+      }
+      
+      // Для возвратов отправляем тот же productId
+      await returnsStore.updateReturn(returnItem.id, {
+        productId: productId, // Обязательное поле
+        quantity: editForm.quantity,
+        reason: editForm.reason,
+      });
+      
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Возврат обновлен', life: 3000 });
+    }
+    
+    editDialogVisible.value = false;
+    await generateReport(); // Refresh data
+  } catch (e: any) {
+    const action = reportType.value === 'sales' ? 'продажу' : 'возврат';
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Ошибка', 
+      detail: `Не удалось обновить ${action}: ${e.message}`, 
+      life: 3000 
+    });
+  }
+};
+
+const deleteItem = async (item: NormalizedItem) => {
+  if (!canDeleteItem(item)) {
+    toast.add({ severity: 'error', summary: 'Ошибка', detail: 'У вас нет прав для удаления', life: 3000 });
+    return;
+  }
+  
+  const itemName = item.productName || `ID: ${item.id}`;
+  if (!confirm(`Вы уверены, что хотите удалить запись "${itemName}"?`)) {
+    return;
+  }
+  
+  try {
+    if (reportType.value === 'sales') {
+      const saleItem = item as NormalizedSale;
+      await salesStore.deleteSale(saleItem.id);
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Продажа удалена', life: 3000 });
+    } else if (reportType.value === 'returns') {
+      const returnItem = item as NormalizedReturn;
+      await returnsStore.deleteReturn(returnItem.id);
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Возврат удален', life: 3000 });
+    }
+    
+    await generateReport(); // Refresh data
+  } catch (e: any) {
+    const action = reportType.value === 'sales' ? 'продажу' : 'возврат';
+    toast.add({ severity: 'error', summary: 'Ошибка', detail: `Не удалось удалить ${action}: ${e.message}`, life: 3000 });
   }
 };
 
@@ -473,27 +646,39 @@ const formatDate = (dateString: string) => {
 };
 
 const generateReport = async () => {
-  const params: any = {};
-  if (filters.startDate) {
-    params.startDate = filters.startDate.toISOString().split('T')[0];
-  }
-  if (filters.endDate) {
-    params.endDate = filters.endDate.toISOString().split('T')[0];
-  }
+  isLoading.value = true;
+  
+  try {
+    const params: any = {};
+    if (filters.startDate) {
+      params.startDate = filters.startDate.toISOString().split('T')[0];
+    }
+    if (filters.endDate) {
+      params.endDate = filters.endDate.toISOString().split('T')[0];
+    }
 
-  if (reportType.value === 'sales') {
-    await salesStore.fetchSales(params);
-    // Не загружаем statistics, т.к. считаем самостоятельно
-  } else if (reportType.value === 'stock') {
-    await productsStore.fetchProducts({ limit: 1000 });
-  } else if (reportType.value === 'returns') {
-    await returnsStore.fetchReturns(params);
-  } else {
-    // Для движения товаров
-    await salesStore.fetchSales(params);
-  }
+    if (reportType.value === 'sales') {
+      await salesStore.fetchSales(params);
+    } else if (reportType.value === 'stock') {
+      await productsStore.fetchProducts({ limit: 1000 });
+    } else if (reportType.value === 'returns') {
+      await returnsStore.fetchReturns(params);
+    } else {
+      // Для движения товаров
+      await salesStore.fetchSales(params);
+    }
 
-  await updateChart();
+    await updateChart();
+  } catch (error: any) {
+    toast.add({
+      severity: 'error',
+      summary: 'Ошибка',
+      detail: `Не удалось загрузить отчет: ${error.message}`,
+      life: 3000,
+    });
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const initChart = async () => {
@@ -515,15 +700,16 @@ const updateChart = async () => {
       const salesByDate: Record<string, { revenue: number; profit: number }> = {};
       
       normalizedReportData.value.forEach(sale => {
-        const date = new Date(sale.date);
+        const saleItem = sale as NormalizedSale;
+        const date = new Date(saleItem.date);
         const dateKey = date.toISOString().split('T')[0];
         
         if (!salesByDate[dateKey]) {
           salesByDate[dateKey] = { revenue: 0, profit: 0 };
         }
         
-        salesByDate[dateKey].revenue += sale.totalAmount;
-        salesByDate[dateKey].profit += sale.totalProfit;
+        salesByDate[dateKey].revenue += saleItem.totalAmount;
+        salesByDate[dateKey].profit += saleItem.totalProfit;
       });
 
       // Сортируем даты по возрастанию
@@ -625,14 +811,15 @@ const updateChart = async () => {
       const returnsByDate: Record<string, number> = {};
       
       normalizedReportData.value.forEach(ret => {
-        const date = new Date(ret.date);
+        const returnItem = ret as NormalizedReturn;
+        const date = new Date(returnItem.date);
         const dateKey = date.toISOString().split('T')[0];
         
         if (!returnsByDate[dateKey]) {
           returnsByDate[dateKey] = 0;
         }
         
-        returnsByDate[dateKey] += ret.quantity;
+        returnsByDate[dateKey] += returnItem.quantity;
       });
 
       const sortedDates = Object.keys(returnsByDate).sort();
@@ -915,6 +1102,21 @@ onMounted(async () => {
 .report-table__actions {
   display: flex;
   gap: 8px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.label {
+  font-weight: 500;
+}
+
+.tab-content {
+  padding: 1rem 0;
 }
 
 @media (max-width: 1200px) {

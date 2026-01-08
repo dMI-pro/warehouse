@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
+import { UpdateSaleDto } from './dto/update-sale.dto';
 import { QuerySalesDto } from './dto/query-sales.dto';
 import { Prisma } from '@prisma/client';
 
@@ -203,6 +204,107 @@ export class SalesService {
       totalRevenue: totalRevenue._sum.salePrice || 0,
       totalQuantity: totalQuantity._sum.quantity || 0,
     };
+  }
+
+  async update(id: number, updateSaleDto: UpdateSaleDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const existingSale = await tx.sale.findUnique({
+        where: { id },
+      });
+
+      if (!existingSale) {
+        throw new NotFoundException(`Sale with ID ${id} not found`);
+      }
+
+      if (updateSaleDto.productId !== undefined && updateSaleDto.productId !== existingSale.productId) {
+        throw new BadRequestException('Changing product ID is not allowed');
+      }
+
+      if (updateSaleDto.quantity !== undefined && updateSaleDto.quantity !== existingSale.quantity) {
+        const diff = updateSaleDto.quantity - existingSale.quantity;
+
+        const productResult = await tx.$queryRaw<Array<{ id: number; quantity: number }>>`
+          SELECT id, quantity
+          FROM products
+          WHERE id = ${existingSale.productId}
+          FOR UPDATE
+        `;
+
+        if (!productResult || productResult.length === 0) {
+          throw new NotFoundException(`Product with ID ${existingSale.productId} not found`);
+        }
+        const product = productResult[0];
+
+        if (diff > 0 && product.quantity < diff) {
+          throw new BadRequestException(
+            `Insufficient stock for update. Available: ${product.quantity}, Required additional: ${diff}`,
+          );
+        }
+
+        await tx.product.update({
+          where: { id: existingSale.productId },
+          data: {
+            quantity: {
+              decrement: diff,
+            },
+          },
+        });
+      }
+
+      const updatedSale = await tx.sale.update({
+        where: { id },
+        data: {
+          quantity: updateSaleDto.quantity,
+          salePrice: updateSaleDto.salePrice,
+          soldAt: updateSaleDto.soldAt,
+        },
+        include: {
+          product: {
+            include: {
+              category: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+            },
+          },
+        },
+      });
+
+      return updatedSale;
+    });
+  }
+
+  async remove(id: number) {
+    return this.prisma.$transaction(async (tx) => {
+      const sale = await tx.sale.findUnique({
+        where: { id },
+      });
+
+      if (!sale) {
+        throw new NotFoundException(`Sale with ID ${id} not found`);
+      }
+
+      await tx.$queryRaw`
+        SELECT id FROM products WHERE id = ${sale.productId} FOR UPDATE
+      `;
+
+      await tx.product.update({
+        where: { id: sale.productId },
+        data: {
+          quantity: {
+            increment: sale.quantity,
+          },
+        },
+      });
+
+      return tx.sale.delete({
+        where: { id },
+      });
+    });
   }
 }
 
