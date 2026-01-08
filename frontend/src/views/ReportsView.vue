@@ -138,7 +138,7 @@
           </template>
         </Card>
         
-        <!-- Диалог редактирования продажи -->
+        <!-- Диалог редактирования продажи/возврата -->
         <Dialog
           v-model:visible="editDialogVisible"
           :header="getEditDialogHeader()"
@@ -156,15 +156,35 @@
             />
           </div>
           
+          <!-- Поле "Доступно" (только для чтения) -->
           <div class="field mb-3">
-            <label for="quantity" class="block mb-2">Количество</label>
+            <label class="block mb-2">Доступно на складе</label>
+            <InputNumber 
+              :modelValue="availableQuantity"
+              disabled
+              class="w-full"
+              :min="0"
+            />
+            <small class="text-gray-500">Текущее количество товара на складе</small>
+          </div>
+          
+          <!-- Поле для ввода количества -->
+          <div class="field mb-3">
+            <label for="quantity" class="block mb-2">Количество *</label>
             <InputNumber 
               id="quantity" 
               v-model="editForm.quantity" 
-              :min="1" 
+              :min="1"
+              :max="availableQuantity"
               showButtons 
-              class="w-full" 
+              class="w-full"
+              :class="{ 'p-invalid': quantityError }"
+              @input="validateQuantity"
             />
+            <small v-if="quantityError" class="p-error">{{ quantityError }}</small>
+            <small v-else class="text-gray-500">
+              Можно ввести от 1 до {{ availableQuantity }}
+            </small>
           </div>
           
           <div v-if="reportType === 'sales'" class="field mb-3">
@@ -414,6 +434,24 @@ const editForm = reactive<EditForm>({
   date: null,
 });
 
+// Добавляем новые переменные
+const quantityError = ref<string>('');
+const availableQuantity = ref<number>(0);
+
+// Добавляем вычисляемое свойство для получения текущего товара
+const currentProduct = computed(() => {
+  if (!editingItem.value) return null;
+  
+  if (reportType.value === 'sales') {
+    const saleItem = editingItem.value as NormalizedSale;
+    return saleItem.originalData?.product;
+  } else if (reportType.value === 'returns') {
+    const returnItem = editingItem.value as NormalizedReturn;
+    return returnItem.originalData?.product;
+  }
+  return null;
+});
+
 // Нормализация данных для таблицы
 const normalizedReportData = computed(() => {
   if (reportType.value === 'sales') {
@@ -576,47 +614,93 @@ const getEditDialogHeader = (): string => {
   }
 };
 
+// Метод для валидации количества
+const validateQuantity = () => {
+  quantityError.value = '';
+  
+  if (editForm.quantity < 1) {
+    quantityError.value = 'Количество должно быть больше 0';
+    return false;
+  }
+  
+  if (editForm.quantity > availableQuantity.value) {
+    quantityError.value = `Нельзя указать больше ${availableQuantity.value} единиц`;
+    return false;
+  }
+  
+  return true;
+};
+
+// Обновляем метод editItem для установки доступного количества
 const editItem = (item: NormalizedItem) => {
   if (!canEditItem(item)) return;
   
   editingItem.value = item;
   editForm.quantity = item.quantity;
-  editForm.date = null; // Сбрасываем дату
+  editForm.date = null;
+  quantityError.value = '';
   
+  // Устанавливаем доступное количество на складе
   if (reportType.value === 'sales') {
     const saleItem = item as NormalizedSale;
     editForm.salePrice = saleItem.salePrice;
     
-    // Устанавливаем дату продажи если есть
     if (saleItem.date) {
       editForm.date = new Date(saleItem.date);
     }
+    
+    // Получаем доступное количество из данных товара
+    const product = saleItem.originalData?.product;
+    availableQuantity.value = product?.quantity || 0;
+    
   } else if (reportType.value === 'returns') {
     const returnItem = item as NormalizedReturn;
     editForm.reason = returnItem.reason;
     
-    // Устанавливаем дату возврата если есть
     if (returnItem.date) {
       editForm.date = new Date(returnItem.date);
     }
+    
+    // Для возвратов также получаем доступное количество
+    const product = returnItem.originalData?.product;
+    availableQuantity.value = product?.quantity || 0;
   }
   
   editDialogVisible.value = true;
 };
 
+// Обновляем метод saveEdit для проверки количества
 const saveEdit = async () => {
   if (!editingItem.value) return;
+  
+  // Проверяем валидность количества
+  if (!validateQuantity()) {
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Ошибка', 
+      detail: quantityError.value, 
+      life: 3000 
+    });
+    return;
+  }
   
   try {
     if (reportType.value === 'sales') {
       const saleItem = editingItem.value as NormalizedSale;
       const originalData = saleItem.originalData as Sale;
       
-      // Получаем productId из оригинальных данных
       const productId = originalData.productId || originalData.product?.id;
       
       if (!productId) {
         throw new Error('Не удалось определить ID товара');
+      }
+      
+      // Проверяем, не пытаемся ли мы увеличить количество больше доступного
+      if (editForm.quantity > saleItem.quantity) {
+        const diff = editForm.quantity - saleItem.quantity;
+        if (diff > availableQuantity.value) {
+          throw new Error(`Недостаточно товара на складе. Доступно: ${availableQuantity.value}`);
+        }
       }
       
       // Формируем объект для обновления
@@ -643,6 +727,9 @@ const saveEdit = async () => {
       if (!productId) {
         throw new Error('Не удалось определить ID товара');
       }
+      
+      // Проверяем, не пытаемся ли мы увеличить количество больше доступного
+      // Для возвратов логика может отличаться - уточните у бэкендера
       
       // Формируем объект для обновления
       const updateData: any = {
@@ -1030,6 +1117,15 @@ watch(
   { deep: true }
 );
 
+// Обновляем watch для editDialogVisible
+watch(editDialogVisible, (newValue) => {
+  if (!newValue) {
+    // Сбрасываем ошибки при закрытии диалога
+    quantityError.value = '';
+    availableQuantity.value = 0;
+  }
+});
+
 onMounted(async () => {
   await generateReport();
   await initChart();
@@ -1038,6 +1134,8 @@ onMounted(async () => {
     mainChart?.resize();
   });
 });
+
+
 </script>
 
 <style scoped>
@@ -1203,6 +1301,22 @@ onMounted(async () => {
 
 .tab-content {
   padding: 1rem 0;
+}
+
+.p-invalid {
+  border-color: var(--red-500) !important;
+}
+
+.p-error {
+  color: var(--red-500);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+.text-gray-500 {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
 }
 
 @media (max-width: 1200px) {
