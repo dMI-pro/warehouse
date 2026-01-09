@@ -161,7 +161,7 @@
             class="mb-3"
             :available-quantity="availableQuantity"
             :label="'Количество'"
-            :available-label="'Доступно на складе'"
+            :available-label="'Доступно'"
             :required="true"
             :min="1"
             :max="availableQuantity"

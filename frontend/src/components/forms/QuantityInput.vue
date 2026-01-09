@@ -4,12 +4,12 @@
     <div v-if="showAvailableField" class="field mb-3">
       <label class="block mb-2">{{ availableLabel || 'Доступно на складе' }}</label>
       <InputNumber 
-        :modelValue="availableQuantity"
+        :modelValue="availableQuantity+modelValue"
         disabled
         class="w-full"
         :min="0"
       />
-      <small class="text-gray-500">{{ availableDescription || 'Текущее количество товара на складе' }}</small>
+      <small class="text-gray-500">{{ availableDescription || 'Общее количество товара' }}</small>
     </div>
     
     <!-- Поле для ввода количества -->
@@ -59,7 +59,7 @@ const props = withDefaults(defineProps<Props>(), {
   availableQuantity: 0,
   label: 'Количество',
   availableLabel: 'Доступно на складе',
-  availableDescription: 'Текущее количество товара на складе',
+  availableDescription: 'Общее количество товара',
   required: true,
   min: 1,
   max: undefined,
