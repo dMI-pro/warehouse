@@ -1,15 +1,15 @@
 <template>
   <div class="quantity-input">
-    <!-- Поле "Доступно" (только для чтения) -->
+     <!-- Поле "Доступно" с учетом оригинального количества -->
     <div v-if="showAvailableField" class="field mb-3">
-      <label class="block mb-2">{{ availableLabel || 'Доступно на складе' }}</label>
+      <label class="block mb-2">{{ availableLabel }}</label>
       <InputNumber 
-        :modelValue="availableQuantity+modelValue"
+        :modelValue="computedAvailableQuantity"
         disabled
         class="w-full"
         :min="0"
       />
-      <small class="text-gray-500">{{ availableDescription || 'Общее количество товара' }}</small>
+      <small class="text-gray-500">{{ availableDescription }}</small>
     </div>
     
     <!-- Поле для ввода количества -->
@@ -26,7 +26,6 @@
         class="w-full"
         :class="{ 'p-invalid': error }"
       />
-      <!-- computedHint: {{ computedHint }} -->
       <small v-if="error || error !== ''" class="p-error">{{ error }}</small>
       <small class="text-gray-500">
         {{ computedHint }}
@@ -42,6 +41,9 @@ import InputNumber from 'primevue/inputnumber';
 interface Props {
   modelValue: number;
   availableQuantity: number;
+  originalQuantity?: number; // Уже проданное/возвращенное количество
+  // quantityType?: 'sale' | 'return'; // Тип операции
+  includeOriginalInAvailable?: boolean; // Включать ли originalQuantity в доступное
   label?: string;
   availableLabel?: string;
   availableDescription?: string;
@@ -57,9 +59,12 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   modelValue: 1,
   availableQuantity: 0,
+  originalQuantity: 0,
+  // quantityType: 'sale',
+  includeOriginalInAvailable: false,
   label: 'Количество',
-  availableLabel: 'Доступно на складе',
-  availableDescription: 'Общее количество товара',
+  availableLabel: 'Всего доступно',
+  availableDescription: 'Общее количество товара (Склад + Заявка)',
   required: true,
   min: 1,
   max: undefined,
@@ -81,10 +86,26 @@ const internalValue = ref(props.modelValue);
 // Максимальное количество с учетом доступного
 const maxQuantity = computed(() => {
   if (props.max !== undefined) {
-    return Math.min(props.max, props.availableQuantity);
+    return Math.min(props.max, props.availableQuantity+props.originalQuantity);
+  }
+  return props.availableQuantity+props.originalQuantity;
+});
+
+// Вычисляем доступное количество с учетом оригинального
+const computedAvailableQuantity = computed(() => {
+  if (props.includeOriginalInAvailable && props.originalQuantity > 0) {
+    return props.availableQuantity + props.originalQuantity;
   }
   return props.availableQuantity;
 });
+
+// Обновляем подсказку для доступного количества
+// const computedAvailableDescription = computed(() => {
+//   if (props.quantityType === 'return' && props.originalQuantity > 0) {
+//     return `На складе: ${props.availableQuantity} + Возвращено: ${props.originalQuantity}`;
+//   }
+//   return props.availableDescription;
+// });
 
 // Генерируем подсказку
 const computedHint = computed(() => {

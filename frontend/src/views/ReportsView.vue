@@ -155,16 +155,17 @@
               class="w-full" 
             />
           </div>
-          
+
           <QuantityInput
             v-model="editForm.quantity"
             class="mb-3"
             :available-quantity="availableQuantity"
+            :originalQuantity="requestQuantity"
+            :include-original-in-available="true"
             :label="'Количество'"
-            :available-label="'Доступно'"
             :required="true"
             :min="1"
-            :max="availableQuantity"
+            :hint="`На складе: ${availableQuantity} + Уже в заявке: ${requestQuantity}`"
             :show-available-field="true"
             @error="handleQuantityError"
           />
@@ -418,8 +419,10 @@ const editForm = reactive<EditForm>({
   date: null,
 });
 
-const availableQuantity = ref<number>(0);
+const availableQuantity = ref<number>(0); // количество на СКЛАДЕ
 const quantityInputRef = ref<InstanceType<typeof QuantityInput> | null>(null);
+
+const requestQuantity = ref<number>(0); // количество в заявке продаже/возврате
 
 // Добавляем вычисляемое свойство для получения текущего товара
 const currentProduct = computed(() => {
@@ -597,22 +600,6 @@ const getEditDialogHeader = (): string => {
   }
 };
 
-// Метод для валидации количества
-// const validateQuantity = () => {
-//   quantityError.value = '';
-  
-//   if (editForm.quantity < 1) {
-//     quantityError.value = 'Количество должно быть больше 0';
-//     return false;
-//   }
-  
-//   if (editForm.quantity > availableQuantity.value) {
-//     quantityError.value = `Нельзя указать больше ${availableQuantity.value} единиц`;
-//     return false;
-//   }
-  
-//   return true;
-// };
 // Обработчик ошибок из компонента QuantityInput
 const handleQuantityError = (error: string | null) => {
   // Можно обработать ошибку, если нужно
@@ -635,10 +622,11 @@ const editItem = (item: NormalizedItem) => {
     if (saleItem.date) {
       editForm.date = new Date(saleItem.date);
     }
-    
+
     // Получаем доступное количество из данных товара
     const product = saleItem.originalData?.product;
     availableQuantity.value = product?.quantity || 0;
+    requestQuantity.value = saleItem.quantity || 0;
     
   } else if (reportType.value === 'returns') {
     const returnItem = item as NormalizedReturn;
@@ -647,10 +635,11 @@ const editItem = (item: NormalizedItem) => {
     if (returnItem.date) {
       editForm.date = new Date(returnItem.date);
     }
-    
+
     // Для возвратов также получаем доступное количество
     const product = returnItem.originalData?.product;
     availableQuantity.value = product?.quantity || 0;
+    requestQuantity.value = returnItem.quantity || 0;
   }
   
   editDialogVisible.value = true;
