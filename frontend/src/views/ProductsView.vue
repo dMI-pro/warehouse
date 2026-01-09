@@ -478,7 +478,7 @@
         <QuantityInput
           v-model="saleForm.quantity"
           :available-quantity="selectedProduct?.quantity || 0"
-          :label="'Количество'"
+          :label="'Количество к продаже'"
           :available-label="'Доступно'"
           :required="true"
           :min="1"
@@ -657,8 +657,10 @@ const selectedProducts = ref<Product[]>([]);
 const pendingFiles = ref<File[]>([]);
 
 // Ref для компонента Доступно и ввода количества QuantityInput.vue
-const saleQuantityInputRef = ref<InstanceType<typeof QuantityInput> | null>(null);
-const returnQuantityInputRef = ref<InstanceType<typeof QuantityInput> | null>(null);
+const availableQuantity = ref<number>(0); // количество на СКЛАДЕ
+const quantityInputRef = ref<InstanceType<typeof QuantityInput> | null>(null);
+
+const requestQuantity = ref<number>(0); // количество в заявке продаже/возврате
 
 const productForm = reactive<CreateProductDto & { images?: string[]; arrivalDate?: Date }>({
   name: '',
@@ -1079,8 +1081,8 @@ const handleSale = async () => {
   if (!selectedProduct.value) return;
 
   // Проверяем валидность через компонент
-  if (saleQuantityInputRef.value) {
-    const isValid = saleQuantityInputRef.value.validate();
+  if (quantityInputRef.value) {
+    const isValid = quantityInputRef.value.validate();
     if (!isValid) {
       toast.add({ 
         severity: 'error', 
@@ -1128,6 +1130,7 @@ const handleSale = async () => {
 };
 
 const openReturnDialog = (product: Product) => {
+  debugger
   selectedProduct.value = product;
   returnForm.quantity = 1;
   returnForm.reason = '';
@@ -1147,8 +1150,8 @@ const handleReturn = async () => {
   if (!selectedProduct.value) return;
 
   // Проверяем валидность через компонент
-  if (returnQuantityInputRef.value) {
-    const isValid = returnQuantityInputRef.value.validate();
+  if (quantityInputRef.value) {
+    const isValid = quantityInputRef.value.validate();
     if (!isValid) {
       toast.add({ 
         severity: 'error', 
