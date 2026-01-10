@@ -330,7 +330,7 @@
                 />
                 <small v-if="formErrors.purchasePrice" class="p-error">{{ formErrors.purchasePrice }}</small>
               </div>
-
+              
               <div class="field">
                 <label for="salePrice" class="label">Цена продажи * (₽)</label>
                 <InputNumber
@@ -343,6 +343,15 @@
                   required
                 />
                 <small v-if="formErrors.salePrice" class="p-error">{{ formErrors.salePrice }}</small>
+                <div class="mt-2">
+                  <Button
+                    label="с 20% надбавкой"
+                    size="small"
+                    severity="info"
+                    v-tooltip.top="'Установить цену: продажи × 1.25'"
+                    @click="applyCommissionMarkup"
+                  />
+                </div>
 
                 <!-- Если transactionType === "Комиссия" (transactionTypeId=2) показываем кнопку -->
                 <div v-if="productForm?.transactionTypeId === 2" class="mt-2">
@@ -496,8 +505,7 @@
             :maxFractionDigits="2"
             class="w-full"
           />
-          selectedProduct?.transactionType?.name: {{ selectedProduct?.transactionType?.name }}
-          <div v-if="selectedProduct?.transactionType?.name === 'Комиссия'" class="mt-2">
+          <!-- <div v-if="selectedProduct?.transactionType?.name === 'Комиссия'" class="mt-2">
             <Button
               label="с 20% надбавкой"
               size="small"
@@ -505,7 +513,7 @@
               v-tooltip.top="'Установить цену: продажи × 1.25'"
               @click="applyCommissionMarkup"
             />
-          </div>
+          </div> -->
         </div>
 
         <div class="field" v-if="authStore.isAdmin">
@@ -1388,7 +1396,7 @@ onMounted(async () => {
 .sale-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .form-grid {

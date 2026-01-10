@@ -1,273 +1,423 @@
 <template>
-  <div class="product-details-view container mx-auto p-4">
+  <div class="product-details-view p-4">
+    <!-- Кнопка назад -->
     <div class="mb-4">
       <Button 
         label="Назад к списку" 
-        icon="pi pi-arrow-left" 
-        text 
+        icon="pi pi-arrow-left"
+        severity="contrast"
+        class="p-button-text p-button-sm"
         @click="router.push({ name: 'products' })" 
       />
     </div>
 
-    <div v-if="productsStore.loading && !product" class="flex justify-center p-8">
+    <!-- Состояние загрузки -->
+    <div v-if="productsStore.loading && !product" class="flex justify-content-center align-items-center" style="min-height: 400px;">
       <ProgressSpinner />
     </div>
 
-    <div v-else-if="product" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Left Column: Images -->
-      <div class="space-y-6">
-        <Card>
-          <template #title>
-            <div class="flex justify-between items-center">
-              <span>Фотографии</span>
-              <div v-if="canEdit">
+    <!-- Товар не найден -->
+    <div v-else-if="!product && !productsStore.loading" class="text-center py-6">
+      <div class="inline-flex align-items-center justify-content-center border-circle bg-gray-100 mb-3" style="width: 64px; height: 64px;">
+        <i class="pi pi-box text-2xl text-gray-400"></i>
+      </div>
+      <h3 class="text-xl font-semibold text-gray-600 mb-2">Товар не найден</h3>
+      <p class="text-gray-500 mb-4">Запрашиваемый товар не существует или был удален</p>
+      <Button 
+        label="Вернуться к списку товаров" 
+        icon="pi pi-arrow-left" 
+        @click="router.push({ name: 'products' })"
+      />
+    </div>
+
+    <!-- Контент товара -->
+    <div v-else-if="product">
+      <!-- Шапка товара -->
+      <div class="surface-card p-4 shadow-2 mb-4 border-round">
+        <div class="flex flex-column md:flex-row md:align-items-center justify-content-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-900">{{ product.name }}</h1>
+            <div class="flex align-items-center gap-3 mt-2">
+              <span class="text-sm text-600">ID: {{ product.id }}</span>
+              <span class="text-sm text-600">•</span>
+              <span class="text-sm text-600">Артикул: {{ product.sku }}</span>
+              <Tag 
+                v-if="product.category"
+                :value="product.category.name"
+                severity="info"
+                class="ml-2"
+              />
+            </div>
+          </div>
+          <div class="flex align-items-center gap-4">
+            <div class="text-right">
+              <div class="text-sm text-600">На складе</div>
+              <div class="text-xl font-bold" :class="{
+                'text-green-500': product.quantity > (product.minStockLevel || 0),
+                'text-yellow-500': product.quantity > 0 && product.quantity <= (product.minStockLevel || 0),
+                'text-red-500': product.quantity === 0
+              }">
+                {{ product.quantity }} шт.
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm text-600">Цена продажи</div>
+              <div class="text-xl font-bold text-900">{{ formatPrice(product.salePrice) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Основная сетка контента -->
+      <div class="grid mt-4">
+        <!-- Секция изображений -->
+        <div class="col-12 lg:col-6">
+          <Card class="h-full">
+            <template #title>
+              <div class="flex justify-content-between align-items-center">
+                <span class="font-semibold">Фотографии товара</span>
+                <div v-if="canEdit">
+                  <FileUpload
+                    mode="basic"
+                    name="image"
+                    :auto="true"
+                    chooseLabel="Добавить фото"
+                    accept="image/*"
+                    :maxFileSize="10485760"
+                    :multiple="true"
+                    customUpload
+                    @uploader="onUploadImage"
+                    class="p-button-sm"
+                  />
+                </div>
+              </div>
+            </template>
+            <template #content>
+              <!-- Галерея -->
+              <div v-if="product.images && product.images.length > 0">
+                <!-- Основная галерея -->
+                <div class="mb-4">
+                  <Galleria
+                    :value="product.images"
+                    :numVisible="5"
+                    containerStyle="max-width: 100%"
+                    :showThumbnails="true"
+                    :showIndicators="true"
+                    :circular="true"
+                    :autoPlay="false"
+                    :showItemNavigators="product.images.length > 1"
+                  >
+                    <template #item="slotProps">
+                      <div class="gallery-main-image">
+                        <img
+                          :src="getFullImageUrl(slotProps.item)"
+                          :alt="product.name"
+                          class="gallery-image"
+                          @error="handleImageError"
+                        />
+                      </div>
+                    </template>
+                    <template #thumbnail="slotProps">
+                      <div class="gallery-thumbnail">
+                        <img
+                          :src="getFullImageUrl(slotProps.item)"
+                          :alt="product.name"
+                          class="thumbnail-image"
+                          @error="handleImageError"
+                        />
+                        <div v-if="slotProps.index === 0" class="main-image-indicator">
+                          <i class="pi pi-star-fill text-yellow-500 text-xs"></i>
+                        </div>
+                      </div>
+                    </template>
+                  </Galleria>
+                </div>
+
+                <!-- Управление изображениями -->
+                <div v-if="canEdit" class="image-management">
+                  <h3 class="text-lg font-medium mb-2 text-700">Управление изображениями</h3>
+                  <p class="text-sm text-600 mb-4">Перетащите для изменения порядка, первое изображение будет главным</p>
+                  
+                  <OrderList 
+                    v-model="wrappedImages" 
+                    listStyle="height:auto; max-height: 300px;" 
+                    dataKey="url"
+                    dragdrop
+                  >
+                    <template #item="slotProps">
+                      <div class="image-list-item">
+                        <div class="image-preview">
+                          <img 
+                            :src="getFullImageUrl(slotProps.item.url)" 
+                            class="image-preview-img"
+                            @error="handleImageError"
+                          />
+                          <div v-if="slotProps.index === 0" class="main-image-badge">
+                            <i class="pi pi-star-fill text-yellow-500 text-xs"></i>
+                          </div>
+                        </div>
+                        <div class="image-info">
+                          <p class="image-filename">{{ getFileName(slotProps.item.url) }}</p>
+                          <p class="image-position">Позиция {{ slotProps.index + 1 }}</p>
+                        </div>
+                        <div class="image-actions">
+                          <Button
+                            icon="pi pi-trash"
+                            severity="danger"
+                            text
+                            rounded
+                            size="small"
+                            @click="confirmDeleteImage(slotProps.item.url)"
+                          />
+                        </div>
+                      </div>
+                    </template>
+                  </OrderList>
+
+                  <div class="flex justify-content-end gap-2 mt-3 pt-3 border-top-1 surface-border">
+                    <Button 
+                      label="Отменить" 
+                      severity="secondary" 
+                      size="small"
+                      @click="syncImages"
+                      :disabled="!orderChanged"
+                    />
+                    <Button 
+                      label="Сохранить порядок" 
+                      icon="pi pi-check" 
+                      size="small" 
+                      @click="saveImageOrder" 
+                      :loading="savingOrder"
+                      :disabled="!orderChanged"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Состояние без изображений -->
+              <div v-else class="empty-images">
+                <div class="empty-images-icon">
+                  <i class="pi pi-image text-3xl text-gray-400"></i>
+                </div>
+                <h4 class="empty-images-title">Нет изображений</h4>
+                <p class="empty-images-description">Добавьте фотографии товара для лучшего представления</p>
                 <FileUpload
+                  v-if="canEdit"
                   mode="basic"
                   name="image"
                   :auto="true"
-                  chooseLabel="Добавить"
+                  chooseLabel="Добавить первое фото"
                   accept="image/*"
-                  :maxFileSize="10000000"
+                    :maxFileSize="10485760"
                   customUpload
                   @uploader="onUploadImage"
+                  class="p-button-outlined mt-4"
                 />
               </div>
-            </div>
-          </template>
-          <template #content>
-            <!-- Gallery -->
-            <div v-if="product.images && product.images.length > 0" class="mb-6">
-              <Galleria
-                :value="product.images"
-                :numVisible="5"
-                containerStyle="max-width: 100%"
-                :showThumbnails="true"
-                :showIndicators="true"
-                :circular="true"
-                :autoPlay="false"
-              >
-                <template #item="slotProps">
-                  <div class="w-full h-[400px] flex items-center justify-center bg-gray-100 rounded">
-                    <img
-                      :src="slotProps.item"
-                      :alt="product.name"
-                      class="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                </template>
-                <template #thumbnail="slotProps">
-                  <div class="w-20 h-20 flex items-center justify-center bg-gray-50 rounded overflow-hidden">
-                    <img
-                      :src="slotProps.item"
-                      :alt="product.name"
-                      class="w-full h-full object-cover"
-                    />
-                  </div>
-                </template>
-              </Galleria>
-            </div>
-            <div v-else class="text-center p-8 text-gray-400 bg-gray-50 rounded">
-              <i class="pi pi-image text-4xl mb-2"></i>
-              <p>Нет изображений</p>
-            </div>
+            </template>
+          </Card>
+        </div>
 
-            <!-- Image Management (Reorder/Delete) -->
-            <div v-if="canEdit && product.images && product.images.length > 0" class="mt-6 border-t pt-4">
-              <h3 class="text-lg font-medium mb-3">Управление изображениями</h3>
-              <OrderList v-model="wrappedImages" listStyle="height:auto" dataKey="url">
-                <template #header> Перетащите для изменения порядка </template>
-                <template #item="slotProps">
-                  <div class="flex flex-wrap p-2 items-center gap-3 w-full">
-                    <img :src="slotProps.item.url" class="w-12 h-12 shadow-sm rounded object-cover" />
-                    <div class="flex-1 flex flex-col gap-1">
-                        <span class="text-sm text-gray-600 break-all">{{ getFileName(slotProps.item.url) }}</span>
+        <!-- Секция деталей товара -->
+        <div class="col-12 lg:col-6">
+          <Card>
+            <template #title>
+              <span class="font-semibold">Информация о товаре</span>
+            </template>
+            <template #content>
+              <form @submit.prevent="saveProduct" class="product-form">
+                <!-- Основная информация -->
+                <div class="mb-4">
+                  <h4 class="text-lg font-semibold mb-3 text-900">Основная информация</h4>
+                  <div class="grid formgrid">
+                    <div class="field col-12 md:col-6">
+                      <label for="name" class="block mb-2 font-medium">
+                        Название товара <span class="text-red-500">*</span>
+                      </label>
+                      <InputText 
+                        id="name" 
+                        v-model="form.name" 
+                        class="w-full" 
+                        :disabled="!canEdit"
+                        placeholder="Введите название"
+                      />
                     </div>
-                    <Button
-                      icon="pi pi-trash"
-                      severity="danger"
-                      text
-                      rounded
-                      @click="confirmDeleteImage(slotProps.item.url)"
-                    />
+
+                    <div class="field col-12 md:col-6">
+                      <label for="sku" class="block mb-2 font-medium">
+                        Артикул <span class="text-red-500">*</span>
+                      </label>
+                      <InputText 
+                        id="sku" 
+                        v-model="form.sku" 
+                        class="w-full" 
+                        :disabled="!canEdit"
+                        placeholder="Введите артикул"
+                      />
+                    </div>
+
+                    <div class="field col-12">
+                      <label for="description" class="block mb-2 font-medium">
+                        Описание
+                      </label>
+                      <Textarea
+                        id="description"
+                        v-model="form.description"
+                        rows="4"
+                        class="w-full"
+                        :disabled="!canEdit"
+                        placeholder="Опишите товар..."
+                        :maxlength="1000"
+                      />
+                      <div class="flex justify-content-between mt-2">
+                        <span class="text-sm text-600">Максимум 1000 символов</span>
+                        <span class="text-sm text-600">{{ (form.description || '').length }}/1000</span>
+                      </div>
+                    </div>
                   </div>
-                </template>
-              </OrderList>
-              <div class="flex justify-end mt-2">
-                 <Button 
-                   label="Сохранить порядок" 
-                   icon="pi pi-check" 
-                   size="small" 
-                   @click="saveImageOrder" 
-                   :loading="savingOrder"
-                   :disabled="!orderChanged"
-                 />
-              </div>
-            </div>
-          </template>
-        </Card>
+                </div>
+
+                <!-- Цены и остатки -->
+                <div class="surface-ground p-4 border-round-lg mb-4">
+                  <h4 class="text-lg font-semibold mb-3 text-900">Цены и остатки</h4>
+                  <div class="grid formgrid">
+                    <div class="field col-12 md:col-6">
+                      <label for="salePrice" class="block mb-2 font-medium">Цена продажи</label>
+                      <InputNumber
+                        id="salePrice"
+                        v-model="form.salePrice"
+                        mode="currency"
+                        currency="RUB"
+                        locale="ru-RU"
+                        class="w-full"
+                        :disabled="!canEdit"
+                        :min="0"
+                      />
+                    </div>
+
+                    <div class="field col-12 md:col-6">
+                      <label for="quantity" class="block mb-2 font-medium">Количество на складе</label>
+                      <InputNumber
+                        id="quantity"
+                        v-model="form.quantity"
+                        class="w-full"
+                        :disabled="!canEdit"
+                        :min="0"
+                      />
+                    </div>
+
+                    <div class="field col-12 md:col-6" v-if="isAdminOrManager">
+                      <label for="purchasePrice" class="block mb-2 font-medium">Цена закупки</label>
+                      <InputNumber
+                        id="purchasePrice"
+                        v-model="form.purchasePrice"
+                        mode="currency"
+                        currency="RUB"
+                        locale="ru-RU"
+                        class="w-full"
+                        :disabled="!canEdit"
+                        :min="0"
+                      />
+                    </div>
+
+                    <div class="field col-12 md:col-6" v-if="isAdminOrManager">
+                      <label for="minStockLevel" class="block mb-2 font-medium">Минимальный остаток</label>
+                      <InputNumber
+                        id="minStockLevel"
+                        v-model="form.minStockLevel"
+                        class="w-full"
+                        :disabled="!canEdit"
+                        :min="0"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Категоризация -->
+                <div class="surface-ground p-4 border-round-lg mb-4">
+                  <h4 class="text-lg font-semibold mb-3 text-900">Категоризация</h4>
+                  <div class="grid formgrid">
+                    <div class="field col-12">
+                      <label for="categoryId" class="block mb-2 font-medium">Категория</label>
+                      <Dropdown 
+                        id="categoryId"
+                        v-model="form.categoryId" 
+                        :options="categoryOptions"
+                        optionLabel="label" 
+                        optionValue="value" 
+                        class="w-full" 
+                        :disabled="!canEdit"
+                        placeholder="Выберите категорию"
+                        :filter="true"
+                      />
+                    </div>
+
+                    <div class="field col-12 md:col-6" v-if="isAdminOrManager">
+                      <label for="warehouseId" class="block mb-2 font-medium">Склад</label>
+                      <Dropdown
+                        id="warehouseId"
+                        v-model="form.warehouseId"
+                        :options="warehouseOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        class="w-full"
+                        :disabled="!canEdit"
+                        placeholder="Выберите склад"
+                      />
+                    </div>
+
+                    <div class="field col-12 md:col-6" v-if="isAdminOrManager">
+                      <label for="committeeId" class="block mb-2 font-medium">Комитет</label>
+                      <Dropdown
+                        id="committeeId"
+                        v-model="form.committeeId"
+                        :options="committeeOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        class="w-full"
+                        :disabled="!canEdit"
+                        placeholder="Выберите комитет"
+                      />
+                    </div>
+
+                    <div class="field col-12" v-if="isAdminOrManager">
+                      <label for="transactionTypeId" class="block mb-2 font-medium">Тип транзакции</label>
+                      <Dropdown
+                        id="transactionTypeId"
+                        v-model="form.transactionTypeId"
+                        :options="transactionTypeOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        class="w-full"
+                        :disabled="!canEdit"
+                        placeholder="Выберите тип транзакции"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Кнопка сохранения -->
+                <div v-if="canEdit" class="flex justify-content-end gap-3 pt-4 border-top-1 surface-border">
+                  <Button
+                    type="button"
+                    label="Отменить"
+                    severity="secondary"
+                    @click="populateForm"
+                    :disabled="!isFormChanged"
+                  />
+                  <Button
+                    type="submit"
+                    label="Сохранить изменения"
+                    icon="pi pi-save"
+                    :loading="saving"
+                    :disabled="!isFormChanged"
+                  />
+                </div>
+              </form>
+            </template>
+          </Card>
+        </div>
       </div>
-
-      <!-- Right Column: Product Details -->
-      <div>
-        <Card>
-          <template #title>
-            <div class="flex justify-between items-start">
-              <div class="flex flex-col">
-                <span class="text-2xl font-bold">{{ product.name }}</span>
-                <span class="text-sm text-gray-500">ID: {{ product.id }}</span>
-              </div>
-              <Tag :value="getCategoryName(product.categoryId)" severity="info" />
-            </div>
-          </template>
-          <template #content>
-            <form @submit.prevent="saveProduct" class="flex flex-col gap-4 mt-4">
-              <!-- Public Fields -->
-              <div class="field">
-                <label for="name" class="font-bold block mb-1">Название</label>
-                <InputText id="name" v-model="form.name" class="w-full" :disabled="!canEdit" />
-              </div>
-
-              <div class="field">
-                <label for="sku" class="font-bold block mb-1">Артикул</label>
-                <InputText id="sku" v-model="form.sku" class="w-full" :disabled="!canEdit" />
-              </div>
-
-              <div class="field">
-                <label for="description" class="font-bold block mb-1">Описание</label>
-                <Textarea
-                  id="description"
-                  v-model="form.description"
-                  rows="5"
-                  class="w-full"
-                  :disabled="!canEdit"
-                />
-              </div>
-
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div class="field">
-                  <label for="salePrice" class="font-bold block mb-1">Цена продажи</label>
-                  <InputNumber
-                    id="salePrice"
-                    v-model="form.salePrice"
-                    mode="currency"
-                    currency="RUB"
-                    locale="ru-RU"
-                    class="w-full"
-                    :disabled="!canEdit"
-                  />
-                </div>
-                <div class="field">
-                  <label for="quantity" class="font-bold block mb-1">Количество</label>
-                  <InputNumber
-                    id="quantity"
-                    v-model="form.quantity"
-                    class="w-full"
-                    :disabled="!canEdit"
-                  />
-                </div>
-              </div>
-              
-              <div class="field">
-                 <label for="category" class="font-bold block mb-1">Категория</label>
-                 <Dropdown 
-                   id="category"
-                   v-model="form.categoryId" 
-                   :options="categoriesStore.flatCategoriesLabels" 
-                   optionLabel="label" 
-                   optionValue="value" 
-                   class="w-full" 
-                   :disabled="!canEdit" 
-                   placeholder="Выберите категорию"
-                 />
-              </div>
-
-              <!-- Restricted Fields (Manager/Admin) -->
-              <div v-if="isAdminOrManager" class="border-t pt-4 mt-2 bg-gray-50 p-4 rounded">
-                <h3 class="text-lg font-semibold mb-3 text-gray-700">Служебная информация</h3>
-                
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div class="field">
-                    <label for="purchasePrice" class="font-bold block mb-1">Цена закупки</label>
-                    <InputNumber
-                      id="purchasePrice"
-                      v-model="form.purchasePrice"
-                      mode="currency"
-                      currency="RUB"
-                      locale="ru-RU"
-                      class="w-full"
-                      :disabled="!canEdit"
-                    />
-                  </div>
-                  <div class="field">
-                    <label for="minStock" class="font-bold block mb-1">Мин. остаток</label>
-                    <InputNumber
-                      id="minStock"
-                      v-model="form.minStockLevel"
-                      class="w-full"
-                      :disabled="!canEdit"
-                    />
-                  </div>
-                </div>
-
-                <div class="field mt-3">
-                  <label for="warehouse" class="font-bold block mb-1">Склад</label>
-                  <Dropdown
-                    id="warehouse"
-                    v-model="form.warehouseId"
-                    :options="warehouseOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    class="w-full"
-                    :disabled="!canEdit"
-                    placeholder="Выберите склад"
-                  />
-                </div>
-
-                <div class="field mt-3">
-                  <label for="committee" class="font-bold block mb-1">Коммитет</label>
-                  <Dropdown
-                    id="committee"
-                    v-model="form.committeeId"
-                    :options="committeeOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    class="w-full"
-                    :disabled="!canEdit"
-                    placeholder="Выберите коммитет"
-                  />
-                </div>
-
-                <div class="field mt-3">
-                  <label for="transactionType" class="font-bold block mb-1">Тип транзакции</label>
-                  <Dropdown
-                    id="transactionType"
-                    v-model="form.transactionTypeId"
-                    :options="transactionTypeOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    class="w-full"
-                    :disabled="!canEdit"
-                    placeholder="Выберите тип"
-                  />
-                </div>
-              </div>
-
-              <div v-if="canEdit" class="flex justify-end mt-4 sticky bottom-0 bg-white p-2 border-t z-10">
-                <Button
-                  type="submit"
-                  label="Сохранить изменения"
-                  icon="pi pi-save"
-                  :loading="saving"
-                />
-              </div>
-            </form>
-          </template>
-        </Card>
-      </div>
-    </div>
-    
-    <div v-else class="text-center p-8">
-       <h3>Товар не найден</h3>
     </div>
 
     <ConfirmDialog />
@@ -299,7 +449,7 @@ import { useCommitteesStore } from '@/stores/committeesStore';
 import { useTransactionTypesStore } from '@/stores/transactionTypesStore';
 import { useCategoriesStore } from '@/stores/categoriesStore';
 import { Role } from '@/types/api';
-import type { UpdateProductDto, FileUploadEvent } from '@/types/api'; // Ensure FileUploadEvent is correct or use any
+import type { UpdateProductDto } from '@/types/api';
 
 const route = useRoute();
 const router = useRouter();
@@ -336,26 +486,58 @@ const form = reactive({
 // Computed
 const product = computed(() => productsStore.currentProduct);
 const isAdminOrManager = computed(() => authStore.hasRole(Role.MANAGER) || authStore.isAdmin);
-const canEdit = computed(() => isAdminOrManager.value); // Currently only managers/admins can edit
+const canEdit = computed(() => isAdminOrManager.value);
 const orderChanged = computed(() => {
-    if (!product.value?.images) return false;
-    const currentUrls = wrappedImages.value.map(i => i.url);
-    if (currentUrls.length !== product.value.images.length) return true;
-    return JSON.stringify(currentUrls) !== JSON.stringify(product.value.images);
+  if (!product.value?.images) return false;
+  const currentUrls = wrappedImages.value.map(i => i.url);
+  return JSON.stringify(currentUrls) !== JSON.stringify(product.value.images);
 });
 
-const warehouseOptions = computed(() => warehousesStore.warehouses.map(w => ({ label: w.name, value: w.id })));
-const committeeOptions = computed(() => committeesStore.committees.map(c => ({ label: c.name, value: c.id })));
-const transactionTypeOptions = computed(() => transactionTypesStore.transactionTypes.map(t => ({ label: t.name, value: t.id })));
+const isFormChanged = computed(() => {
+  if (!product.value) return false;
+  
+  return form.name !== product.value.name ||
+    form.sku !== product.value.sku ||
+    form.description !== (product.value.description || '') ||
+    Number(form.salePrice) !== Number(product.value.salePrice) ||
+    Number(form.purchasePrice) !== Number(product.value.purchasePrice) ||
+    form.quantity !== product.value.quantity ||
+    form.minStockLevel !== (product.value.minStockLevel || 0) ||
+    form.categoryId !== product.value.categoryId ||
+    form.warehouseId !== product.value.warehouseId ||
+    form.committeeId !== product.value.committeeId ||
+    form.transactionTypeId !== product.value.transactionTypeId;
+});
+
+// Options for dropdowns
+const categoryOptions = computed(() => [
+  { label: 'Без категории', value: undefined },
+  ...categoriesStore.flatCategoriesLabels
+]);
+
+const warehouseOptions = computed(() => [
+  { label: 'Не выбран', value: undefined },
+  ...warehousesStore.warehouses.map(w => ({ label: w.name, value: w.id }))
+]);
+
+const committeeOptions = computed(() => [
+  { label: 'Не выбран', value: undefined },
+  ...committeesStore.committees.map(c => ({ label: c.name, value: c.id }))
+]);
+
+const transactionTypeOptions = computed(() => [
+  { label: 'Не выбран', value: undefined },
+  ...transactionTypesStore.transactionTypes.map(t => ({ label: t.name, value: t.id }))
+]);
 
 // Lifecycle
 onMounted(async () => {
   await Promise.all([
-     productsStore.fetchProduct(productId),
-     warehousesStore.fetchWarehouses(),
-     committeesStore.fetchCommittees(),
-     transactionTypesStore.fetchTransactionTypes(),
-     categoriesStore.fetchCategories()
+    productsStore.fetchProduct(productId),
+    warehousesStore.fetchWarehouses(),
+    committeesStore.fetchCommittees(),
+    transactionTypesStore.fetchTransactionTypes(),
+    categoriesStore.fetchCategories()
   ]);
   
   if (product.value) {
@@ -365,11 +547,11 @@ onMounted(async () => {
 });
 
 watch(product, () => {
-    if (product.value) {
-        populateForm();
-        syncImages();
-    }
-});
+  if (product.value) {
+    populateForm();
+    syncImages();
+  }
+}, { deep: true });
 
 // Methods
 const populateForm = () => {
@@ -380,7 +562,7 @@ const populateForm = () => {
   form.salePrice = product.value.salePrice;
   form.purchasePrice = product.value.purchasePrice;
   form.quantity = product.value.quantity;
-  form.minStockLevel = product.value.minStockLevel;
+  form.minStockLevel = product.value.minStockLevel || 0;
   form.categoryId = product.value.categoryId;
   form.warehouseId = product.value.warehouseId;
   form.committeeId = product.value.committeeId;
@@ -388,94 +570,418 @@ const populateForm = () => {
 };
 
 const syncImages = () => {
-    if (product.value?.images) {
-        wrappedImages.value = product.value.images.map(url => ({ url }));
-    } else {
-        wrappedImages.value = [];
-    }
+  if (product.value?.images) {
+    wrappedImages.value = product.value.images.map(url => ({ url }));
+  } else {
+    wrappedImages.value = [];
+  }
 };
 
 const getFileName = (url: string) => {
-    return url.split('/').pop();
+  const parts = url.split('/');
+  return decodeURIComponent(parts[parts.length - 1]);
 };
 
-const getCategoryName = (id?: number) => {
-    if (!id) return 'Без категории';
-    const cat = categoriesStore.categories.find(c => c.id === id); // This might need flattening if nested
-    // Try flat list if available in store
-    const flat = categoriesStore.flatCategoriesLabels.find(c => c.value === id);
-    return flat ? flat.label : (cat?.name || 'Неизвестно');
+const getFullImageUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http') || url.startsWith('blob:')) return url;
+  if (url.startsWith('/')) return `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${url}`;
+  return url;
+};
+
+const formatPrice = (price: number) => {
+  return new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: 'RUB',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(price);
+};
+
+const handleImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement;
+  img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjIwMCIgaGVpZ2h0PSIyMDAiIGZpbGw9IiNGNUY1RjUiLz48cGF0aCBkPSJNNjAgODBDNzcuNjczMSA4MCA5MiA2NS42NzMxIDkyIDQ4QzkyIDMwLjMyNjkgNzcuNjczMSAxNiA2MCAxNkM0Mi4zMjY5IDE2IDI4IDMwLjMyNjkgMjggNDhDMjggNjUuNjczMSA0Mi4zMjY5IDgwIDYwIDgwWiIgZmlsbD0iI0RDREZFRCIvPjxwYXRoIGQ9Ik0xMiAxNTRWMTQ0TDM4LjU0IDExMS40OEM0Mi4wNCAxMDcuMDggNDcuOTYgMTA3LjA4IDUxLjQ2IDExMS40OEw3Ni4zIDE0MUwxMDEuNTQgMTA1LjQ4QzEwNS4wNCAxMDEuMDggMTEwLjk2IDEwMS4wOCAxMTQuNDYgMTA1LjQ4TDE1MiAxNTJIMTJaIiBmaWxsPSIjRENEQ0VFIi8+PC9zdmc+';
+  img.onerror = null;
 };
 
 const saveProduct = async () => {
-    if (!product.value) return;
-    saving.value = true;
-    try {
-        const updateDto: UpdateProductDto = {
-            ...form,
-        };
-        await productsStore.updateProduct(product.value.id, updateDto);
-        toast.add({ severity: 'success', summary: 'Успешно', detail: 'Товар обновлен', life: 3000 });
-    } catch (e: any) {
-        toast.add({ severity: 'error', summary: 'Ошибка', detail: e.message || 'Не удалось обновить товар', life: 3000 });
-    } finally {
-        saving.value = false;
-    }
+  if (!product.value) return;
+  saving.value = true;
+  try {
+    const updateDto: UpdateProductDto = {
+      name: form.name,
+      sku: form.sku,
+      description: form.description,
+      salePrice: form.salePrice,
+      purchasePrice: form.purchasePrice,
+      quantity: form.quantity,
+      minStockLevel: form.minStockLevel,
+      categoryId: form.categoryId,
+      warehouseId: form.warehouseId,
+      committeeId: form.committeeId,
+      transactionTypeId: form.transactionTypeId,
+    };
+    await productsStore.updateProduct(product.value.id, updateDto);
+    toast.add({ 
+      severity: 'success', 
+      summary: 'Успешно', 
+      detail: 'Товар обновлен', 
+      life: 3000 
+    });
+  } catch (e: any) {
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Ошибка', 
+      detail: e.message || 'Не удалось обновить товар', 
+      life: 3000 
+    });
+  } finally {
+    saving.value = false;
+  }
 };
 
 const onUploadImage = async (event: any) => {
-    if (!product.value) return;
-    const file = event.files[0];
-    if (!file) return;
-    
-    try {
-        await productsStore.uploadImage(product.value.id, file);
-        toast.add({ severity: 'success', summary: 'Успешно', detail: 'Изображение загружено', life: 3000 });
-        // Images will be updated via watcher on productStore.currentProduct
-        // clear file upload
-        event.options.clear();
-    } catch (e: any) {
-        toast.add({ severity: 'error', summary: 'Ошибка', detail: e.message || 'Ошибка загрузки', life: 3000 });
+  if (!product.value) return;
+  const files = Array.from(event.files) as File[];
+  
+  if (files.length === 0) return;
+  
+  try {
+    for (const file of files) {
+      await productsStore.uploadImage(product.value.id, file);
     }
+    
+    toast.add({ 
+      severity: 'success', 
+      summary: 'Успешно', 
+      detail: `Загружено ${files.length} изображений`, 
+      life: 3000 
+    });
+    
+    await productsStore.fetchProduct(product.value.id);
+    event.options.clear();
+  } catch (e: any) {
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Ошибка', 
+      detail: e.message || 'Ошибка загрузки изображений', 
+      life: 3000 
+    });
+  }
 };
 
 const confirmDeleteImage = (imageUrl: string) => {
-    confirm.require({
-        message: 'Вы уверены, что хотите удалить это изображение?',
-        header: 'Подтверждение',
-        icon: 'pi pi-exclamation-triangle',
-        accept: () => deleteImage(imageUrl),
-        reject: () => {}
-    });
+  confirm.require({
+    message: 'Вы уверены, что хотите удалить это изображение? Это действие нельзя отменить.',
+    header: 'Удаление изображения',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: () => deleteImage(imageUrl),
+  });
 };
 
 const deleteImage = async (imageUrl: string) => {
-    if (!product.value) return;
-    try {
-        await productsStore.deleteImage(product.value.id, imageUrl);
-        toast.add({ severity: 'success', summary: 'Успешно', detail: 'Изображение удалено', life: 3000 });
-    } catch (e: any) {
-        toast.add({ severity: 'error', summary: 'Ошибка', detail: e.message || 'Ошибка удаления', life: 3000 });
-    }
+  if (!product.value) return;
+  try {
+    await productsStore.deleteImage(product.value.id, imageUrl);
+    toast.add({ 
+      severity: 'success', 
+      summary: 'Успешно', 
+      detail: 'Изображение удалено', 
+      life: 3000 
+    });
+  } catch (e: any) {
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Ошибка', 
+      detail: e.message || 'Ошибка удаления', 
+      life: 3000 
+    });
+  }
 };
 
 const saveImageOrder = async () => {
-    if (!product.value) return;
-    savingOrder.value = true;
-    try {
-        const images = wrappedImages.value.map(i => i.url);
-        await productsStore.reorderImages(product.value.id, images);
-        toast.add({ severity: 'success', summary: 'Успешно', detail: 'Порядок сохранен', life: 3000 });
-    } catch (e: any) {
-        toast.add({ severity: 'error', summary: 'Ошибка', detail: e.message || 'Ошибка сохранения порядка', life: 3000 });
-    } finally {
-        savingOrder.value = false;
-    }
+  if (!product.value) return;
+  savingOrder.value = true;
+  try {
+    const images = wrappedImages.value.map(i => i.url);
+    await productsStore.reorderImages(product.value.id, images);
+    toast.add({ 
+      severity: 'success', 
+      summary: 'Успешно', 
+      detail: 'Порядок изображений сохранен', 
+      life: 3000 
+    });
+  } catch (e: any) {
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Ошибка', 
+      detail: e.message || 'Ошибка сохранения порядка', 
+      life: 3000 
+    });
+  } finally {
+    savingOrder.value = false;
+  }
 };
 </script>
 
 <style scoped>
-.field {
-    margin-bottom: 1rem;
+.product-details-view {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.product-header {
+  background: white;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* Gallery Styles */
+.gallery-main-image {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f9fafb;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.gallery-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  padding: 1rem;
+}
+
+.gallery-thumbnail {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.gallery-thumbnail:hover {
+  border-color: #3b82f6;
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.main-image-indicator {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+}
+
+/* Image Management */
+.image-management {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.image-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  transition: background-color 0.2s;
+  border-radius: 0.375rem;
+}
+
+.image-list-item:hover {
+  background-color: #f9fafb;
+}
+
+.image-preview {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.image-preview-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 0.25rem;
+  border: 1px solid #e5e7eb;
+  object-fit: cover;
+}
+
+.main-image-badge {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+}
+
+.image-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.image-filename {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.image-position {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.image-actions {
+  flex-shrink: 0;
+}
+
+.image-order-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+/* Empty Images State */
+.empty-images {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.empty-images-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 9999px;
+  background-color: #f3f4f6;
+  margin-bottom: 1rem;
+}
+
+.empty-images-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.empty-images-description {
+  color: #6b7280;
+  max-width: 24rem;
+  margin: 0 auto;
+}
+
+/* Form Styles */
+.form-section {
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-section:last-child {
+  margin-bottom: 0;
+}
+
+.form-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 1rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.form-grid .col-span-2 {
+  grid-column: span 2;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-label .required {
+  color: #ef4444;
+}
+
+.character-counter {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.25rem;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 2rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .product-details-view {
+    padding: 0.5rem;
+  }
+  
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-grid .col-span-2 {
+    grid-column: span 1;
+  }
+  
+  .product-header {
+    padding: 1rem;
+  }
+  
+  .gallery-main-image {
+    height: 300px;
+  }
+  
+  .gallery-thumbnail {
+    width: 60px;
+    height: 60px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .grid-cols-1 {
+    gap: 1rem;
+  }
 }
 </style>

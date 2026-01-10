@@ -107,12 +107,4 @@ body {
     font-size: 0.875rem;
   }
 }
-
-.mb-3 {
-  margin-bottom: 12px;
-}
-
-.mb-4 {
-  margin-bottom: 16px;
-}
 </style>
