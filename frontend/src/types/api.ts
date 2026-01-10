@@ -280,5 +280,10 @@ export interface UpdateReturnDto {
   soldAt?: string;
 }
 
+export interface FileUploadEvent {
+    files: File[];
+    originalEvent: Event;
+}
+
 
 

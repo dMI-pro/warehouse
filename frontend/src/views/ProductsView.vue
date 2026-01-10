@@ -127,7 +127,7 @@
           </Column>
           <Column field="name" header="Название" :sortable="true">
             <template #body="{ data }">
-              <span class="product-name">{{ data.name }}</span>
+              <span class="product-name" @click="openProductDetails(data.id)">{{ data.name }}</span>
             </template>
           </Column>
           <Column field="sku" header="Артикул" :sortable="true" />
@@ -496,6 +496,7 @@
             :maxFractionDigits="2"
             class="w-full"
           />
+          selectedProduct?.transactionType?.name: {{ selectedProduct?.transactionType?.name }}
           <div v-if="selectedProduct?.transactionType?.name === 'Комиссия'" class="mt-2">
             <Button
               label="с 20% надбавкой"
@@ -596,6 +597,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 import { saveAs } from 'file-saver';
@@ -642,6 +644,7 @@ const committeesStore = useCommitteesStore();
 const transactionTypesStore = useTransactionTypesStore();
 const confirm = useConfirm();
 const toast = useToast();
+const router = useRouter();
 
 const searchQuery = ref('');
 const selectedCategory = ref<number | null>(null);
@@ -743,6 +746,10 @@ const sortOptions = [
 ];
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+const openProductDetails = (id: number) => {
+  router.push({ name: 'product-details', params: { id } });
+};
 
 const getImageUrl = (imagePath: string) => {
   // if (imagePath.startsWith('http')) return imagePath;
@@ -1345,7 +1352,9 @@ onMounted(async () => {
 
 .product-name {
   font-weight: 500;
-  color: var(--text-color);
+  text-decoration: underline;
+  color: var(--primary-color);
+  cursor: pointer;
 }
 
 .low-stock {

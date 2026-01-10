@@ -120,10 +120,15 @@ export const useProductsStore = defineStore('products', () => {
 
   const uploadImage = async (id: number, file: File) => {
     loading.value = true;
-    error.value = null;
     try {
       const product = await apiService.uploadProductImage(id, file);
-      await fetchProducts();
+      if (currentProduct.value && currentProduct.value.id === id) {
+        currentProduct.value = product;
+      }
+      const index = products.value.findIndex((p) => p.id === id);
+      if (index !== -1) {
+        products.value[index] = product;
+      }
       return product;
     } catch (err: any) {
       error.value = err.response?.data?.message || 'Ошибка загрузки изображения';
@@ -135,13 +140,39 @@ export const useProductsStore = defineStore('products', () => {
 
   const deleteImage = async (id: number, imageUrl: string) => {
     loading.value = true;
-    error.value = null;
     try {
       const product = await apiService.deleteProductImage(id, imageUrl);
-      await fetchProducts();
+      if (currentProduct.value && currentProduct.value.id === id) {
+        currentProduct.value = product;
+      }
+      const index = products.value.findIndex((p) => p.id === id);
+      if (index !== -1) {
+        products.value[index] = product;
+      }
       return product;
     } catch (err: any) {
       error.value = err.response?.data?.message || 'Ошибка удаления изображения';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const reorderImages = async (id: number, images: string[]) => {
+    loading.value = true;
+    try {
+      const product = await apiService.reorderProductImages(id, images);
+      if (currentProduct.value && currentProduct.value.id === id) {
+        currentProduct.value = product;
+      }
+      const index = products.value.findIndex((p) => p.id === id);
+      if (index !== -1) {
+        products.value[index] = product;
+      }
+      return product;
+    } catch (err: any) {
+      error.value =
+        err.response?.data?.message || 'Ошибка изменения порядка изображений';
       throw err;
     } finally {
       loading.value = false;
@@ -171,6 +202,7 @@ export const useProductsStore = defineStore('products', () => {
     deleteProduct,
     uploadImage,
     deleteImage,
+    reorderImages,
     setFilters,
     setPage,
   };
