@@ -25,11 +25,7 @@ import { Role } from '../common/enums/role.enum';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { User } from '@prisma/client';
-import { diskStorage } from 'multer';
-import { extname, join, normalize } from 'path';
-import * as fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
-import { compressImage, createThumbnail } from '../common/utils/image-compression.util';
+import { extname } from 'path';
 
 @Controller('products')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -72,119 +68,48 @@ export class ProductsController {
 
   @Post(':id/images')
   @Roles(Role.MANAGER, Role.ADMIN)
-  @UseInterceptors(
-    FileInterceptor('image', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const uploadPath = normalize(join(process.cwd(), 'uploads', 'products'));
-          if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-          }
-
-          console.log('Current working directory:', process.cwd());
-          console.log('Upload path:', uploadPath);
-
-          cb(null, uploadPath);
-        },
-        filename: (req, file, cb) => {
-          // Используем UUID для предотвращения предсказуемости и перезаписи
-          const uniqueId = uuidv4();
-          const ext = extname(file.originalname);
-          // Разрешаем только безопасные расширения
-          const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-          const normalizedExt = ext.toLowerCase();
-          
-          if (!allowedExts.includes(normalizedExt)) {
-            return cb(new BadRequestException('Invalid file extension'), false);
-          }
-          
-          cb(null, `${uniqueId}${normalizedExt}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        // Проверка MIME type
-        const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-        if (!allowedMimeTypes.includes(file.mimetype)) {
-          return cb(new BadRequestException('Only image files are allowed'), false);
-        }
-        cb(null, true);
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('image'))
   async uploadImage(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFile() file: any,
+    @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) {
-      throw new BadRequestException('No file uploaded');
+      throw new BadRequestException('File is required');
     }
 
-    // Дополнительная проверка расширения файла
+    // Проверка расширения
     const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-    const fileExt = extname(file.originalname).toLowerCase();
-    if (!allowedExts.includes(fileExt)) {
+    const ext = extname(file.originalname).toLowerCase();
+
+    if (!allowedExts.includes(ext)) {
       throw new BadRequestException('Invalid file extension');
     }
 
-    try {
-      // Читаем файл в буфер
-      const fileBuffer = fs.readFileSync(file.path);
-
-      // Сжимаем изображение
-      const compressedBuffer = await compressImage(fileBuffer, {
-        maxWidth: 1920,
-        maxHeight: 1920,
-        quality: 85,
-        format: 'webp',
-        maxFileSize: 500 * 1024, // 500KB
-      });
-
-      // Создаем миниатюру
-      const thumbnailBuffer = await createThumbnail(fileBuffer, 300);
-
-      // Генерируем уникальные имена файлов
-      const uniqueId = uuidv4();
-      const compressedFilename = `${uniqueId}.webp`;
-      const thumbnailFilename = `${uniqueId}_thumb.webp`;
-
-      // Сохраняем сжатое изображение
-      const uploadPath = normalize(join(process.cwd(), 'uploads', 'products'));
-      const compressedPath = join(uploadPath, compressedFilename);
-      const thumbnailPath = join(uploadPath, thumbnailFilename);
-
-      fs.writeFileSync(compressedPath, compressedBuffer);
-      fs.writeFileSync(thumbnailPath, thumbnailBuffer);
-
-      // Удаляем оригинальный файл
-      fs.unlinkSync(file.path);
-
-      // Сохраняем URL основного изображения и миниатюры
-      const imageUrl = `/uploads/products/${compressedFilename}`;
-      const thumbnailUrl = `/uploads/products/${thumbnailFilename}`;
-
-      // Добавляем оба изображения в продукт
-      return this.productsService.addImage(id, imageUrl, thumbnailUrl);
-    } catch (error) {
-      // Удаляем файл в случае ошибки
-      if (file.path && fs.existsSync(file.path)) {
-        fs.unlinkSync(file.path);
-      }
-      throw new BadRequestException(
-        error.message || 'Ошибка обработки изображения',
-      );
-    }
+    return this.productsService.uploadImage(id, file);
   }
 
   @Delete(':id/images')
   @Roles(Role.MANAGER, Role.ADMIN)
-  async removeImage(@Param('id', ParseIntPipe) id: number, @Body('imageUrl') imageUrl: string) {
+  async deleteImage(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('imageUrl') imageUrl: string,
+  ) {
     if (!imageUrl) {
-      throw new BadRequestException('imageUrl is required');
+      throw new BadRequestException('Image URL is required');
     }
-    return this.productsService.removeImage(id, imageUrl);
+    return this.productsService.deleteImage(id, imageUrl);
+  }
+
+  @Patch(':id/images/reorder')
+  @Roles(Role.MANAGER, Role.ADMIN)
+  async reorderImages(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('images') images: string[],
+  ) {
+    if (!images || !Array.isArray(images)) {
+      throw new BadRequestException('Images array is required');
+    }
+    return this.productsService.reorderImages(id, images);
   }
 }
 
