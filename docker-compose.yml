@@ -24,6 +24,14 @@ services:
       DATABASE_URL: postgresql://antiquar:antiquar123@postgres:5432/antiquar_db
       JWT_SECRET: your-secret-key-change-in-production
       CHOKIDAR_USEPOLLING: "true"  # Для NestJS watch в Docker на Windows
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: antiquar-products
+      MINIO_USE_SSL: "false"
+      # URL для доступа извне (frontend)
+      MINIO_PUBLIC_URL: http://localhost:9000
     ports:
       - "3000:3000"
     depends_on:
@@ -63,6 +71,22 @@ services:
       - backend
     restart: unless-stopped
 
+  minio:
+    image: minio/minio:latest
+    container_name: antiquar-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+    driver: local
+  minio_data:
     driver: local

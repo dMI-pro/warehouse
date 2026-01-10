@@ -149,6 +149,13 @@ class ApiService {
     return response.data;
   }
 
+  async reorderProductImages(id: number, images: string[]): Promise<Product> {
+    const response = await this.api.patch<Product>(`/products/${id}/images/reorder`, {
+      images,
+    });
+    return response.data;
+  }
+
   // Categories endpoints
   async getCategories(): Promise<Category[]> {
     const response = await this.api.get<Category[]>('/categories');
