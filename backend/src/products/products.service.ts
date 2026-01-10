@@ -11,14 +11,27 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { Prisma } from '@prisma/client';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { MinioService } from '../minio/minio.service';
+import { compressImage } from '../common/utils/image-compression.util';
 
 @Injectable()
 export class ProductsService {
   constructor(
     private prisma: PrismaService,
     @Inject(forwardRef(() => AuditLogService))
-    private auditLogService?: AuditLogService,
+    private auditLogService: AuditLogService,
+    private minioService: MinioService,
   ) {}
+
+  private mapProduct(product: any) {
+    if (!product) return product;
+    return {
+      ...product,
+      images: product.images
+        ? product.images.map((img) => this.minioService.getPublicUrl(img))
+        : [],
+    };
+  }
 
   async create(createProductDto: CreateProductDto) {
     // Проверка уникальности SKU
@@ -104,7 +117,7 @@ export class ProductsService {
       },
     });
 
-    return product;
+    return this.mapProduct(product);
   }
 
   async findAll(query: QueryProductsDto) {
@@ -163,7 +176,7 @@ export class ProductsService {
     ]);
 
     return {
-      data: products,
+      data: products.map((p) => this.mapProduct(p)),
       meta: {
         total,
         page,
@@ -188,7 +201,7 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    return product;
+    return this.mapProduct(product);
   }
 
   async update(
@@ -321,7 +334,7 @@ export class ProductsService {
       }
     }
 
-    return updatedProduct;
+    return this.mapProduct(updatedProduct);
   }
 
   async remove(id: number) {
@@ -347,44 +360,68 @@ export class ProductsService {
     });
   }
 
-  async addImage(id: number, imageUrl: string, thumbnailUrl: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { id },
-    });
-
+  async uploadImage(id: number, file: Express.Multer.File) {
+    const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    const updatedImages = [...(product.images || []), imageUrl];
+    // Сжатие изображения
+    const compressedBuffer = await compressImage(file.buffer);
 
-    return this.prisma.product.update({
-      where: { id },
-      data: {
-        images: updatedImages,
-      },
-      include: {
-        category: true,
-        warehouse: true,
-        committee: true,
-      },
-    });
-  }
+    // Создание нового файла
+    const compressedFile = {
+      ...file,
+      buffer: compressedBuffer,
+      size: compressedBuffer.length,
+      originalname: file.originalname.replace(/\.[^/.]+$/, '') + '.webp',
+      mimetype: 'image/webp',
+    };
 
-  async removeImage(id: number, imageUrl: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { id },
-    });
-
-    if (!product) {
-      throw new NotFoundException(`Product with ID ${id} not found`);
-    }
-
-    const updatedImages = (product.images || []).filter(
-      (img) => img !== imageUrl,
+    const fileName = await this.minioService.uploadFile(
+      compressedFile as Express.Multer.File,
     );
 
-    return this.prisma.product.update({
+    const updatedProduct = await this.prisma.product.update({
+      where: { id },
+      data: {
+        images: {
+          push: fileName,
+        },
+      },
+      include: {
+        category: true,
+        warehouse: true,
+        committee: true,
+        transactionType: true,
+      },
+    });
+
+    return this.mapProduct(updatedProduct);
+  }
+
+  async deleteImage(id: number, imageUrl: string) {
+    const product = await this.prisma.product.findUnique({ where: { id } });
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    // Поиск ключа по URL или использование самого URL как ключа
+    const key = product.images.find(
+      (img) => this.minioService.getPublicUrl(img) === imageUrl,
+    );
+
+    const imageToDelete = key || imageUrl;
+
+    try {
+      await this.minioService.deleteFile(imageToDelete);
+    } catch (e) {
+      console.warn(`File ${imageToDelete} not found in MinIO`);
+    }
+
+    const updatedImages = product.images.filter((img) => img !== imageToDelete);
+
+    const updatedProduct = await this.prisma.product.update({
       where: { id },
       data: {
         images: updatedImages,
@@ -393,7 +430,43 @@ export class ProductsService {
         category: true,
         warehouse: true,
         committee: true,
+        transactionType: true,
       },
     });
+
+    return this.mapProduct(updatedProduct);
+  }
+
+  async reorderImages(id: number, imageUrls: string[]) {
+    const product = await this.prisma.product.findUnique({ where: { id } });
+    if (!product) throw new NotFoundException(`Product ${id} not found`);
+
+    const currentKeys = product.images;
+    const newKeys: string[] = [];
+
+    for (const url of imageUrls) {
+      const key = currentKeys.find(
+        (k) => this.minioService.getPublicUrl(k) === url,
+      );
+      // Если это не URL, а уже ключ (на случай, если фронт шлет ключи)
+      if (key) {
+        newKeys.push(key);
+      } else if (currentKeys.includes(url)) {
+        newKeys.push(url);
+      }
+    }
+
+    const updatedProduct = await this.prisma.product.update({
+      where: { id },
+      data: { images: newKeys },
+      include: {
+        category: true,
+        warehouse: true,
+        committee: true,
+        transactionType: true,
+      },
+    });
+
+    return this.mapProduct(updatedProduct);
   }
 }

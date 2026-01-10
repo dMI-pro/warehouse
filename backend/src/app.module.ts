@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -14,10 +15,13 @@ import { AuditLogModule } from './audit-log/audit-log.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TransactionTypesModule } from './transaction-types/transaction-types.module';
 import { ReturnsModule } from './returns/returns.module';
+import { MinioModule } from './minio/minio.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    MinioModule,
     AuthModule,
     UsersModule,
     ProductsModule,
