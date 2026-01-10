@@ -7,6 +7,7 @@ import Tooltip from 'primevue/tooltip';
 import PrimeVue from 'primevue/config';
 import Aura from '@primevue/themes/aura';
 import 'primeicons/primeicons.css';
+import 'primeflex/primeflex.css';
 
 import App from './App.vue';
 import router from './router';
