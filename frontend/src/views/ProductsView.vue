@@ -105,7 +105,7 @@
           :rows="productsStore.pagination.limit"
           :totalRecords="productsStore.pagination.total"
           :first="(productsStore.pagination.page - 1) * productsStore.pagination.limit"
-          :rowsPerPageOptions="[20, 50, 100]"
+          :rowsPerPageOptions="[10, 20, 50, 100]"
           paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
           currentPageReportTemplate="{first} - {last} из {totalRecords}"
           :emptyMessage="productsStore.loading ? 'Загрузка...' : 'Нет товаров'"
@@ -113,86 +113,126 @@
           dataKey="id"
           @page="onPageChange"
         >
-          <Column selectionMode="multiple" headerStyle="width: 3rem" />
-          <Column header="Изображение" style="width: 100px">
+          <!-- Колонка выбора -->
+          <!-- <Column selectionMode="multiple" headerStyle="width: 3rem" /> -->
+          
+          <!-- Динамические колонки на основе конфигурации -->
+          <Column
+            v-for="column in tableColumns"
+            :key="column.field || column.header"
+            :field="column.field"
+            :header="column.header"
+            :sortable="column.sortable"
+            :style="column.style"
+            :headerStyle="column.headerStyle"
+          >
             <template #body="{ data }">
-              <img
-                v-if="data.images && data.images.length > 0"
-                :src="getImageUrl(data.images[0])"
-                :alt="data.name"
-                class="product-image"
-              />
-              <span v-else class="no-image">Нет фото</span>
-            </template>
-          </Column>
-          <Column field="name" header="Название" :sortable="true">
-            <template #body="{ data }">
-              <span class="product-name" @click="openProductDetails(data.id)">{{ data.name }}</span>
-            </template>
-          </Column>
-          <Column field="sku" header="Артикул" :sortable="true" />
-          <Column field="category.name" header="Категория">
-            <template #body="{ data }">
-              <Tag :value="data.category?.name || 'Без категории'" severity="info" />
-            </template>
-          </Column>
-          <Column field="salePrice" header="Цена продажи" :sortable="true">
-            <template #body="{ data }">
-              {{ formatPrice(data.salePrice) }}
-            </template>
-          </Column>
-          <Column field="quantity" header="Количество" :sortable="true">
-            <template #body="{ data }">
-              <span
-                :class="{
-                  'low-stock': data.quantity < data.minStockLevel,
-                  'out-of-stock': data.quantity === 0,
-                }"
-              >
-                {{ data.quantity }}
-              </span>
-            </template>
-          </Column>
-          <Column header="Действия" style="width: 180px">
-            <template #body="{ data }">
-              <div class="action-buttons">
-                <Button
-                  icon="pi pi-pencil"
-                  severity="info"
-                  size="small"
-                  outlined
-                  rounded
-                  v-tooltip.top="'Редактировать'"
-                  @click="openEditDialog(data)"
-                />
-                <Button
-                  icon="pi pi-trash"
-                  severity="danger"
-                  size="small"
-                  outlined
-                  rounded
-                  v-tooltip.top="'Удалить'"
-                  @click="confirmDelete(data)"
-                />
-                <Button
-                  icon="pi pi-shopping-cart"
-                  severity="success"
-                  size="small"
-                  outlined
-                  rounded
-                  v-tooltip.top="'Продать'"
-                  @click="openSaleDialog(data)"
-                />
-                <Button
-                  icon="pi pi-replay"
-                  severity="warning"
-                  size="small"
-                  outlined
-                  rounded
-                  v-tooltip.top="'Возврат'"
-                  @click="openReturnDialog(data)"
-                />
-              </div>
+              <!-- Обработка кастомных шаблонов -->
+              <template v-if="column.template">
+                <!-- Изображение -->
+                <template v-if="column.template === 'image'">
+                  <img
+                    v-if="data.images && data.images.length > 0"
+                    :src="getImageUrl(data.images[0])"
+                    :alt="data.name"
+                    class="product-image"
+                  />
+                  <span v-else class="no-image">Нет фото</span>
+                </template>
+                
+                <!-- Название товара (кликабельное) -->
+                <template v-else-if="column.template === 'productName'">
+                  <span class="product-name" @click="openProductDetails(data.id)">{{ data.name }}</span>
+                </template>
+                
+                <!-- Категория с тегом -->
+                <template v-else-if="column.template === 'category'">
+                  <Tag :value="data.category?.name || 'Без категории'" severity="info" />
+                </template>
+                
+                <!-- Цена с форматированием -->
+                <template v-else-if="column.template === 'price'">
+                  {{ formatPrice(data[column.field]) }}
+                </template>
+                
+                <!-- Количество с цветовой индикацией -->
+                <template v-else-if="column.template === 'quantity'">
+                  <span
+                    :class="{
+                      'low-stock': data.quantity < data.minStockLevel,
+                      'out-of-stock': data.quantity === 0,
+                    }"
+                  >
+                    {{ data.quantity }}
+                  </span>
+                </template>
+                
+                <!-- Склад -->
+                <template v-else-if="column.template === 'warehouse'">
+                  <Tag :value="data.warehouse?.name || 'Не указан'" severity="secondary" />
+                </template>
+                
+                <!-- Коммитет -->
+                <template v-else-if="column.template === 'committee'">
+                  <span class="productCommittee">{{ data.committee?.name }}</span>
+                  <!-- <Tag :value="data.committee?.name || 'Не указан'" severity="info" /> -->
+                </template>
+                
+                <!-- Тип транзакции -->
+                <template v-else-if="column.template === 'transactionType'">
+                  <Badge 
+                    :value="data.transactionType?.name || 'Не указан'" 
+                    :severity="getTransactionTypeSeverity(data.transactionType?.name)"
+                  />
+                </template>
+                
+                <!-- Действия -->
+                <template v-else-if="column.template === 'actions'">
+                  <div class="action-buttons">
+                    <Button
+                      icon="pi pi-pencil"
+                      severity="info"
+                      size="small"
+                      outlined
+                      rounded
+                      v-tooltip.top="'Редактировать'"
+                      @click="openEditDialog(data)"
+                    />
+                    <Button
+                      icon="pi pi-trash"
+                      severity="danger"
+                      size="small"
+                      outlined
+                      rounded
+                      v-tooltip.top="'Удалить'"
+                      @click="confirmDelete(data)"
+                    />
+                    <Button
+                      icon="pi pi-shopping-cart"
+                      severity="success"
+                      size="small"
+                      outlined
+                      rounded
+                      v-tooltip.top="'Продать'"
+                      @click="openSaleDialog(data)"
+                    />
+                    <Button
+                      icon="pi pi-replay"
+                      severity="warning"
+                      size="small"
+                      outlined
+                      rounded
+                      v-tooltip.top="'Возврат'"
+                      @click="openReturnDialog(data)"
+                    />
+                  </div>
+                </template>
+              </template>
+              
+              <!-- Простое отображение поля -->
+              <template v-else>
+                {{ data[column.field] }}
+              </template>
             </template>
           </Column>
         </DataTable>
@@ -620,6 +660,7 @@ import Dropdown from 'primevue/dropdown';
 import Dialog from 'primevue/dialog';
 import FileUpload from 'primevue/fileupload';
 import Tag from 'primevue/tag';
+import Badge from 'primevue/badge';
 import Message from 'primevue/message';
 import ConfirmDialog from 'primevue/confirmdialog';
 import TabView from 'primevue/tabview';
@@ -672,6 +713,17 @@ const availableQuantity = ref<number>(0); // количество на СКЛА�
 const quantityInputRef = ref<InstanceType<typeof QuantityInput> | null>(null);
 
 const requestQuantity = ref<number>(0); // количество в заявке продаже/возврате
+
+// Интерфейс для конфигурации колонок
+interface TableColumn {
+  field?: string;
+  header: string;
+  sortable?: boolean;
+  style?: string;
+  headerStyle?: string;
+  template?: 'image' | 'productName' | 'category' | 'price' | 'quantity' | 'warehouse' | 'committee' | 'transactionType' | 'actions';
+  format?: 'price' | 'date';
+}
 
 const productForm = reactive<CreateProductDto & { images?: string[]; arrivalDate?: Date }>({
   name: '',
@@ -752,6 +804,74 @@ const sortOptions = [
   { label: 'По количеству', value: 'quantity' },
   { label: 'По дате создания', value: 'createdAt' },
 ];
+
+// Конфигурация колонок таблицы
+const tableColumns = computed<TableColumn[]>(() => [
+  { 
+    header: 'Изображение', 
+    style: 'width: 100px',
+    template: 'image'
+  },
+  { 
+    field: 'name', 
+    header: 'Название', 
+    sortable: true,
+    template: 'productName'
+  },
+  { 
+    field: 'sku', 
+    header: 'Артикул', 
+    sortable: true 
+  },
+  { 
+    header: 'Категория',
+    template: 'category'
+  },
+  { 
+    field: 'salePrice', 
+    header: 'Цена продажи', 
+    sortable: true,
+    template: 'price'
+  },
+  { 
+    field: 'quantity', 
+    header: 'Кол-во', 
+    sortable: true,
+    template: 'quantity'
+  },
+  { 
+    header: 'Склад',
+    template: 'warehouse',
+    // sortable: true, // проблема описана в заметках на айфоне
+  },
+  { 
+    header: 'Коммитет',
+    template: 'committee',
+    // sortable: true, // проблема описана в заметках на айфоне
+  },
+  { 
+    header: 'Тип транзакции',
+    template: 'transactionType',
+    // sortable: true, // проблема описана в заметках на айфоне
+  },
+  { 
+    header: 'Действия', 
+    style: 'width: 180px',
+    template: 'actions'
+  },
+]);
+
+// Вспомогательная функция для определения цвета типа транзакции
+const getTransactionTypeSeverity = (transactionTypeName?: string) => {
+  if (!transactionTypeName) return 'secondary';
+  
+  const type = transactionTypeName.toLowerCase();
+  if (type.includes('комиссия')) return 'info';
+  if (type.includes('выкуп')) return 'success';
+  if (type.includes('продажа')) return 'contrast';
+  
+  return 'secondary';
+};
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -1145,7 +1265,6 @@ const handleSale = async () => {
 };
 
 const openReturnDialog = (product: Product) => {
-  debugger
   selectedProduct.value = product;
   returnForm.quantity = 1;
   returnForm.reason = '';
@@ -1366,12 +1485,13 @@ onMounted(async () => {
 }
 
 .low-stock {
-  color: var(--orange-500);
+  color: var(--warning-color);
+  text-decoration: underline;
   font-weight: 600;
 }
 
 .out-of-stock {
-  color: var(--red-500);
+  color: var(--error-color);
   font-weight: 600;
 }
 
