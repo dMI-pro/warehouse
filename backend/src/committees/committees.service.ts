@@ -76,91 +76,188 @@ export class CommitteesService {
       throw new NotFoundException(`Committee with ID ${id} not found`);
     }
 
-    // Date filters for sales and returns
+    // Date filters for sales and returns - ВКЛЮЧИТЕЛЬНО КОНЕЧНУЮ ДАТУ
     const dateFilter: any = {};
-    if (startDate) dateFilter.gte = new Date(startDate);
-    if (endDate) dateFilter.lte = new Date(endDate);
+    if (startDate) {
+      dateFilter.gte = new Date(startDate);
+      dateFilter.gte.setUTCHours(0, 0, 0, 0); // Начало дня
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setUTCHours(23, 59, 59, 999); // Конец дня (включительно)
+      dateFilter.lte = end;
+    }
 
-    // 1. Get all products for this committee
+    // Получаем все продукты комитета (без фильтрации по дате)
     const products = await this.prisma.product.findMany({
-      where: { committeeId: id },
+      where: { 
+        committeeId: id,
+        // Фильтруем продукты по дате поступления, если указан период
+        ...(Object.keys(dateFilter).length ? { 
+          OR: [
+            { arrivalDate: dateFilter },
+            { createdAt: dateFilter }
+          ]
+        } : {})
+      },
       include: {
         sales: {
-          where: {
-            soldAt: Object.keys(dateFilter).length ? dateFilter : undefined
+          where: Object.keys(dateFilter).length ? {
+            soldAt: dateFilter
+          } : {},
+          orderBy: {
+            soldAt: 'asc'
           }
         },
         returns: {
-          where: {
-            returnedAt: Object.keys(dateFilter).length ? dateFilter : undefined
+          where: Object.keys(dateFilter).length ? {
+            returnedAt: dateFilter
+          } : {},
+          orderBy: {
+            returnedAt: 'asc'
           }
-        }
+        },
+        category: true,
+        warehouse: true,
+        transactionType: true
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     });
 
-    // 2. Calculate metrics
-    let totalItems = products.length; // This is ALL items ever associated (if we don't filter products by date)
-    // Actually, "totalItems" usually implies current inventory + sold + returned.
-    // If we want total items *added* in a period, we'd filter products by createdAt. 
-    // But the user asks for "active", "sold", "returned".
-    
-    let activeItemsCount = 0;
-    let soldItemsCount = 0;
-    let returnedItemsCount = 0;
-    
-    let totalPayout = 0; // sum of purchasePrice for SOLD items
-    let totalRevenue = 0; // sum of salePrice for SOLD items
-    let totalProfit = 0;
-    
-    // For graph
-    const dailyStats: Record<string, { sold: number; returned: number; revenue: number; payout: number }> = {};
+    // Расчет метрик
+    let totalPositions = 0; // Кол-во позиций (уникальных товаров)
+    let totalItems = 0; // Всего товара (сумма quantity)
+    let activePositions = 0; // Количество активных позиций (quantity > 0)
+    let activeItems = 0; // Количество активных товаров (сумма quantity где quantity > 0)
+    let soldItems = 0; // Продано
+    let returnedItems = 0; // Возвращено
+    let totalRevenue = 0; // Выручка
+    let totalProfit = 0; // Прибыль
+    let totalPayout = 0; // Выплачено комитету
 
+    // Для графика
+    const dailyStats: Record<string, { 
+      positions: number; // Кол-во позиций
+      items: number; // Всего товара
+      activePositions: number; // Активные позиции
+      activeItems: number; // Активные товары
+      sold: number; // Продано
+      returned: number; // Возвращено
+      revenue: number; // Выручка
+      profit: number; // Прибыль
+      payout: number; // Выплачено
+    }> = {};
+
+    // Обрабатываем каждый продукт
     for (const product of products) {
-      // Active: currently has quantity > 0
-      if (product.quantity > 0) {
-        activeItemsCount += product.quantity;
+      const productQuantity = product.quantity || 0;
+      
+      // Основные метрики
+      totalPositions++; // Увеличиваем счетчик позиций
+      totalItems += productQuantity;
+      
+      if (productQuantity > 0) {
+        activePositions++; // Активная позиция
+        activeItems += productQuantity; // Активные товары (сумма quantity)
       }
 
-      // Sold
+      // Продажи товара
       for (const sale of product.sales) {
-        soldItemsCount += sale.quantity;
+        const saleQuantity = sale.quantity;
+        soldItems += saleQuantity;
         
-        const revenue = Number(sale.salePrice) * sale.quantity;
-        const cost = Number(product.purchasePrice) * sale.quantity;
+        const salePrice = Number(sale.salePrice) || 0;
+        const purchasePrice = Number(product.purchasePrice) || 0;
+        const revenue = salePrice * saleQuantity;
+        const payout = purchasePrice * saleQuantity; // Выплата комитету (цена закупки)
+        const profit = revenue - payout;
         
         totalRevenue += revenue;
-        totalPayout += cost;
-        totalProfit += (revenue - cost);
+        totalPayout += payout;
+        totalProfit += profit;
 
-        // Daily stats
-        const dateKey = sale.soldAt.toISOString().split('T')[0];
-        if (!dailyStats[dateKey]) dailyStats[dateKey] = { sold: 0, returned: 0, revenue: 0, payout: 0 };
-        dailyStats[dateKey].sold += sale.quantity;
+        // Ежедневная статистика
+        const saleDate = sale.soldAt;
+        const dateKey = saleDate.toISOString().split('T')[0];
+        
+        if (!dailyStats[dateKey]) {
+          dailyStats[dateKey] = { 
+            positions: 0, items: 0, 
+            activePositions: 0, activeItems: 0,
+            sold: 0, returned: 0, 
+            revenue: 0, profit: 0, payout: 0 
+          };
+        }
+        dailyStats[dateKey].sold += saleQuantity;
         dailyStats[dateKey].revenue += revenue;
-        dailyStats[dateKey].payout += cost;
+        dailyStats[dateKey].payout += payout;
+        dailyStats[dateKey].profit += profit;
       }
 
-      // Returned
+      // Возвраты товара
       for (const ret of product.returns) {
-        returnedItemsCount += ret.quantity;
+        const returnQuantity = ret.quantity;
+        returnedItems += returnQuantity;
         
-        // Daily stats
-        const dateKey = ret.returnedAt.toISOString().split('T')[0];
-        if (!dailyStats[dateKey]) dailyStats[dateKey] = { sold: 0, returned: 0, revenue: 0, payout: 0 };
-        dailyStats[dateKey].returned += ret.quantity;
+        // Ежедневная статистика
+        const returnDate = ret.returnedAt;
+        const dateKey = returnDate.toISOString().split('T')[0];
+        
+        if (!dailyStats[dateKey]) {
+          dailyStats[dateKey] = { 
+            positions: 0, items: 0, 
+            activePositions: 0, activeItems: 0,
+            sold: 0, returned: 0, 
+            revenue: 0, profit: 0, payout: 0 
+          };
+        }
+        dailyStats[dateKey].returned += returnQuantity;
+      }
+    }
+
+    // Также добавляем информацию о позициях и товарах в dailyStats
+    for (const product of products) {
+      const productDate = product.arrivalDate || product.createdAt;
+      if (productDate) {
+        const dateKey = productDate.toISOString().split('T')[0];
+        
+        if (!dailyStats[dateKey]) {
+          dailyStats[dateKey] = { 
+            positions: 0, items: 0, 
+            activePositions: 0, activeItems: 0,
+            sold: 0, returned: 0, 
+            revenue: 0, profit: 0, payout: 0 
+          };
+        }
+        
+        // Увеличиваем позиции только если дата в пределах фильтра
+        if (!Object.keys(dateFilter).length || 
+            (productDate >= (dateFilter.gte || new Date(0)) && 
+            productDate <= (dateFilter.lte || new Date()))) {
+          dailyStats[dateKey].positions++;
+          dailyStats[dateKey].items += product.quantity || 0;
+          if ((product.quantity || 0) > 0) {
+            dailyStats[dateKey].activePositions++;
+            dailyStats[dateKey].activeItems += product.quantity || 0;
+          }
+        }
       }
     }
 
     return {
       committee,
       metrics: {
-        totalItems, // Total distinct product records
-        activeItemsCount,
-        soldItemsCount,
-        returnedItemsCount,
-        totalPayout,
-        totalRevenue,
-        totalProfit
+        totalPositions, // Кол-во позиций (всего записей товаров)
+        totalItems, // Всего товара (сумма quantity всех позиций)
+        activePositions, // Количество активных позиций (позиций с quantity > 0)
+        activeItems, // Количество активных товаров (сумма quantity где quantity > 0)
+        soldItems, // Продано (шт)
+        returnedItems, // Возвращено (шт)
+        totalRevenue, // Выручка
+        totalProfit, // Прибыль
+        totalPayout, // Выплачено комитету
       },
       dailyStats
     };
@@ -210,4 +307,3 @@ export class CommitteesService {
     });
   }
 }
-

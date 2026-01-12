@@ -64,63 +64,137 @@
             <div class="flex flex-wrap gap-3 align-items-end">
               <div class="field mb-0">
                 <label for="startDate" class="block text-sm font-medium text-gray-700">Дата начала</label>
-                <Calendar id="startDate" v-model="filters.startDate" dateFormat="yy-mm-dd" showIcon />
+                <Calendar 
+                  id="startDate" 
+                  v-model="filters.startDate" 
+                  dateFormat="yy-mm-dd" 
+                  showIcon 
+                  :maxDate="filters.endDate || undefined"
+                />
               </div>
               <div class="field mb-0">
                 <label for="endDate" class="block text-sm font-medium text-gray-700">Дата окончания</label>
-                <Calendar id="endDate" v-model="filters.endDate" dateFormat="yy-mm-dd" showIcon />
+                <Calendar 
+                  id="endDate" 
+                  v-model="filters.endDate" 
+                  dateFormat="yy-mm-dd" 
+                  showIcon 
+                  :minDate="filters.startDate || undefined"
+                />
               </div>
               <Button label="Применить" icon="pi pi-filter" @click="fetchStatistics" :loading="isLoading" />
+              <Button 
+                label="Сбросить" 
+                icon="pi pi-refresh" 
+                severity="secondary" 
+                outlined 
+                @click="resetFilters" 
+              />
+            </div>
+            <div v-if="filters.startDate || filters.endDate" class="mt-2 text-sm text-500">
+              <i class="pi pi-info-circle mr-1"></i>
+              Период: {{ formatDateRange(filters.startDate, filters.endDate) }}
             </div>
           </template>
         </Card>
 
         <div class="grid">
-          <div class="col-12 md:col-4">
+          <!-- Кол-во позиций -->
+          <div class="col-12 md:col-3">
             <Card class="stat-card text-center">
               <template #content>
-                <div class="text-500 mb-2">Общее кол-во товаров</div>
+                <div class="text-500 mb-2">Кол-во позиций</div>
                 <div class="text-2xl font-bold text-primary">{{ stats?.metrics.totalItems || 0 }}</div>
               </template>
             </Card>
           </div>
-          <div class="col-12 md:col-4">
+          
+          <!-- Всего товара -->
+          <div class="col-12 md:col-3">
+            <Card class="stat-card text-center">
+              <template #content>
+                <div class="text-500 mb-2">Всего товара</div>
+                <div class="text-2xl font-bold text-blue-500">{{ stats?.metrics.totalItems || 0 }}</div>
+              </template>
+            </Card>
+          </div>
+          
+          <!-- Активные товары -->
+          <!-- <div class="col-12 md:col-3">
             <Card class="stat-card text-center">
               <template #content>
                 <div class="text-500 mb-2">Активные товары</div>
-                <div class="text-2xl font-bold text-green-500">{{ stats?.metrics.activeItemsCount || 0 }}</div>
+                <div class="text-2xl font-bold text-green-500">{{ stats?.metrics.activeItems || 0 }}</div>
+              </template>
+            </Card>
+          </div> -->
+
+          <!-- Активные позиции -->
+          <div class="col-12 md:col-3">
+            <Card class="stat-card text-center">
+              <template #content>
+                <div class="text-500 mb-2">Активные позиции</div>
+                <div class="text-2xl font-bold text-green-500">{{ stats?.metrics.activePositions || 0 }}</div>
               </template>
             </Card>
           </div>
-          <div class="col-12 md:col-4">
+
+          <!-- Активные товары -->
+          <div class="col-12 md:col-3">
+            <Card class="stat-card text-center">
+              <template #content>
+                <div class="text-500 mb-2">Активные товары</div>
+                <div class="text-2xl font-bold text-green-600">{{ stats?.metrics.activeItems || 0 }}</div>
+              </template>
+            </Card>
+          </div>
+          
+          <!-- Продано -->
+          <div class="col-12 md:col-3">
             <Card class="stat-card text-center">
               <template #content>
                 <div class="text-500 mb-2">Продано</div>
-                <div class="text-2xl font-bold text-blue-500">{{ stats?.metrics.soldItemsCount || 0 }}</div>
+                <div class="text-2xl font-bold text-teal-500">{{ stats?.metrics.soldItems || 0 }}</div>
               </template>
             </Card>
           </div>
-          <div class="col-12 md:col-4">
+          
+          <!-- Возвращено -->
+          <div class="col-12 md:col-3">
             <Card class="stat-card text-center">
               <template #content>
                 <div class="text-500 mb-2">Возвращено</div>
-                <div class="text-2xl font-bold text-orange-500">{{ stats?.metrics.returnedItemsCount || 0 }}</div>
+                <div class="text-2xl font-bold text-orange-500">{{ stats?.metrics.returnedItems || 0 }}</div>
               </template>
             </Card>
           </div>
-          <div class="col-12 md:col-4">
+          
+          <!-- Выручка -->
+          <div class="col-12 md:col-3">
             <Card class="stat-card text-center">
               <template #content>
-                <div class="text-500 mb-2">Выплачено</div>
-                <div class="text-2xl font-bold text-purple-500">{{ formatPrice(stats?.metrics.totalPayout || 0) }}</div>
+                <div class="text-500 mb-2">Выручка</div>
+                <div class="text-2xl font-bold text-purple-500">{{ formatPrice(stats?.metrics.totalRevenue || 0) }}</div>
               </template>
             </Card>
           </div>
-          <div class="col-12 md:col-4">
+          
+          <!-- Прибыль -->
+          <div class="col-12 md:col-3">
             <Card class="stat-card text-center">
               <template #content>
                 <div class="text-500 mb-2">Прибыль</div>
-                <div class="text-2xl font-bold text-teal-500">{{ formatPrice(stats?.metrics.totalProfit || 0) }}</div>
+                <div class="text-2xl font-bold text-indigo-500">{{ formatPrice(stats?.metrics.totalProfit || 0) }}</div>
+              </template>
+            </Card>
+          </div>
+          
+          <!-- Выплачено комитету -->
+          <div class="col-12 md:col-3">
+            <Card class="stat-card text-center">
+              <template #content>
+                <div class="text-500 mb-2">Выплачено комитету</div>
+                <div class="text-2xl font-bold text-pink-500">{{ formatPrice(stats?.metrics.totalPayout || 0) }}</div>
               </template>
             </Card>
           </div>
@@ -187,9 +261,25 @@ const router = useRouter();
 const toast = useToast();
 const confirm = useConfirm();
 
+interface CommitteeStats {
+  committee: Committee;
+  metrics: {
+    totalPositions: number;      // Кол-во позиций
+    totalItems: number;          // Всего товара
+    activePositions: number;     // Активные позиции
+    activeItems: number;         // Активные товары
+    soldItems: number;           // Продано
+    returnedItems: number;       // Возвращено
+    totalRevenue: number;        // Выручка
+    totalProfit: number;         // Прибыль
+    totalPayout: number;         // Выплачено комитету
+  };
+  dailyStats: Record<string, any>;
+}
+
 const committeeId = Number(route.params.id);
 const committee = ref<Committee | null>(null);
-const stats = ref<any>(null);
+const stats = ref<CommitteeStats | null>(null);
 const isLoading = ref(false);
 
 const filters = reactive({
@@ -210,29 +300,101 @@ let chartInstance: echarts.ECharts | null = null;
 const chartMetric = ref('revenue');
 const chartOptions = [
   { label: 'Выручка', value: 'revenue' },
+  { label: 'Прибыль', value: 'profit' },
   { label: 'Выплаты', value: 'payout' },
+  { label: 'Позиции', value: 'positions' },
+  { label: 'Активные позиции', value: 'activePositions' },
+  { label: 'Товар (шт)', value: 'items' },
+  { label: 'Активные товары', value: 'activeItems' },
   { label: 'Продажи (шт)', value: 'sold' },
   { label: 'Возвраты (шт)', value: 'returned' },
 ];
+
+// const fetchStatistics = async () => {
+//   if (isLoading.value) return;
+//   isLoading.value = true;
+//   try {
+//     // Форматируем даты для включения конечной даты
+//     const startDateStr = filters.startDate ? formatDateForApi(filters.startDate) : undefined;
+//     const endDateStr = filters.endDate ? formatDateForApi(filters.endDate, true) : undefined;
+    
+//     const data = await apiService.getCommitteeStatistics(committeeId, startDateStr, endDateStr);
+//     committee.value = data.committee;
+//     stats.value = data;
+    
+//     updateChart();
+//   } catch (error: any) {
+//     console.error('Error fetching committee stats:', error);
+//     toast.add({ 
+//       severity: 'error', 
+//       summary: 'Ошибка', 
+//       detail: error.response?.data?.message || 'Не удалось загрузить данные' 
+//     });
+//   } finally {
+//     isLoading.value = false;
+//   }
+// };
 
 const fetchStatistics = async () => {
   if (isLoading.value) return;
   isLoading.value = true;
   try {
-    const startDateStr = filters.startDate ? filters.startDate.toISOString() : undefined;
-    const endDateStr = filters.endDate ? filters.endDate.toISOString() : undefined;
+    // Форматируем даты для включения конечной даты
+    const startDateStr = filters.startDate ? formatDateForApi(filters.startDate) : undefined;
+    const endDateStr = filters.endDate ? formatDateForApi(filters.endDate, true) : undefined;
+    
+    console.log('Fetching stats with params:', {
+      committeeId,
+      startDateStr,
+      endDateStr
+    });
     
     const data = await apiService.getCommitteeStatistics(committeeId, startDateStr, endDateStr);
+    
+    console.log('Received data:', data);
+    
     committee.value = data.committee;
     stats.value = data;
     
+    console.log('Stats after processing:', stats.value);
+    
     updateChart();
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching committee stats:', error);
-    toast.add({ severity: 'error', summary: 'Ошибка', detail: 'Не удалось загрузить данные' });
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Ошибка', 
+      detail: error.response?.data?.message || 'Не удалось загрузить данные' 
+    });
   } finally {
     isLoading.value = false;
   }
+};
+
+// Форматирование даты для API (включительно конечную дату)
+const formatDateForApi = (date: Date, isEndDate: boolean = false): string => {
+  const d = new Date(date);
+  if (isEndDate) {
+    // Для конечной даты устанавливаем конец дня (23:59:59.999)
+    d.setUTCHours(23, 59, 59, 999);
+  } else {
+    // Для начальной даты устанавливаем начало дня (00:00:00.000)
+    d.setUTCHours(0, 0, 0, 0);
+  }
+  return d.toISOString();
+};
+
+const resetFilters = () => {
+  filters.startDate = null;
+  filters.endDate = null;
+  fetchStatistics();
+};
+
+const formatDateRange = (startDate: Date | null, endDate: Date | null): string => {
+  if (!startDate && !endDate) return 'Весь период';
+  if (startDate && !endDate) return `с ${formatDate(startDate.toISOString())}`;
+  if (!startDate && endDate) return `по ${formatDate(endDate.toISOString())}`;
+  return `${formatDate(startDate!.toISOString())} - ${formatDate(endDate!.toISOString())}`;
 };
 
 const updateChart = () => {
@@ -244,11 +406,44 @@ const updateChart = () => {
   }
 
   const dailyStats = stats.value.dailyStats;
-  const dates = Object.keys(dailyStats).sort();
   
-  const seriesData = dates.map(date => dailyStats[date][chartMetric.value]);
+  // Сортируем даты по возрастанию
+  const dates = Object.keys(dailyStats).sort((a, b) => {
+    return new Date(a).getTime() - new Date(b).getTime();
+  });
   
+  // Форматируем даты для отображения
+  const formattedDates = dates.map(dateStr => {
+    const date = new Date(dateStr);
+    return new Intl.DateTimeFormat('ru-RU', {
+      day: '2-digit',
+      month: '2-digit'
+    }).format(date);
+  });
+  
+  // Получаем данные для выбранной метрики
+  const seriesData = dates.map(date => {
+    const value = dailyStats[date][chartMetric.value] || 0;
+    return Math.round(value * 100) / 100; // Округляем до 2 знаков
+  });
+
   const metricName = chartOptions.find(o => o.value === chartMetric.value)?.label;
+
+  // Определяем цвет в зависимости от метрики
+  const getMetricColor = (metric: string) => {
+    switch (metric) {
+      case 'revenue': return '#10B981'; // Зеленый
+      case 'profit': return '#3B82F6'; // Синий
+      case 'payout': return '#8B5CF6'; // Фиолетовый
+      case 'positions': return '#EF4444'; // Красный
+      case 'activePositions': return '#06B6D4'; // Бирюзовый
+      case 'items': return '#F59E0B'; // Оранжевый
+      case 'activeItems': return '#84CC16'; // Лаймовый
+      case 'sold': return '#8B5CF6'; // Фиолетовый
+      case 'returned': return '#F97316'; // Оранжевый
+      default: return '#6B7280'; // Серый
+    }
+  };
 
   const option = {
     tooltip: {
@@ -256,53 +451,77 @@ const updateChart = () => {
       formatter: function (params: any) {
         const date = params[0].name;
         const value = params[0].value;
-        if (chartMetric.value === 'revenue' || chartMetric.value === 'payout') {
-            return `${date}<br/>${metricName}: ${formatPrice(value)}`;
+        const metric = chartMetric.value;
+        
+        let formattedValue = value;
+        if (metric === 'revenue' || metric === 'profit' || metric === 'payout') {
+          formattedValue = formatPrice(value);
         }
-        return `${date}<br/>${metricName}: ${value}`;
+        
+        return `${date}<br/>${metricName}: ${formattedValue}`;
       }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true,
     },
     xAxis: {
       type: 'category',
-      data: dates,
+      data: formattedDates,
+      axisLabel: {
+        rotate: 45
+      }
     },
     yAxis: {
       type: 'value',
+      axisLabel: {
+        formatter: (value: number) => {
+          if (chartMetric.value === 'revenue' || chartMetric.value === 'profit' || chartMetric.value === 'payout') {
+            if (value >= 1000000) return `${(value / 1000000).toFixed(1)}М`;
+            if (value >= 1000) return `${(value / 1000).toFixed(0)}К`;
+          }
+          return value.toString();
+        },
+      },
     },
     series: [
       {
-        data: seriesData,
-        type: 'bar', // or line
-        smooth: true,
         name: metricName,
+        type: 'bar',
+        data: seriesData,
         itemStyle: {
-            color: chartMetric.value === 'revenue' ? '#10B981' : 
-                   chartMetric.value === 'payout' ? '#8B5CF6' :
-                   chartMetric.value === 'sold' ? '#3B82F6' : '#F97316'
+          color: getMetricColor(chartMetric.value)
         },
         label: {
           show: true,
-          position: 'inside',
+          position: 'top',
           formatter: (params: any) => {
-            console.log('params', params);
-            if (chartMetric.value === 'revenue' || chartMetric.value === 'payout') {
-              return formatPrice(params.value);
+            const value = params.value;
+            if (chartMetric.value === 'revenue' || chartMetric.value === 'profit' || chartMetric.value === 'payout') {
+              if (value >= 1000000) return `${(value / 1000000).toFixed(1)}М`;
+              if (value >= 1000) return `${(value / 1000).toFixed(0)}К`;
             }
-            return params.value;
+            return value;
           },
-          fontSize: 20,
-          color: '#333'
+          fontSize: 10
         }
       },
     ],
   };
 
-  chartInstance.setOption(option);
+  chartInstance.setOption(option, true);
 };
 
 watch(chartMetric, () => {
   updateChart();
 });
+
+watch(() => [filters.startDate, filters.endDate], () => {
+  // Автоматическое обновление при изменении фильтров
+  fetchStatistics();
+}, { deep: true });
 
 const openEditDialog = () => {
   if (!committee.value) return;
@@ -318,8 +537,12 @@ const saveCommittee = async () => {
     toast.add({ severity: 'success', summary: 'Успешно', detail: 'Комитет обновлен' });
     editDialogVisible.value = false;
     fetchStatistics(); // Refresh info
-  } catch (error) {
-    toast.add({ severity: 'error', summary: 'Ошибка', detail: 'Не удалось сохранить изменения' });
+  } catch (error: any) {
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Ошибка', 
+      detail: error.response?.data?.message || 'Не удалось сохранить изменения' 
+    });
   }
 };
 
@@ -334,8 +557,12 @@ const confirmDelete = () => {
         await apiService.deleteCommittee(committeeId);
         toast.add({ severity: 'success', summary: 'Успешно', detail: 'Комитет удален' });
         router.push('/settings'); // Or wherever appropriate
-      } catch (error) {
-        toast.add({ severity: 'error', summary: 'Ошибка', detail: 'Не удалось удалить комитет (возможно, есть связанные товары)' });
+      } catch (error: any) {
+        toast.add({ 
+          severity: 'error', 
+          summary: 'Ошибка', 
+          detail: error.response?.data?.message || 'Не удалось удалить комитет (возможно, есть связанные товары)' 
+        });
       }
     },
   });
@@ -363,5 +590,21 @@ onMounted(() => {
 <style scoped>
 .stat-card {
   height: 100%;
+  transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.committee-info .info-item {
+  border-bottom: 1px solid var(--surface-border);
+  padding-bottom: 0.75rem;
+}
+
+.committee-info .info-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 </style>
