@@ -158,7 +158,7 @@
               :emptyMessage="committeesStore.loading ? 'Загрузка...' : 'Нет коммитетов'"
               class="committees-table"
             >
-              <Column field="name" header="Название" :sortable="true" />
+              <Column field="name" header="Название" :sortable="true" @click="openCommitteeDetails(data.committee.id)" />
               <Column field="description" header="Описание" />
               <Column field="contactInfo" header="Контактная информация" />
               <Column header="Действия" style="width: 150px">
@@ -573,6 +573,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 import Card from 'primevue/card';
@@ -604,6 +605,7 @@ const transactionTypesStore = useTransactionTypesStore();
 const authStore = useAuthStore();
 const confirm = useConfirm();
 const toast = useToast();
+const router = useRouter();
 
 const activeTab = ref<'categories' | 'warehouses' | 'committees' | 'transactionTypes' | 'fields' | 'templates' | 'system'>('categories');
 const expandedKeys = ref<Record<string, boolean>>({});
@@ -983,18 +985,28 @@ const confirmDeleteCommittee = (committee: Committee) => {
     message: `Вы уверены, что хотите удалить коммитет "${committee.name}"?`,
     header: 'Подтверждение удаления',
     icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         await committeesStore.deleteCommittee(committee.id);
-        toast.add({ severity: 'success', summary: 'Успешно', detail: 'Коммитет удален', life: 3000 });
-      } catch (error) {
+        toast.add({
+          severity: 'success',
+          summary: 'Успешно',
+          detail: 'Коммитет удален',
+          life: 3000,
+        });
+      } catch (error: any) {
         // Ошибка уже обработана в store
       }
     },
   });
 };
 
-// Transaction types methods
+const openCommitteeDetails = (id: number) => {
+  router.push({ name: 'committee-details', params: { id } });
+};
+
+// --- Transaction Types Management ---
 const openAddTransactionTypeDialog = () => {
   editingTransactionType.value = null;
   resetTransactionTypeForm();

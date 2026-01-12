@@ -174,8 +174,13 @@
                 
                 <!-- Коммитет -->
                 <template v-else-if="column.template === 'committee'">
-                  <span class="productCommittee">{{ data.committee?.name }}</span>
-                  <!-- <Tag :value="data.committee?.name || 'Не указан'" severity="info" /> -->
+                  <span
+                    class="product-committee cursor-pointer text-primary hover:underline" 
+                    @click="openCommitteeDetails(data.committee.id)"
+                  >
+                    {{ data.committee.name }}
+                  </span>
+                  <span v-else class="text-gray-500">Не указан</span>
                 </template>
                 
                 <!-- Тип транзакции -->
@@ -879,6 +884,10 @@ const openProductDetails = (id: number) => {
   router.push({ name: 'product-details', params: { id } });
 };
 
+const openCommitteeDetails = (id: number) => {
+  router.push({ name: 'committee-details', params: { id } });
+};
+
 const getImageUrl = (imagePath: string) => {
   // if (imagePath.startsWith('http')) return imagePath;
   // return `${API_BASE_URL}${imagePath}`;
@@ -1484,6 +1493,12 @@ onMounted(async () => {
   cursor: pointer;
 }
 
+.product-committee {
+  font-weight: 500;
+  text-decoration: underline;
+  color: var(--primary-color);
+  cursor: pointer;
+}
 .low-stock {
   color: var(--warning-color);
   text-decoration: underline;

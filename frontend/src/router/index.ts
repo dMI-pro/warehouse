@@ -44,6 +44,11 @@ const router = createRouter({
           props: true,
         },
         {
+          path: 'committees/:id',
+          name: 'committee-details',
+          component: () => import('@/views/CommitteeDetailsView.vue'),
+        },
+        {
           path: 'reports',
           name: 'reports',
           component: () => import('@/views/ReportsView.vue'),

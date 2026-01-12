@@ -255,6 +255,13 @@ class ApiService {
     return response.data;
   }
 
+  async getCommitteeStatistics(id: number, startDate?: string, endDate?: string): Promise<any> {
+    const response = await this.api.get<any>(`/committees/${id}/stats`, {
+      params: { startDate, endDate },
+    });
+    return response.data;
+  }
+
   async createCommittee(createCommitteeDto: CreateCommitteeDto): Promise<Committee> {
     const response = await this.api.post<Committee>('/committees', createCommitteeDto);
     return response.data;
