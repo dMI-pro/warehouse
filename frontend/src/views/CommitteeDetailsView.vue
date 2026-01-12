@@ -279,6 +279,19 @@ const updateChart = () => {
             color: chartMetric.value === 'revenue' ? '#10B981' : 
                    chartMetric.value === 'payout' ? '#8B5CF6' :
                    chartMetric.value === 'sold' ? '#3B82F6' : '#F97316'
+        },
+        label: {
+          show: true,
+          position: 'inside',
+          formatter: (params: any) => {
+            console.log('params', params);
+            if (chartMetric.value === 'revenue' || chartMetric.value === 'payout') {
+              return formatPrice(params.value);
+            }
+            return params.value;
+          },
+          fontSize: 20,
+          color: '#333'
         }
       },
     ],

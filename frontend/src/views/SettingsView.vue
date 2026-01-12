@@ -158,7 +158,13 @@
               :emptyMessage="committeesStore.loading ? 'Загрузка...' : 'Нет коммитетов'"
               class="committees-table"
             >
-              <Column field="name" header="Название" :sortable="true" @click="openCommitteeDetails(data.committee.id)" />
+              <Column field="name" header="Название" :sortable="true">
+                <template #body="{ data }">
+                  <!-- <Tag :value="data?.name || 'Без категории'" severity="info" @click="openCommitteeDetails(data.id)" /> -->
+                   <!-- <Chip :label="data?.name || 'Без категории'" severity="info" @click="openCommitteeDetails(data.id)" /> -->
+                  <span class="committee-name" @click="openCommitteeDetails(data.id)">{{data.name}}</span>
+                </template>
+              </Column>
               <Column field="description" header="Описание" />
               <Column field="contactInfo" header="Контактная информация" />
               <Column header="Действия" style="width: 150px">
@@ -587,6 +593,7 @@ import Dropdown from 'primevue/dropdown';
 import Checkbox from 'primevue/checkbox';
 import Dialog from 'primevue/dialog';
 import Tag from 'primevue/tag';
+import Chip from 'primevue/chip';
 import Message from 'primevue/message';
 import Divider from 'primevue/divider';
 import ConfirmDialog from 'primevue/confirmdialog';
@@ -1228,6 +1235,13 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+}
+
+.committee-name {
+  color: var(--primary-color);
+  font-weight: 500;
+  /* text-decoration: underline; */
+  cursor: pointer;
 }
 
 @media (max-width: 1024px) {
