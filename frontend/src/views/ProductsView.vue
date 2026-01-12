@@ -170,17 +170,19 @@
                 <!-- Склад -->
                 <template v-else-if="column.template === 'warehouse'">
                   <Tag :value="data.warehouse?.name || 'Не указан'" severity="secondary" />
+                  <!-- <span class="product-warehouse">{{ data.warehouse?.name }}</span> -->
                 </template>
                 
                 <!-- Коммитет -->
                 <template v-else-if="column.template === 'committee'">
                   <span
-                    class="product-committee cursor-pointer text-primary hover:underline" 
-                    @click="openCommitteeDetails(data.committee.id)"
+                    v-if="data.committee"
+                    class="product-committee" 
+                    @click="openCommitteeDetails(data.committee?.id)"
                   >
-                    {{ data.committee.name }}
+                    {{ data.committee?.name }}
                   </span>
-                  <span v-else class="text-gray-500">Не указан</span>
+                  <span v-else>Не указан</span>
                 </template>
                 
                 <!-- Тип транзакции -->
@@ -1486,19 +1488,14 @@ onMounted(async () => {
   font-size: 0.875rem;
 }
 
-.product-name {
-  font-weight: 500;
-  text-decoration: underline;
+.product-name,
+.product-committee {
   color: var(--primary-color);
+  font-weight: 500;
+  /* text-decoration: underline; */
   cursor: pointer;
 }
 
-.product-committee {
-  font-weight: 500;
-  text-decoration: underline;
-  color: var(--primary-color);
-  cursor: pointer;
-}
 .low-stock {
   color: var(--warning-color);
   text-decoration: underline;
