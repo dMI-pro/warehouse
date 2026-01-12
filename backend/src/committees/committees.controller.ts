@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { CommitteesService } from './committees.service';
 import { CreateCommitteeDto } from './dto/create-committee.dto';
 import { UpdateCommitteeDto } from './dto/update-committee.dto';
@@ -23,6 +23,16 @@ export class CommitteesController {
   @Public()
   async findAll() {
     return this.committeesService.findAll();
+  }
+
+  @Get(':id/stats')
+  @Public()
+  async getStatistics(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.committeesService.getStatistics(id, startDate, endDate);
   }
 
   @Get(':id')
