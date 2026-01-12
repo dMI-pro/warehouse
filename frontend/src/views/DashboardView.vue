@@ -7,13 +7,37 @@
       <Card class="widget-card stats-widget" style="grid-column: span 2">
         <template #content>
           <div class="widget-header">
-            <div class="widget-icon">📦</div>
-            <div class="widget-title">Статистика</div>
+            <div class="widget-icon">📊</div>
+            <div class="widget-title">Общая статистика</div>
           </div>
           <div class="stats-content">
             <div class="stat-item">
-              <div class="stat-label">Всего товаров:</div>
-              <div class="stat-value">{{ formatNumber(stats.totalProducts) }}</div>
+              <div class="stat-label">Кол-во позиций:</div>
+              <div class="stat-value">{{ formatNumber(stats.totalPositions) }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">Всего товара:</div>
+              <div class="stat-value">{{ formatNumber(stats.totalItems) }}</div>
+            </div>
+            <!-- <div class="stat-item">
+              <div class="stat-label">Активные товары:</div>
+              <div class="stat-value">{{ formatNumber(stats.activeItems) }}</div>
+            </div> -->
+            <div class="stat-item">
+              <div class="stat-label">Активные позиции:</div>
+              <div class="stat-value">{{ formatNumber(stats.activePositions) }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">Активные товары:</div>
+              <div class="stat-value">{{ formatNumber(stats.activeItems) }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">Продано:</div>
+              <div class="stat-value">{{ formatNumber(stats.soldItems) }}</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">Возвращено:</div>
+              <div class="stat-value">{{ formatNumber(stats.returnedItems) }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">На сумму:</div>
@@ -36,8 +60,20 @@
                 Товаров с низким запасом:
                 <span class="stat-value warning">{{ lowStockProducts.length }}</span>
               </div>
-              <div class="stats__container">
-                <Tag v-for="product of lowStockProducts" :value="product.name" severity="info"/>
+              <div class="stats__container" v-if="lowStockProducts.length > 0">
+                <Tag 
+                  v-for="(product, index) of lowStockProducts.slice(0, 3)" 
+                  :key="index"
+                  :value="product.name" 
+                  severity="warning"
+                  class="mb-1"
+                />
+                <div v-if="lowStockProducts.length > 3" class="text-sm text-500 mt-1">
+                  + ещё {{ lowStockProducts.length - 3 }}
+                </div>
+              </div>
+              <div v-else class="text-sm text-500 mt-2">
+                Все товары в норме
               </div>
             </div>
             <Button
@@ -46,6 +82,7 @@
               severity="warning"
               outlined
               @click="viewLowStock"
+              :disabled="lowStockProducts.length === 0"
             />
           </div>
         </template>
@@ -82,8 +119,15 @@
               :loading="loading"
               :paginator="false"
               class="recent-sales-table"
+              :rows="5"
+              :scrollable="true"
+              scrollHeight="200px"
             >
-              <Column field="productName" header="Товар" />
+              <Column field="productName" header="Товар">
+                <template #body="{ data }">
+                  <div class="truncate-text" style="max-width: 120px">{{ data.productName }}</div>
+                </template>
+              </Column>
               <Column field="quantity" header="Кол-во" style="width: 80px" />
               <Column field="amount" header="Сумма" style="width: 120px">
                 <template #body="{ data }">
@@ -91,6 +135,15 @@
                 </template>
               </Column>
             </DataTable>
+            <div class="text-center mt-2">
+              <Button 
+                label="Все продажи" 
+                icon="pi pi-list" 
+                text 
+                size="small" 
+                @click="router.push('/sales')"
+              />
+            </div>
           </div>
         </template>
       </Card>
@@ -108,8 +161,15 @@
               :loading="loading"
               :paginator="false"
               class="new-arrivals-table"
+              :rows="5"
+              :scrollable="true"
+              scrollHeight="200px"
             >
-              <Column field="name" header="Товар" />
+              <Column field="name" header="Товар">
+                <template #body="{ data }">
+                  <div class="truncate-text" style="max-width: 120px">{{ data.name }}</div>
+                </template>
+              </Column>
               <Column field="quantity" header="Кол-во" style="width: 80px" />
               <Column field="arrivalDate" header="Дата" style="width: 120px">
                 <template #body="{ data }">
@@ -117,6 +177,15 @@
                 </template>
               </Column>
             </DataTable>
+            <div class="text-center mt-2">
+              <Button 
+                label="Все товары" 
+                icon="pi pi-list" 
+                text 
+                size="small" 
+                @click="router.push('/products')"
+              />
+            </div>
           </div>
         </template>
       </Card>
@@ -134,8 +203,20 @@
                 Товаров на складе более 90 дней:
                 <span class="stat-value warning">{{ longStorageProducts.length }}</span>
               </div>
-              <div class="stats__container">
-                <Tag v-for="product of longStorageProducts" :value="product.name" severity="info"/>
+              <div class="stats__container" v-if="longStorageProducts.length > 0">
+                <Tag 
+                  v-for="(product, index) of longStorageProducts.slice(0, 3)" 
+                  :key="index"
+                  :value="product.name" 
+                  severity="info"
+                  class="mb-1"
+                />
+                <div v-if="longStorageProducts.length > 3" class="text-sm text-500 mt-1">
+                  + ещё {{ longStorageProducts.length - 3 }}
+                </div>
+              </div>
+              <div v-else class="text-sm text-500 mt-2">
+                Нет долгохранящихся товаров
               </div>
             </div>
             <Button
@@ -144,6 +225,7 @@
               severity="warning"
               outlined
               @click="viewLongStorage"
+              :disabled="longStorageProducts.length === 0"
             />
           </div>
         </template>
@@ -160,19 +242,35 @@
             :loading="loading"
             :paginator="false"
             class="actions-table"
+            :rows="5"
+            :scrollable="true"
+            scrollHeight="200px"
           >
             <Column field="user" header="Пользователь">
               <template #body="{ data }">
                 {{ data.user || 'Система' }}
               </template>
             </Column>
-            <Column field="action" header="Действие" />
-            <Column field="time" header="Время">
+            <Column field="action" header="Действие">
+              <template #body="{ data }">
+                <div class="truncate-text" style="max-width: 200px">{{ data.action }}</div>
+              </template>
+            </Column>
+            <Column field="time" header="Время" style="width: 150px">
               <template #body="{ data }">
                 {{ formatTime(data.time) }}
               </template>
             </Column>
           </DataTable>
+          <div class="text-center mt-2">
+            <Button 
+              label="Все действия" 
+              icon="pi pi-list" 
+              text 
+              size="small" 
+              @click="router.push('/audit-logs')"
+            />
+          </div>
         </template>
       </Card>
     </div>
@@ -202,6 +300,7 @@ import { useProductsStore } from '@/stores/productsStore';
 import { apiService } from '@/services/api';
 import type { Product, Sale } from '@/types/api';
 import { useSalesStore } from '@/stores/salesStore';
+import { useReturnsStore } from '@/stores/returnsStore';
 
 use([
   CanvasRenderer,
@@ -216,14 +315,19 @@ const router = useRouter();
 const authStore = useAuthStore();
 const productsStore = useProductsStore();
 const salesStore = useSalesStore();
+const returnsStore = useReturnsStore();
 
 const loading = ref(false);
 const stats = ref({
-  totalProducts: 0,
-  totalValue: 0,
+  totalPositions: 0, // Кол-во позиций
+  totalItems: 0, // Всего товара
+  activeItems: 0, // Активные товары
+  soldItems: 0, // Продано
+  returnedItems: 0, // Возвращено
+  totalValue: 0, // На сумму
 });
-const lowStockProducts = ref(0);
-const longStorageProducts = ref(0);
+const lowStockProducts = ref<Product[]>([]);
+const longStorageProducts = ref<Product[]>([]);
 const recentActions = ref<Array<{ user: string; action: string; time: string }>>([]);
 const recentSales = ref<Array<{ productName: string; quantity: number; amount: number }>>([]);
 const newArrivals = ref<Array<{ name: string; quantity: number; arrivalDate: string }>>([]);
@@ -247,10 +351,11 @@ const chartOption = computed(() => {
   });
 
   salesData.value.forEach((sale) => {
-    if (sale.createdAt) {
-      const date = sale.createdAt.split('T')[0];
+    if (sale.soldAt || sale.createdAt) {
+      const date = (sale.soldAt || sale.createdAt).split('T')[0];
       if (date && salesByDate.has(date)) {
-        salesByDate.set(date, (salesByDate.get(date) || 0) + sale.totalAmount);
+        const saleAmount = Number(sale.salePrice) * sale.quantity;
+        salesByDate.set(date, (salesByDate.get(date) || 0) + saleAmount);
       }
     }
   });
@@ -347,35 +452,17 @@ const formatDate = (dateString: string) => {
   return new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric',
   }).format(date);
 };
 
 const loadStats = async () => {
   loading.value = true;
   try {
-    // Загружаем товары для статистики
-    const productsData = await apiService.getProducts({ limit: 10 });
+    // Загружаем все товары для статистики
+    const productsResponse = await apiService.getProducts({ limit: 1000 });
+    const allProducts = productsResponse.data;
 
-    // считаем общее количество товаров
-    stats.value.totalProducts = productsData.data.reduce((sum, product: Product) => {
-      return sum + product.quantity;
-    }, 0);
-
-    // Вычисляем общую стоимость товаров
-    let totalValue = 0;
-    productsData.data.forEach((product: Product) => {
-      totalValue += product.salePrice * product.quantity;
-    });
-    stats.value.totalValue = totalValue;
-
-    // Подсчитываем товары с низким запасом
-    // Показываем только товары, у которых minStockLevel > 0 и quantity < minStockLevel
-    lowStockProducts.value = productsData.data.filter(
-      (product: Product) => product.minStockLevel > 0 && product.quantity < product.minStockLevel
-    );
-
-    // Загружаем продажи для графика
+    // Загружаем все продажи
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 30);
@@ -383,9 +470,60 @@ const loadStats = async () => {
     const salesResponse = await apiService.getSales({
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
-      limit: 10,
+      limit: 1000,
     });
     salesData.value = salesResponse.data;
+
+    // Загружаем все возвраты
+    const returnsResponse = await apiService.getReturns({
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    });
+
+    // Рассчитываем статистику
+    let totalPositions = allProducts.length;
+    let totalItems = 0;
+    let activePositions = 0;
+    let activeItems = 0;
+    let soldItems = 0;
+    let returnedItems = 0;
+    let totalValue = 0;
+
+    // Товары
+    allProducts.forEach((product: Product) => {
+      totalItems += product.quantity;
+      if (product.quantity > 0) {
+        activePositions++; // Активная позиция
+        activeItems += product.quantity; // Активные товары
+      }
+      totalValue += product.salePrice * product.quantity;
+    });
+
+    // Продажи
+    salesResponse.data.forEach((sale: Sale) => {
+      soldItems += sale.quantity;
+    });
+
+    // Возвраты
+    returnsResponse.forEach((ret: any) => {
+      returnedItems += ret.quantity;
+    });
+
+    // Обновляем статистику
+    stats.value = {
+      totalPositions,
+      totalItems,
+      activePositions,
+      activeItems,
+      soldItems,
+      returnedItems,
+      totalValue
+    };
+
+    // Подсчитываем товары с низким запасом
+    lowStockProducts.value = allProducts.filter(
+      (product: Product) => product.minStockLevel > 0 && product.quantity < product.minStockLevel
+    );
 
     // Формируем список последних продаж
     recentSales.value = salesResponse.data.slice(0, 5).map((sale: Sale) => ({
@@ -397,11 +535,11 @@ const loadStats = async () => {
     // Формируем список новых поступлений (товары, добавленные за последние 7 дней)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    newArrivals.value = productsData.data
+    newArrivals.value = allProducts
       .filter((product: Product) => {
-        if (!product.arrivalDate) return false;
-        const arrivalDate = new Date(product.arrivalDate);
-        return arrivalDate >= sevenDaysAgo;
+        if (!product.arrivalDate && !product.createdAt) return false;
+        const productDate = product.arrivalDate ? new Date(product.arrivalDate) : new Date(product.createdAt);
+        return productDate >= sevenDaysAgo;
       })
       .sort((a: Product, b: Product) => {
         const dateA = new Date(a.arrivalDate || a.createdAt);
@@ -418,17 +556,25 @@ const loadStats = async () => {
     // Подсчитываем долгохранящиеся товары (на складе более 90 дней)
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    longStorageProducts.value = productsData.data.filter((product: Product) => {
+    longStorageProducts.value = allProducts.filter((product: Product) => {
       const arrivalDate = product.arrivalDate ? new Date(product.arrivalDate) : new Date(product.createdAt);
       return arrivalDate < ninetyDaysAgo && product.quantity > 0;
     });
 
-    // Формируем список последних действий из продаж
-    recentActions.value = salesResponse.data.slice(0, 10).map((sale: Sale) => ({
-      user: sale.user?.fullName || sale.user?.username || 'Неизвестно',
-      action: `Продажа: ${sale.product?.name || 'Товар'} (${sale.quantity} шт.)`,
-      time: sale.soldAt || sale.createdAt || new Date().toISOString(),
-    }));
+    // Формируем список последних действий из продаж и аудит логов
+    recentActions.value = [
+      ...salesResponse.data.slice(0, 5).map((sale: Sale) => ({
+        user: sale.user?.fullName || sale.user?.username || 'Неизвестно',
+        action: `Продажа: ${sale.product?.name || 'Товар'} (${sale.quantity} шт.)`,
+        time: sale.soldAt || sale.createdAt || new Date().toISOString(),
+      })),
+      ...returnsResponse.slice(0, 3).map((ret: any) => ({
+        user: ret.user?.fullName || ret.user?.username || 'Неизвестно',
+        action: `Возврат: ${ret.product?.name || 'Товар'} (${ret.quantity} шт.)`,
+        time: ret.returnedAt || new Date().toISOString(),
+      }))
+    ].slice(0, 5);
+
   } catch (error) {
     console.error('Failed to load dashboard stats', error);
   } finally {
@@ -446,6 +592,13 @@ const viewLongStorage = () => {
 
 onMounted(() => {
   loadStats();
+  
+  // Обновляем статистику каждые 5 минут
+  setInterval(() => {
+    if (!loading.value) {
+      loadStats();
+    }
+  }, 5 * 60 * 1000);
 });
 </script>
 
@@ -502,13 +655,19 @@ onMounted(() => {
 .stats-content {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .stat-item {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.stat-item:last-child {
+  border-bottom: none;
 }
 
 .stat-label {
@@ -517,21 +676,20 @@ onMounted(() => {
 }
 
 .stat-value {
-  font-size: 1.5rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: var(--text-color);
 }
 
 .stat-value.warning {
-  padding-left: 2px;
   color: var(--orange-500);
 }
 
 .stats__container {
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0.5rem 0;
 }
 
 .low-stock-content,
@@ -557,10 +715,13 @@ onMounted(() => {
   justify-content: center;
   height: 100%;
   color: var(--text-color-secondary);
+  font-size: 0.875rem;
 }
 
-.actions-table {
-  margin-top: 1rem;
+.truncate-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 :deep(.p-card-body) {
@@ -597,6 +758,12 @@ onMounted(() => {
   .chart-widget,
   .actions-widget {
     grid-column: span 1 !important;
+  }
+  
+  .stat-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
   }
 }
 </style>
