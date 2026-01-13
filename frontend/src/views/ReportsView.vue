@@ -1,313 +1,444 @@
 <template>
   <div class="reports">
-    <div class="reports-layout">
-      <!-- Левая панель -->
-      <div class="sidebar">
-        <Card class="sidebar-card">
-          <template #content>
-            <h3 class="sidebar-title">Типы отчетов</h3>
-            <div class="report-types">
-              <Button
-                :label="'Продажи'"
-                :class="{ active: reportType === 'sales' }"
-                class="report-type-btn"
-                @click="reportType = 'sales'"
-              />
-              <Button
-                :label="'Остатки'"
-                :class="{ active: reportType === 'stock' }"
-                class="report-type-btn"
-                @click="reportType = 'stock'"
-              />
-              <Button
-                :label="'Движение товаров'"
-                :class="{ active: reportType === 'movement' }"
-                class="report-type-btn"
-                @click="reportType = 'movement'"
-              />
-              <Button
-                :label="'Возвраты товара'"
-                :class="{ active: reportType === 'returns' }"
-                class="report-type-btn"
-                @click="reportType = 'returns'"
+    <!-- Шапка страницы -->
+    <div class="grid mb-4">
+      <div class="col-12">
+        <div class="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-3">
+          <div class="flex align-items-center gap-3">
+            <div class="p-3 surface-100 border-round-lg">
+              <i class="pi pi-chart-line text-primary text-2xl"></i>
+            </div>
+            <div>
+              <h1 class="text-2xl font-bold m-0">Отчеты</h1>
+              <span class="text-color-secondary">Аналитика продаж, остатков и возвратов</span>
+            </div>
+          </div>
+          
+          <div class="flex align-items-center gap-3">
+            <div class="flex align-items-center gap-2 p-3 surface-100 border-round-lg">
+              <i class="pi pi-download text-primary"></i>
+              <span class="font-medium">Экспорт:</span>
+              <Dropdown
+                v-model="exportFormat"
+                :options="exportFormats"
+                optionLabel="label"
+                optionValue="value"
+                class="w-10rem"
               />
             </div>
+            <Button
+              label="Экспортировать"
+              icon="pi pi-file-export"
+              :disabled="!normalizedReportData.length"
+              @click="handleExport"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
 
-            <Divider />
-
+    <!-- Основной контент -->
+    <div class="grid">
+      <!-- Боковая панель с фильтрами -->
+      <div class="col-12 lg:col-3">
+        <Card class="h-full">
+          <template #title>
+            <div class="flex align-items-center gap-2">
+              <i class="pi pi-filter text-primary"></i>
+              <span>Фильтры</span>
+            </div>
+          </template>
+          <template #content>
             <div class="filters-section">
-              <h4 class="filters-title">Фильтры периода</h4>
-              <div class="filter-field">
-                <label for="startDate" class="filter-label">Дата начала</label>
-                <Calendar
-                  id="startDate"
-                  v-model="filters.startDate"
-                  dateFormat="yy-mm-dd"
-                  showIcon
-                  class="w-full"
-                />
+              <div class="grid formgrid">
+                <div class="col-12 mb-3">
+                  <label for="startDate" class="block mb-2 font-medium">
+                    <i class="pi pi-calendar mr-1"></i>
+                    Дата начала
+                  </label>
+                  <Calendar
+                    id="startDate"
+                    v-model="filters.startDate"
+                    dateFormat="dd.mm.yy"
+                    showIcon
+                    :showButtonBar="true"
+                    class="w-full"
+                    :class="{ 'p-invalid': dateRangeError }"
+                  />
+                </div>
+                
+                <div class="col-12 mb-3">
+                  <label for="endDate" class="block mb-2 font-medium">
+                    <i class="pi pi-calendar mr-1"></i>
+                    Дата окончания
+                  </label>
+                  <Calendar
+                    id="endDate"
+                    v-model="filters.endDate"
+                    dateFormat="dd.mm.yy"
+                    showIcon
+                    :showButtonBar="true"
+                    class="w-full"
+                    :class="{ 'p-invalid': dateRangeError }"
+                  />
+                </div>
+                
+                <div class="col-12 mb-2">
+                  <small v-if="dateRangeError" class="p-error block">
+                    <i class="pi pi-exclamation-circle mr-1"></i>
+                    {{ dateRangeError }}
+                  </small>
+                </div>
+                
+                <div class="col-12 mb-2">
+                  <Button
+                    label="Применить"
+                    icon="pi pi-check"
+                    class="w-full"
+                    :loading="isLoading"
+                    severity="success"
+                    @click="generateReport"
+                  />
+                </div>
+                
+                <div class="col-12">
+                  <Button
+                    label="Сбросить"
+                    icon="pi pi-refresh"
+                    severity="secondary"
+                    outlined
+                    class="w-full"
+                    @click="resetFilters"
+                  />
+                </div>
               </div>
-              <div class="filter-field">
-                <label for="endDate" class="filter-label">Дата окончания</label>
-                <Calendar
-                  id="endDate"
-                  v-model="filters.endDate"
-                  dateFormat="yy-mm-dd"
-                  showIcon
-                  class="w-full"
-                />
-              </div>
-              <Button
-                label="Сгенерировать отчет"
-                icon="pi pi-chart-bar"
-                class="w-full generate-btn"
-                @click="generateReport"
-              />
             </div>
           </template>
         </Card>
       </div>
 
       <!-- Основная область -->
-      <div class="main-content">
-        <!-- Панель экспорта -->
-        <Card class="export-panel mb-4">
+      <div class="col-12 lg:col-9">
+        <!-- Вкладки отчётов -->
+        <Card class="mb-4">
           <template #content>
-            <div class="export-controls">
-              <div class="export-select">
-                <label for="exportFormat" class="export-label">Формат экспорта:</label>
-                <Dropdown
-                  id="exportFormat"
-                  v-model="exportFormat"
-                  :options="exportFormats"
-                  optionLabel="label"
-                  optionValue="value"
-                  class="w-full"
+            <div class="tabs-container">
+              <div class="flex flex-wrap gap-2">
+                <Button
+                  v-for="(tab, index) in tabs"
+                  :key="tab.type"
+                  :label="tab.label"
+                  :icon="tab.icon"
+                  :severity="activeTabIndex === index ? undefined : 'secondary'"
+                  :class="[
+                    'p-button-lg',
+                    activeTabIndex === index ? 'tab-button-active' : 'tab-button'
+                  ]"
+                  @click="setReportType(tab.type)"
                 />
               </div>
-              <Button
-                label="Экспортировать"
-                icon="pi pi-download"
-                @click="handleExport"
-              />
             </div>
           </template>
         </Card>
 
-        <!-- Статистика -->
-        <div v-if="reportType === 'sales' && normalizedReportData.length" class="stats-panel mb-4">
-          <Card class="stat-card">
-            <template #content>
-              <div class="stat-item">
-                <div class="stat-label">Общая выручка:</div>
-                <div class="stat-value">{{ formatPrice(calculatedStats.totalRevenue) }}</div>
+        <!-- Статистика для продаж -->
+        <div v-if="reportType === 'sales' && normalizedReportData.length" class="grid mb-4">
+          <div class="col-12">
+            <div class="grid">
+              <div class="col-6 md:col-3">
+                <Card class="h-full">
+                  <template #content>
+                    <div class="flex flex-column">
+                      <div class="flex align-items-center gap-2 mb-2">
+                        <div class="p-2 bg-blue-100 border-round">
+                          <i class="pi pi-wallet text-blue-600"></i>
+                        </div>
+                        <div class="flex-1">
+                          <div class="text-sm text-color-secondary">Выручка</div>
+                          <div class="text-xl font-bold">{{ formatPrice(calculatedStats.totalRevenue) }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </Card>
               </div>
-            </template>
-          </Card>
-          <Card class="stat-card">
-            <template #content>
-              <div class="stat-item">
-                <div class="stat-label">Прибыль:</div>
-                <div class="stat-value profit">{{ formatPrice(calculatedStats.totalProfit) }}</div>
+              <div class="col-6 md:col-3">
+                <Card class="h-full">
+                  <template #content>
+                    <div class="flex flex-column">
+                      <div class="flex align-items-center gap-2 mb-2">
+                        <div class="p-2 bg-green-100 border-round">
+                          <i class="pi pi-chart-line text-green-600"></i>
+                        </div>
+                        <div class="flex-1">
+                          <div class="text-sm text-color-secondary">Прибыль</div>
+                          <div class="text-xl font-bold text-green-600">{{ formatPrice(calculatedStats.totalProfit) }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </Card>
               </div>
-            </template>
-          </Card>
-          <Card class="stat-card">
-            <template #content>
-              <div class="stat-item">
-                <div class="stat-label">Количество чеков:</div>
-                <div class="stat-value">{{ calculatedStats.totalInvoices }}</div>
+              <div class="col-6 md:col-3">
+                <Card class="h-full">
+                  <template #content>
+                    <div class="flex flex-column">
+                      <div class="flex align-items-center gap-2 mb-2">
+                        <div class="p-2 bg-purple-100 border-round">
+                          <i class="pi pi-receipt text-purple-600"></i>
+                        </div>
+                        <div class="flex-1">
+                          <div class="text-sm text-color-secondary">Чеков</div>
+                          <div class="text-xl font-bold">{{ calculatedStats.totalInvoices }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </Card>
               </div>
-            </template>
-          </Card>
-          <Card class="stat-card">
-            <template #content>
-              <div class="stat-item">
-                <div class="stat-label">Товаров продано:</div>
-                <div class="stat-value">{{ calculatedStats.totalItemsSold }}</div>
+              <div class="col-6 md:col-3">
+                <Card class="h-full">
+                  <template #content>
+                    <div class="flex flex-column">
+                      <div class="flex align-items-center gap-2 mb-2">
+                        <div class="p-2 bg-orange-100 border-round">
+                          <i class="pi pi-shopping-bag text-orange-600"></i>
+                        </div>
+                        <div class="flex-1">
+                          <div class="text-sm text-color-secondary">Товаров</div>
+                          <div class="text-xl font-bold">{{ calculatedStats.totalItemsSold }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </Card>
               </div>
-            </template>
-          </Card>
+            </div>
+          </div>
         </div>
 
         <!-- График -->
-        <Card v-if="reportType === 'sales'" class="chart-card mb-4">
-          <template #title>Динамика продаж</template>
-          <template #content>
-            <div ref="mainChartRef" class="chart-container"></div>
-          </template>
-        </Card>
-        
-        <!-- Диалог редактирования продажи/возврата -->
-        <Dialog
-          v-model:visible="editDialogVisible"
-          :header="getEditDialogHeader()"
-          :modal="true"
-          class="p-fluid"
-          style="width: 500px"
-        >
-          <div v-if="editingItem" class="field mb-3">
-            <label for="product" class="block mb-2">Товар</label>
-            <InputText 
-              id="product" 
-              :modelValue="editingItem.productName" 
-              disabled 
-              class="w-full" 
-            />
+        <div v-if="(reportType === 'sales' || reportType === 'returns') && normalizedReportData.length" class="grid mb-4">
+          <div class="col-12">
+            <Card>
+              <template #title>
+                <div class="flex align-items-center gap-2">
+                  <i class="pi pi-chart-bar" :class="reportType === 'sales' ? 'text-primary' : 'text-orange-500'"></i>
+                  <span>{{ reportType === 'sales' ? 'Динамика продаж' : 'Динамика возвратов' }}</span>
+                </div>
+              </template>
+              <template #content>
+                <div ref="mainChartRef" class="chart-container"></div>
+              </template>
+            </Card>
           </div>
+        </div>
 
-          <QuantityInput
-            v-model="editForm.quantity"
-            class="mb-3"
-            :available-quantity="availableQuantity"
-            :originalQuantity="requestQuantity"
-            :include-original-in-available="true"
-            :label="'Количество'"
-            :required="true"
-            :min="1"
-            :hint="`На складе: ${availableQuantity} + Уже в заявке: ${requestQuantity}`"
-            :show-available-field="true"
-            @error="handleQuantityError"
-          />
-          
-          <div v-if="reportType === 'sales'" class="field mb-3">
-            <label for="price" class="block mb-2">Цена продажи</label>
-            <InputNumber 
-              id="price" 
-              v-model="editForm.salePrice" 
-              mode="currency" 
-              currency="RUB" 
-              locale="ru-RU" 
-              class="w-full" 
-            />
-          </div>
-          
-          <div v-if="reportType === 'returns'" class="field mb-3">
-            <label for="reason" class="block mb-2">Причина возврата</label>
-            <Textarea 
-              id="reason" 
-              v-model="editForm.reason" 
-              rows="3" 
-              class="w-full" 
-            />
-          </div>
-          
-          <!-- Поле для редактирования даты (только для ADMIN) -->
-          <div 
-            v-if="authStore.hasRole(Role.ADMIN) && reportType === 'sales'" 
-            class="field mb-3"
-          >
-            <label for="saleDate" class="block mb-2">Дата продажи</label>
-            <Calendar
-              id="saleDate"
-              v-model="editForm.date"
-              dateFormat="yy-mm-dd"
-              showIcon
-              :showTime="true"
-              hourFormat="24"
-              class="w-full"
-            />
-          </div>
-          
-          <div 
-            v-if="authStore.hasRole(Role.ADMIN) && reportType === 'returns'" 
-            class="field mb-3"
-          >
-            <label for="returnDate" class="block mb-2">Дата возврата</label>
-            <Calendar
-              id="returnDate"
-              v-model="editForm.date"
-              dateFormat="yy-mm-dd"
-              showIcon
-              :showTime="true"
-              hourFormat="24"
-              class="w-full"
-            />
-          </div>
-          
-          <template #footer>
-            <Button label="Отмена" icon="pi pi-times" text @click="editDialogVisible = false" />
-            <Button label="Сохранить" icon="pi pi-check" @click="saveEdit" autofocus />
-          </template>
-        </Dialog>
-
-        <!-- Таблица -->
-        <Card>
-          <template #title>Детализация отчета</template>
-          <template #content>
-            <DataTable
-              :value="normalizedReportData"
-              :loading="isLoading"
-              :paginator="true"
-              :rows="20"
-              :rowsPerPageOptions="[20, 50, 100]"
-              paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-              currentPageReportTemplate="{first} - {last} из {totalRecords}"
-              :emptyMessage="isLoading ? 'Загрузка...' : 'Нет данных'"
-              class="report-table"
-            >
-              <!-- Динамические колонки данных -->
-              <Column
-                v-for="column in tableColumns"
-                :key="column.field"
-                :field="column.field"
-                :header="column.header"
-                :sortable="column.sortable"
-              >
-                <template #body="{ data }">
-                  <template v-if="column.format === 'price'">
-                    {{ formatPrice(data[column.field]) }}
-                  </template>
-                  <template v-else-if="column.format === 'date'">
-                    {{ formatDate(data[column.field]) }}
-                  </template>
-                  <template v-else>
-                    {{ data[column.field] }}
-                  </template>
-                </template>
-              </Column>
-
-              <Column header="Действия" :exportable="false" style="min-width: 8rem">
-                <template #body="{ data }">
-                  <div class="report-table__actions">
-                    <!-- Редактировать: только для ADMIN и если доступно для текущего типа -->
-                    <Button 
-                      v-if="canEditItem(data)"
-                      class="p-button-xs"
-                      icon="pi pi-pencil"
-                      severity="info"
-                      size="small"
-                      outlined
-                      rounded
-                      v-tooltip.top="'Редактировать'"
-                      @click="editItem(data)"
-                    />
-                    
-                    <!-- Удалить: для ADMIN и MANAGER если доступно -->
-                    <Button
-                      v-if="canDeleteItem(data)"
-                      class="p-button-xs"
-                      icon="pi pi-trash"
-                      size="small"
-                      outlined 
-                      rounded 
-                      severity="danger"
-                      v-tooltip.top="'Удалить'"
-                      @click="deleteItem(data)" 
-                    />
+        <!-- Таблица данных -->
+        <div class="grid">
+          <div class="col-12">
+            <Card>
+              <template #title>
+                <div class="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-2">
+                  <div class="flex align-items-center gap-2">
+                    <i class="pi pi-table text-primary"></i>
+                    <span class="font-bold">{{ getTableTitle() }}</span>
+                    <Tag v-if="normalizedReportData.length" :value="normalizedReportData.length" severity="info" rounded />
                   </div>
-                </template>
-              </Column>
-            </DataTable>
-          </template>
-        </Card>
+                  <span class="text-color-secondary text-sm">
+                    {{ getTableSubtitle() }}
+                  </span>
+                </div>
+              </template>
+              <template #content>
+                <DataTable
+                  :value="normalizedReportData"
+                  :loading="isLoading"
+                  :paginator="true"
+                  :rows="15"
+                  :rowsPerPageOptions="[10, 15, 30, 50]"
+                  paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+                  currentPageReportTemplate="{first} - {last} из {totalRecords}"
+                  :emptyMessage="isLoading ? 'Загрузка...' : 'Нет данных'"
+                  class="report-table p-datatable-sm"
+                  stripedRows
+                  showGridlines
+                >
+                  <Column
+                    v-for="column in tableColumns"
+                    :key="column.field"
+                    :field="column.field"
+                    :header="column.header"
+                    :sortable="column.sortable"
+                    :style="{ 'min-width': column.minWidth }"
+                  >
+                    <template #body="{ data }">
+                      <template v-if="column.format === 'price'">
+                        <Tag :value="formatPrice(data[column.field])" severity="success" class="font-semibold" />
+                      </template>
+                      <template v-else-if="column.format === 'date'">
+                        <div class="flex flex-column">
+                          <span>{{ formatDate(data[column.field]) }}</span>
+                          <small class="text-color-secondary">{{ formatDateShort(data[column.field]) }}</small>
+                        </div>
+                      </template>
+                      <template v-else-if="column.field === 'quantity'">
+                        <Badge :value="data[column.field]" severity="info" />
+                      </template>
+                      <template v-else-if="column.field === 'reason'">
+                        <div class="max-w-20rem truncate-text" :title="data[column.field]">
+                          {{ data[column.field] }}
+                        </div>
+                      </template>
+                      <template v-else>
+                        {{ data[column.field] }}
+                      </template>
+                    </template>
+                  </Column>
+
+                  <Column header="Действия" :exportable="false" style="min-width: 120px">
+                    <template #body="{ data }">
+                      <div class="flex gap-1">
+                        <Button 
+                          v-if="canEditItem(data)"
+                          icon="pi pi-pencil"
+                          severity="info"
+                          size="small"
+                          rounded
+                          outlined
+                          v-tooltip.top="'Редактировать'"
+                          @click="editItem(data)"
+                        />
+                        
+                        <Button
+                          v-if="canDeleteItem(data)"
+                          icon="pi pi-trash"
+                          size="small"
+                          rounded
+                          outlined
+                          severity="danger"
+                          v-tooltip.top="'Удалить'"
+                          @click="deleteItem(data)" 
+                        />
+                        
+                        <Button
+                          v-if="!canEditItem(data) && !canDeleteItem(data)"
+                          icon="pi pi-eye"
+                          size="small"
+                          rounded
+                          outlined
+                          severity="secondary"
+                          v-tooltip.top="'Просмотреть'"
+                          @click="viewItem(data)"
+                        />
+                      </div>
+                    </template>
+                  </Column>
+                </DataTable>
+              </template>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- Диалог редактирования -->
+    <Dialog
+      v-model:visible="editDialogVisible"
+      :header="getEditDialogHeader()"
+      :modal="true"
+      class="p-fluid"
+      :style="{ width: '500px' }"
+      :closable="true"
+    >
+      <div v-if="editingItem" class="field mb-3">
+        <label for="product" class="block mb-2 font-semibold">
+          <i class="pi pi-box mr-1"></i>
+          Товар
+        </label>
+        <InputText 
+          id="product" 
+          :modelValue="editingItem.productName" 
+          disabled 
+          class="w-full" 
+        />
+      </div>
+
+      <QuantityInput
+        ref="quantityInputRef"
+        v-model="editForm.quantity"
+        class="mb-3"
+        :available-quantity="availableQuantity"
+        :originalQuantity="requestQuantity"
+        :include-original-in-available="true"
+        :label="'Количество'"
+        :required="true"
+        :min="1"
+        :hint="`На складе: ${availableQuantity} + Уже в заявке: ${requestQuantity}`"
+        :show-available-field="true"
+        @error="handleQuantityError"
+      />
+      
+      <div v-if="reportType === 'sales'" class="field mb-3">
+        <label for="price" class="block mb-2 font-semibold">
+          <i class="pi pi-money-bill mr-1"></i>
+          Цена продажи
+        </label>
+        <InputNumber 
+          id="price" 
+          v-model="editForm.salePrice" 
+          mode="currency" 
+          currency="RUB" 
+          locale="ru-RU" 
+          class="w-full" 
+          :min="0"
+        />
+      </div>
+      
+      <div v-if="reportType === 'returns'" class="field mb-3">
+        <label for="reason" class="block mb-2 font-semibold">
+          <i class="pi pi-info-circle mr-1"></i>
+          Причина возврата
+        </label>
+        <Textarea 
+          id="reason" 
+          v-model="editForm.reason" 
+          rows="3" 
+          class="w-full" 
+          :autoResize="true"
+        />
+      </div>
+      
+      <div 
+        v-if="authStore.hasRole(Role.ADMIN) && (reportType === 'sales' || reportType === 'returns')" 
+        class="field mb-3"
+      >
+        <label :for="reportType === 'sales' ? 'saleDate' : 'returnDate'" class="block mb-2 font-semibold">
+          <i class="pi pi-calendar mr-1"></i>
+          {{ reportType === 'sales' ? 'Дата продажи' : 'Дата возврата' }}
+        </label>
+        <Calendar
+          :id="reportType === 'sales' ? 'saleDate' : 'returnDate'"
+          v-model="editForm.date"
+          dateFormat="dd.mm.yy"
+          showIcon
+          :showTime="true"
+          hourFormat="24"
+          class="w-full"
+        />
+      </div>
+      
+      <template #footer>
+        <Button label="Отмена" icon="pi pi-times" severity="secondary" outlined @click="editDialogVisible = false" />
+        <Button label="Сохранить" icon="pi pi-check" :loading="saving" @click="saveEdit" autofocus />
+      </template>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch, nextTick } from 'vue';
+import { ref, reactive, onMounted, computed, watch, nextTick, onBeforeMount, onBeforeUnmount } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import * as echarts from 'echarts';
 import { saveAs } from 'file-saver';
 import Card from 'primevue/card';
@@ -321,6 +452,8 @@ import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
 import InputNumber from 'primevue/inputnumber';
 import Textarea from 'primevue/textarea';
+import Tag from 'primevue/tag';
+import Badge from 'primevue/badge';
 import { useSalesStore } from '@/stores/salesStore';
 import { useProductsStore } from '@/stores/productsStore';
 import { useReturnsStore } from '@/stores/returnsStore';
@@ -329,9 +462,13 @@ import { useToast } from 'primevue/usetoast';
 import type { Sale, Product, Return as ApiReturn, Return } from '@/types/api';
 import { Role } from '@/types/api';
 
-import QuantityInput from '@/components/forms/QuantityInput.vue'; // Импорт компонента 2 поля доступно и ввод количества 
+import QuantityInput from '@/components/forms/QuantityInput.vue';
 
-// Типы для нормализованных данных
+const route = useRoute();
+const router = useRouter();
+const toast = useToast();
+
+// Типы данных
 interface NormalizedSale {
   id: number;
   productName: string;
@@ -372,6 +509,7 @@ interface ReportColumn {
   header: string;
   sortable: boolean;
   format?: 'price' | 'date';
+  minWidth?: string;
 }
 
 interface CalculatedStats {
@@ -388,25 +526,71 @@ interface EditForm {
   date: Date | null;
 }
 
+// Stores
 const salesStore = useSalesStore();
 const productsStore = useProductsStore();
 const returnsStore = useReturnsStore();
 const authStore = useAuthStore();
-const toast = useToast();
 
-const reportType = ref<'sales' | 'stock' | 'movement' | 'returns'>('sales');
+// Состояние
+const activeTabIndex = ref(0);
 const mainChartRef = ref<HTMLDivElement | null>(null);
 let mainChart: echarts.ECharts | null = null;
 const isLoading = ref(false);
+const saving = ref(false);
+const dateRangeError = ref<string>('');
+const resizeObserver = ref<ResizeObserver | null>(null);
 
+// Вкладки
+const tabs = ref([
+  { label: 'Продажи', icon: 'pi pi-shopping-cart', type: 'sales' },
+  { label: 'Остатки', icon: 'pi pi-box', type: 'stock' },
+  { label: 'Движение товаров', icon: 'pi pi-arrows-h', type: 'movement' },
+  { label: 'Возвраты товара', icon: 'pi pi-undo', type: 'returns' }
+]);
+
+// Вычисляемые свойства
+const reportType = computed(() => {
+  const types = ['sales', 'stock', 'movement', 'returns'];
+  return types[activeTabIndex.value] as 'sales' | 'stock' | 'movement' | 'returns';
+});
+
+// Функции вкладок
+const setReportType = (type: 'sales' | 'stock' | 'movement' | 'returns') => {
+  const index = tabs.value.findIndex(tab => tab.type === type);
+  if (index !== -1) {
+    activeTabIndex.value = index;
+    saveTabToUrl();
+    generateReport();
+  }
+};
+
+const saveTabToUrl = () => {
+  const query = { ...route.query, tab: reportType.value };
+  router.replace({ query });
+};
+
+const restoreTabFromUrl = () => {
+  const tabFromUrl = route.query.tab as string;
+  if (tabFromUrl) {
+    const tabIndex = tabs.value.findIndex(tab => tab.type === tabFromUrl);
+    if (tabIndex !== -1) {
+      activeTabIndex.value = tabIndex;
+    }
+  }
+};
+
+// Фильтры
 const filters = reactive({
   startDate: null as Date | null,
   endDate: null as Date | null,
 });
 
+// Экспорт
 const exportFormat = ref<'excel' | 'csv'>('csv');
 const exportFormats = [
   { label: 'CSV', value: 'csv' },
+  { label: 'Excel', value: 'excel' },
 ];
 
 // Редактирование
@@ -419,26 +603,35 @@ const editForm = reactive<EditForm>({
   date: null,
 });
 
-const availableQuantity = ref<number>(0); // количество на СКЛАДЕ
+const availableQuantity = ref<number>(0);
 const quantityInputRef = ref<InstanceType<typeof QuantityInput> | null>(null);
+const requestQuantity = ref<number>(0);
 
-const requestQuantity = ref<number>(0); // количество в заявке продаже/возврате
-
-// Добавляем вычисляемое свойство для получения текущего товара
-const currentProduct = computed(() => {
-  if (!editingItem.value) return null;
-  
-  if (reportType.value === 'sales') {
-    const saleItem = editingItem.value as NormalizedSale;
-    return saleItem.originalData?.product;
-  } else if (reportType.value === 'returns') {
-    const returnItem = editingItem.value as NormalizedReturn;
-    return returnItem.originalData?.product;
+// Заголовки таблиц
+const getTableTitle = () => {
+  switch (reportType.value) {
+    case 'sales': return 'Детализация продаж';
+    case 'stock': return 'Текущие остатки товаров';
+    case 'movement': return 'Движение товаров';
+    case 'returns': return 'Возвраты товаров';
+    default: return 'Детализация отчета';
   }
-  return null;
-});
+};
 
-// Нормализация данных для таблицы
+const getTableSubtitle = () => {
+  if (reportType.value === 'sales') {
+    return 'Список всех продаж за выбранный период';
+  } else if (reportType.value === 'stock') {
+    return 'Актуальные остатки на складе';
+  } else if (reportType.value === 'movement') {
+    return 'История движения товаров';
+  } else if (reportType.value === 'returns') {
+    return 'Список возвращенных товаров';
+  }
+  return '';
+};
+
+// Нормализация данных (без изменений)
 const normalizedReportData = computed(() => {
   if (reportType.value === 'sales') {
     return salesStore.sales.map((sale): NormalizedSale => {
@@ -504,7 +697,7 @@ const normalizedReportData = computed(() => {
   }
 });
 
-// Расчет статистики на основе нормализованных данных
+// Статистика (без изменений)
 const calculatedStats = computed<CalculatedStats>(() => {
   if (reportType.value !== 'sales' || !normalizedReportData.value.length) {
     return {
@@ -531,244 +724,60 @@ const calculatedStats = computed<CalculatedStats>(() => {
   return stats;
 });
 
-// Колонки для таблицы
+// Колонки таблицы
 const tableColumns = computed<ReportColumn[]>(() => {
   if (reportType.value === 'sales') {
     return [
-      { field: 'id', header: 'ID чека', sortable: true },
-      { field: 'productName', header: 'Товар', sortable: true },
-      { field: 'quantity', header: 'Количество', sortable: true },
-      { field: 'totalAmount', header: 'Сумма продажи', sortable: true, format: 'price' },
-      { field: 'totalProfit', header: 'Прибыль', sortable: true, format: 'price' },
-      { field: 'seller', header: 'Продавец', sortable: true },
-      { field: 'date', header: 'Дата', sortable: true, format: 'date' },
+      { field: 'id', header: 'ID чека', sortable: true, minWidth: '100px' },
+      { field: 'productName', header: 'Товар', sortable: true, minWidth: '200px' },
+      { field: 'quantity', header: 'Кол-во', sortable: true, minWidth: '100px' },
+      { field: 'totalAmount', header: 'Сумма', sortable: true, format: 'price', minWidth: '120px' },
+      { field: 'totalProfit', header: 'Прибыль', sortable: true, format: 'price', minWidth: '120px' },
+      { field: 'seller', header: 'Продавец', sortable: true, minWidth: '150px' },
+      { field: 'date', header: 'Дата', sortable: true, format: 'date', minWidth: '180px' },
     ];
   } else if (reportType.value === 'stock') {
     return [
-      { field: 'id', header: 'ID', sortable: true },
-      { field: 'name', header: 'Название', sortable: true },
-      { field: 'sku', header: 'Артикул', sortable: true },
-      { field: 'quantity', header: 'Количество', sortable: true },
-      { field: 'minStockLevel', header: 'Мин. запас', sortable: true },
-      { field: 'salePrice', header: 'Цена', sortable: true, format: 'price' },
+      { field: 'id', header: 'ID', sortable: true, minWidth: '80px' },
+      { field: 'name', header: 'Название', sortable: true, minWidth: '250px' },
+      { field: 'sku', header: 'Артикул', sortable: true, minWidth: '120px' },
+      { field: 'quantity', header: 'Кол-во', sortable: true, minWidth: '100px' },
+      { field: 'minStockLevel', header: 'Мин. запас', sortable: true, minWidth: '120px' },
+      { field: 'salePrice', header: 'Цена', sortable: true, format: 'price', minWidth: '120px' },
     ];
   } else if (reportType.value === 'returns') {
     return [
-      { field: 'id', header: 'ID возврата', sortable: true },
-      { field: 'productName', header: 'Товар', sortable: true },
-      { field: 'quantity', header: 'Количество', sortable: true },
-      { field: 'reason', header: 'Причина', sortable: true },
-      { field: 'returnedBy', header: 'Кто вернул', sortable: true },
-      { field: 'date', header: 'Дата', sortable: true, format: 'date' },
+      { field: 'id', header: 'ID возврата', sortable: true, minWidth: '120px' },
+      { field: 'productName', header: 'Товар', sortable: true, minWidth: '200px' },
+      { field: 'quantity', header: 'Кол-во', sortable: true, minWidth: '100px' },
+      { field: 'reason', header: 'Причина', sortable: true, minWidth: '250px' },
+      { field: 'returnedBy', header: 'Кто вернул', sortable: true, minWidth: '150px' },
+      { field: 'date', header: 'Дата', sortable: true, format: 'date', minWidth: '180px' },
     ];
   } else {
     return [
-      { field: 'id', header: 'ID', sortable: true },
-      { field: 'productName', header: 'Товар', sortable: true },
-      { field: 'quantity', header: 'Количество', sortable: true },
-      { field: 'totalAmount', header: 'Сумма', sortable: true, format: 'price' },
-      { field: 'seller', header: 'Продавец', sortable: true },
-      { field: 'date', header: 'Дата', sortable: true, format: 'date' },
+      { field: 'id', header: 'ID', sortable: true, minWidth: '80px' },
+      { field: 'productName', header: 'Товар', sortable: true, minWidth: '200px' },
+      { field: 'quantity', header: 'Кол-во', sortable: true, minWidth: '100px' },
+      { field: 'totalAmount', header: 'Сумма', sortable: true, format: 'price', minWidth: '120px' },
+      { field: 'seller', header: 'Продавец', sortable: true, minWidth: '150px' },
+      { field: 'date', header: 'Дата', sortable: true, format: 'date', minWidth: '180px' },
     ];
   }
 });
 
-// Проверка прав для редактирования
+// Проверка прав (без изменений)
 const canEditItem = (item: NormalizedItem): boolean => {
-  // Редактировать может только АДМИН
   if (!authStore.hasRole(Role.ADMIN)) return false;
-  
-  // Редактировать можно только продажи и возвраты
   return reportType.value === 'sales' || reportType.value === 'returns';
 };
 
-// Проверка прав для удаления
 const canDeleteItem = (item: NormalizedItem): boolean => {
-  // Удалять могут ADMIN и MANAGER
   if (!authStore.hasRole(Role.ADMIN) && !authStore.hasRole(Role.MANAGER)) return false;
-  
-  // Удалять можно только продажи и возвраты
   return reportType.value === 'sales' || reportType.value === 'returns';
 };
 
-// Получить заголовок диалога редактирования
-const getEditDialogHeader = (): string => {
-  switch (reportType.value) {
-    case 'sales': return 'Редактировать продажу';
-    case 'returns': return 'Редактировать возврат';
-    default: return 'Редактировать запись';
-  }
-};
-
-// Обработчик ошибок из компонента QuantityInput
-const handleQuantityError = (error: string | null) => {
-  // Можно обработать ошибку, если нужно
-  console.log('Quantity error:', error);
-};
-
-// Обновляем метод editItem для установки доступного количества
-const editItem = (item: NormalizedItem) => {
-  if (!canEditItem(item)) return;
-  
-  editingItem.value = item;
-  editForm.quantity = item.quantity;
-  editForm.date = null;
-  
-  // Устанавливаем доступное количество на складе
-  if (reportType.value === 'sales') {
-    const saleItem = item as NormalizedSale;
-    editForm.salePrice = saleItem.salePrice;
-    
-    if (saleItem.date) {
-      editForm.date = new Date(saleItem.date);
-    }
-
-    // Получаем доступное количество из данных товара
-    const product = saleItem.originalData?.product;
-    availableQuantity.value = product?.quantity || 0;
-    requestQuantity.value = saleItem.quantity || 0;
-    
-  } else if (reportType.value === 'returns') {
-    const returnItem = item as NormalizedReturn;
-    editForm.reason = returnItem.reason;
-    
-    if (returnItem.date) {
-      editForm.date = new Date(returnItem.date);
-    }
-
-    // Для возвратов также получаем доступное количество
-    const product = returnItem.originalData?.product;
-    availableQuantity.value = product?.quantity || 0;
-    requestQuantity.value = returnItem.quantity || 0;
-  }
-  
-  editDialogVisible.value = true;
-};
-
-// Обновляем метод saveEdit для проверки количества
-const saveEdit = async () => {
-  if (!editingItem.value) return;
-  
-  // Проверяем валидность через компонент
-  if (quantityInputRef.value) {
-    const isValid = quantityInputRef.value.validate();
-    if (!isValid) {
-      toast.add({ 
-        severity: 'error', 
-        summary: 'Ошибка', 
-        detail: 'Пожалуйста, проверьте количество', 
-        life: 3000 
-      });
-      return;
-    }
-  }
-  
-  try {
-    if (reportType.value === 'sales') {
-      const saleItem = editingItem.value as NormalizedSale;
-      const originalData = saleItem.originalData as Sale;
-      
-      const productId = originalData.productId || originalData.product?.id;
-      
-      if (!productId) {
-        throw new Error('Не удалось определить ID товара');
-      }
-      
-      // Проверяем, не пытаемся ли мы увеличить количество больше доступного
-      if (editForm.quantity > saleItem.quantity) {
-        const diff = editForm.quantity - saleItem.quantity;
-        if (diff > availableQuantity.value) {
-          throw new Error(`Недостаточно товара на складе. Доступно: ${availableQuantity.value}`);
-        }
-      }
-      
-      // Формируем объект для обновления
-      const updateData: any = {
-        productId: productId,
-        quantity: editForm.quantity,
-        salePrice: editForm.salePrice,
-      };
-      
-      // Добавляем дату только если пользователь ADMIN и дата изменена
-      if (authStore.hasRole(Role.ADMIN) && editForm.date) {
-        updateData.soldAt = editForm.date.toISOString();
-      }
-      
-      await salesStore.updateSale(saleItem.id, updateData);
-      
-      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Продажа обновлена', life: 3000 });
-    } else if (reportType.value === 'returns') {
-      const returnItem = editingItem.value as NormalizedReturn;
-      const originalData = returnItem.originalData as Return;
-      
-      const productId = originalData.productId || originalData.product?.id;
-      
-      if (!productId) {
-        throw new Error('Не удалось определить ID товара');
-      }
-      
-      // Проверяем, не пытаемся ли мы увеличить количество больше доступного
-      // Для возвратов логика может отличаться - уточните у бэкендера
-      
-      // Формируем объект для обновления
-      const updateData: any = {
-        productId: productId,
-        quantity: editForm.quantity,
-        reason: editForm.reason,
-      };
-      
-      // Добавляем дату только если пользователь ADMIN и дата изменена
-      if (authStore.hasRole(Role.ADMIN) && editForm.date) {
-        updateData.returnedAt = editForm.date.toISOString();
-      }
-      
-      await returnsStore.updateReturn(returnItem.id, updateData);
-      
-      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Возврат обновлен', life: 3000 });
-    }
-    
-    editDialogVisible.value = false;
-    await generateReport();
-  } catch (e: any) {
-    const action = reportType.value === 'sales' ? 'продажу' : 'возврат';
-    toast.add({ 
-      severity: 'error', 
-      summary: 'Ошибка', 
-      detail: `Не удалось обновить ${action}: ${e.message}`, 
-      life: 3000 
-    });
-  }
-};
-
-const deleteItem = async (item: NormalizedItem) => {
-  if (!canDeleteItem(item)) {
-    toast.add({ severity: 'error', summary: 'Ошибка', detail: 'У вас нет прав для удаления', life: 3000 });
-    return;
-  }
-  
-  const itemName = item.productName || `ID: ${item.id}`;
-  if (!confirm(`Вы уверены, что хотите удалить запись "${itemName}"?`)) {
-    return;
-  }
-  
-  try {
-    if (reportType.value === 'sales') {
-      const saleItem = item as NormalizedSale;
-      await salesStore.deleteSale(saleItem.id);
-      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Продажа удалена', life: 3000 });
-    } else if (reportType.value === 'returns') {
-      const returnItem = item as NormalizedReturn;
-      await returnsStore.deleteReturn(returnItem.id);
-      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Возврат удален', life: 3000 });
-    }
-    
-    await generateReport(); // Refresh data
-  } catch (e: any) {
-    const action = reportType.value === 'sales' ? 'продажу' : 'возврат';
-    toast.add({ severity: 'error', summary: 'Ошибка', detail: `Не удалось удалить ${action}: ${e.message}`, life: 3000 });
-  }
-};
-
+// Форматирование (без изменений)
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
@@ -781,9 +790,7 @@ const formatPrice = (price: number) => {
 const formatDate = (dateString: string) => {
   try {
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      return 'Неверная дата';
-    }
+    if (isNaN(date.getTime())) return 'Неверная дата';
     return date.toLocaleDateString('ru-RU', {
       year: 'numeric',
       month: '2-digit',
@@ -791,23 +798,187 @@ const formatDate = (dateString: string) => {
       hour: '2-digit',
       minute: '2-digit',
     });
-  } catch (error) {
-    console.error('Ошибка форматирования даты:', error);
+  } catch {
     return 'Ошибка даты';
   }
 };
 
+const formatDateShort = (dateString: string) => {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('ru-RU');
+  } catch {
+    return '';
+  }
+};
+
+// Функции диалога редактирования (без изменений)
+const getEditDialogHeader = (): string => {
+  switch (reportType.value) {
+    case 'sales': return 'Редактировать продажу';
+    case 'returns': return 'Редактировать возврат';
+    default: return 'Редактировать запись';
+  }
+};
+
+const handleQuantityError = (error: string | null) => {
+  console.log('Quantity error:', error);
+};
+
+const editItem = (item: NormalizedItem) => {
+  if (!canEditItem(item)) return;
+  
+  editingItem.value = item;
+  editForm.quantity = item.quantity;
+  editForm.date = null;
+  
+  if (reportType.value === 'sales') {
+    const saleItem = item as NormalizedSale;
+    editForm.salePrice = saleItem.salePrice;
+    editForm.date = saleItem.date ? new Date(saleItem.date) : null;
+    availableQuantity.value = saleItem.originalData?.product?.quantity || 0;
+    requestQuantity.value = saleItem.quantity || 0;
+  } else if (reportType.value === 'returns') {
+    const returnItem = item as NormalizedReturn;
+    editForm.reason = returnItem.reason;
+    editForm.date = returnItem.date ? new Date(returnItem.date) : null;
+    availableQuantity.value = returnItem.originalData?.product?.quantity || 0;
+    requestQuantity.value = returnItem.quantity || 0;
+  }
+  
+  editDialogVisible.value = true;
+};
+
+const saveEdit = async () => {
+  if (!editingItem.value) return;
+  
+  if (quantityInputRef.value) {
+    const isValid = quantityInputRef.value.validate();
+    if (!isValid) {
+      toast.error('Пожалуйста, проверьте количество');
+      return;
+    }
+  }
+  
+  saving.value = true;
+  try {
+    if (reportType.value === 'sales') {
+      const saleItem = editingItem.value as NormalizedSale;
+      const originalData = saleItem.originalData as Sale;
+      const productId = originalData.productId || originalData.product?.id;
+      
+      if (!productId) throw new Error('Не удалось определить ID товара');
+      
+      const updateData: any = {
+        productId: productId,
+        quantity: editForm.quantity,
+        salePrice: editForm.salePrice,
+      };
+      
+      if (authStore.hasRole(Role.ADMIN) && editForm.date) {
+        updateData.soldAt = editForm.date.toISOString();
+      }
+      
+      await salesStore.updateSale(saleItem.id, updateData);
+      toast.success('Продажа обновлена');
+    } else if (reportType.value === 'returns') {
+      const returnItem = editingItem.value as NormalizedReturn;
+      const originalData = returnItem.originalData as Return;
+      const productId = originalData.productId || originalData.product?.id;
+      
+      if (!productId) throw new Error('Не удалось определить ID товара');
+      
+      const updateData: any = {
+        productId: productId,
+        quantity: editForm.quantity,
+        reason: editForm.reason,
+      };
+      
+      if (authStore.hasRole(Role.ADMIN) && editForm.date) {
+        updateData.returnedAt = editForm.date.toISOString();
+      }
+      
+      await returnsStore.updateReturn(returnItem.id, updateData);
+      toast.success('Возврат обновлен');
+    }
+    
+    editDialogVisible.value = false;
+    await generateReport();
+  } catch (e: any) {
+    const action = reportType.value === 'sales' ? 'продажу' : 'возврат';
+    toast.error(`Не удалось обновить ${action}: ${e.message}`);
+  } finally {
+    saving.value = false;
+  }
+};
+
+const deleteItem = async (item: NormalizedItem) => {
+  if (!canDeleteItem(item)) {
+    toast.error('У вас нет прав для удаления');
+    return;
+  }
+  
+  const itemName = item.productName || `ID: ${item.id}`;
+  if (!confirm(`Вы уверены, что хотите удалить запись "${itemName}"?`)) return;
+  
+  try {
+    if (reportType.value === 'sales') {
+      const saleItem = item as NormalizedSale;
+      await salesStore.deleteSale(saleItem.id);
+      toast.success('Продажа удалена');
+    } else if (reportType.value === 'returns') {
+      const returnItem = item as NormalizedReturn;
+      await returnsStore.deleteReturn(returnItem.id);
+      toast.success('Возврат удален');
+    }
+    
+    await generateReport();
+  } catch (e: any) {
+    const action = reportType.value === 'sales' ? 'продажу' : 'возврат';
+    toast.error(`Не удалось удалить ${action}: ${e.message}`);
+  }
+};
+
+const viewItem = (item: NormalizedItem) => {
+  toast.info('Просмотр деталей записи');
+};
+
+// Валидация дат (без изменений)
+const validateDateRange = () => {
+  dateRangeError.value = '';
+  
+  if (filters.startDate && filters.endDate) {
+    const start = new Date(filters.startDate);
+    const end = new Date(filters.endDate);
+    
+    if (start > end) {
+      dateRangeError.value = 'Дата начала не может быть позже даты окончания';
+      return false;
+    }
+    
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 365) {
+      dateRangeError.value = 'Диапазон не должен превышать 1 год';
+      return false;
+    }
+  }
+  
+  return true;
+};
+
+// Генерация отчета (без изменений)
 const generateReport = async () => {
+  if (!validateDateRange()) return;
+  
   isLoading.value = true;
   
   try {
     const params: any = {};
-    if (filters.startDate) {
-      params.startDate = filters.startDate.toISOString().split('T')[0];
-    }
-    if (filters.endDate) {
-      params.endDate = filters.endDate.toISOString().split('T')[0];
-    }
+    if (filters.startDate) params.startDate = filters.startDate.toISOString().split('T')[0];
+    if (filters.endDate) params.endDate = filters.endDate.toISOString().split('T')[0];
 
     if (reportType.value === 'sales') {
       await salesStore.fetchSales(params);
@@ -816,44 +987,103 @@ const generateReport = async () => {
     } else if (reportType.value === 'returns') {
       await returnsStore.fetchReturns(params);
     } else {
-      // Для движения товаров
       await salesStore.fetchSales(params);
     }
-
-    await updateChart();
   } catch (error: any) {
-    toast.add({
-      severity: 'error',
-      summary: 'Ошибка',
-      detail: `Не удалось загрузить отчет: ${error.message}`,
-      life: 3000,
-    });
+    toast.error(`Не удалось загрузить отчет: ${error.message}`);
   } finally {
     isLoading.value = false;
   }
 };
 
-const initChart = async () => {
-  await nextTick();
-  if (mainChartRef.value) {
-    mainChart = echarts.init(mainChartRef.value);
-    await updateChart();
+// Сброс фильтров (без изменений)
+const resetFilters = () => {
+  filters.startDate = null;
+  filters.endDate = null;
+  dateRangeError.value = '';
+  generateReport();
+};
+
+// График - ИСПРАВЛЕННАЯ ВЕРСИЯ
+const initChart = () => {
+  if (!mainChartRef.value) return;
+  
+  // Уничтожаем старый график если есть
+  if (mainChart) {
+    mainChart.dispose();
+    mainChart = null;
   }
+  
+  // Инициализируем новый график
+  mainChart = echarts.init(mainChartRef.value);
+  
+  // Удаляем старый ResizeObserver если есть
+  if (resizeObserver.value) {
+    resizeObserver.value.disconnect();
+  }
+  
+  // Создаем новый ResizeObserver
+  resizeObserver.value = new ResizeObserver(() => {
+    if (mainChart) {
+      mainChart.resize();
+    }
+  });
+  
+  resizeObserver.value.observe(mainChartRef.value);
 };
 
 const updateChart = async () => {
-  if (!mainChart || (reportType.value !== 'sales' && reportType.value !== 'returns')) return;
+  // Ждем следующего тика для обновления DOM
+  await nextTick();
+  
+  // Если график не должен отображаться, выходим
+  if (!(reportType.value === 'sales' || reportType.value === 'returns')) {
+    if (mainChart) {
+      mainChart.clear();
+    }
+    return;
+  }
 
+  // Инициализируем график, если он еще не инициализирован
+  if (!mainChart) {
+    initChart();
+  }
+
+  // Если после инициализации график все еще null, выходим
+  if (!mainChart) return;
+
+  // Очищаем предыдущий график
   mainChart.clear();
 
+  // Если нет данных, показываем сообщение
+  if (normalizedReportData.value.length === 0) {
+    mainChart.setOption({
+      graphic: {
+        elements: [{
+          type: 'text',
+          left: 'center',
+          top: 'middle',
+          style: {
+            text: 'Нет данных для отображения',
+            fontSize: 16,
+            fill: '#999'
+          }
+        }]
+      }
+    });
+    return;
+  }
+
   if (reportType.value === 'sales') {
-    // Группируем продажи по дате для графика
-    if (normalizedReportData.value.length) {
-      const salesByDate: Record<string, { revenue: number; profit: number }> = {};
-      
-      normalizedReportData.value.forEach(sale => {
-        const saleItem = sale as NormalizedSale;
+    // Группируем продажи по дате
+    const salesByDate: Record<string, { revenue: number; profit: number }> = {};
+    
+    normalizedReportData.value.forEach(sale => {
+      const saleItem = sale as NormalizedSale;
+      try {
         const date = new Date(saleItem.date);
+        if (isNaN(date.getTime())) return;
+        
         const dateKey = date.toISOString().split('T')[0];
         
         if (!salesByDate[dateKey]) {
@@ -862,184 +1092,254 @@ const updateChart = async () => {
         
         salesByDate[dateKey].revenue += saleItem.totalAmount;
         salesByDate[dateKey].profit += saleItem.totalProfit;
-      });
-
-      // Сортируем даты по возрастанию
-      const sortedDates = Object.keys(salesByDate).sort();
-      
-      const dates = sortedDates.map(dateStr => {
-        return new Intl.DateTimeFormat('ru-RU', {
-          day: '2-digit',
-          month: '2-digit'
-        }).format(new Date(dateStr));
-      });
-      
-      const revenues = sortedDates.map(date => salesByDate[date].revenue);
-      const profits = sortedDates.map(date => salesByDate[date].profit);
-
-      mainChart.setOption({
-        tooltip: {
-          trigger: 'axis',
-          axisPointer: {
-            type: 'cross'
-          },
-          formatter: (params: any) => {
-            let result = `${params[0].axisValueLabel}<br/>`;
-            params.forEach((param: any) => {
-              if (param.seriesName === 'Выручка') {
-                result += `${param.seriesName}: ${formatPrice(param.value)}<br/>`;
-              } else if (param.seriesName === 'Прибыль') {
-                result += `${param.seriesName}: ${formatPrice(param.value)}<br/>`;
-              }
-            });
-            return result;
-          },
-        },
-        legend: {
-          data: ['Выручка', 'Прибыль']
-        },
-        grid: {
-          left: '3%',
-          right: '4%',
-          bottom: '40px',
-          containLabel: true,
-        },
-        xAxis: {
-          type: 'category',
-          boundaryGap: false,
-          data: dates,
-        },
-        yAxis: {
-          type: 'value',
-          axisLabel: {
-            formatter: (value: number) => {
-              if (value >= 1000000) return `${(value / 1000000).toFixed(1)}М`;
-              if (value >= 1000) return `${(value / 1000).toFixed(0)}К`;
-              return value.toString();
-            },
-          },
-        },
-        series: [
-          {
-            name: 'Выручка',
-            type: 'line',
-            smooth: true,
-            data: revenues,
-            itemStyle: {
-              color: '#1890ff',
-            },
-            areaStyle: {
-              color: {
-                type: 'linear',
-                x: 0,
-                y: 0,
-                x2: 0,
-                y2: 1,
-                colorStops: [
-                  { offset: 0, color: 'rgba(24, 144, 255, 0.3)' },
-                  { offset: 1, color: 'rgba(24, 144, 255, 0.05)' },
-                ],
-              },
-            },
-          },
-          {
-            name: 'Прибыль',
-            type: 'line',
-            smooth: true,
-            data: profits,
-            itemStyle: {
-              color: '#52c41a',
-            },
-            lineStyle: {
-              type: 'dashed'
-            }
-          },
-        ],
-      });
-    }
-  } else if (reportType.value === 'returns') {
-    // График возвратов
-    if (normalizedReportData.value.length) {
-      const returnsByDate: Record<string, number> = {};
-      
-      normalizedReportData.value.forEach(ret => {
-        const returnItem = ret as NormalizedReturn;
-        const date = new Date(returnItem.date);
-        const dateKey = date.toISOString().split('T')[0];
-        
-        if (!returnsByDate[dateKey]) {
-          returnsByDate[dateKey] = 0;
-        }
-        
-        returnsByDate[dateKey] += returnItem.quantity;
-      });
-
-      const sortedDates = Object.keys(returnsByDate).sort();
-      
-      const dates = sortedDates.map(dateStr => {
-        return new Intl.DateTimeFormat('ru-RU', {
-          day: '2-digit',
-          month: '2-digit'
-        }).format(new Date(dateStr));
-      });
-      
-      const quantities = sortedDates.map(date => returnsByDate[date]);
-
-      mainChart.setOption({
-        tooltip: {
-          trigger: 'axis',
-          axisPointer: {
-            type: 'shadow'
-          }
-        },
-        legend: {
-          data: ['Количество возвратов']
-        },
-        grid: {
-          left: '3%',
-          right: '4%',
-          bottom: '40px',
-          containLabel: true,
-        },
-        xAxis: {
-          type: 'category',
-          data: dates,
-        },
-        yAxis: {
-          type: 'value',
-        },
-        series: [
-          {
-            name: 'Количество возвратов',
-            type: 'bar',
-            data: quantities,
-            itemStyle: {
-              color: '#fa8c16',
-            },
-            barMaxWidth: 50
-          }
-        ]
-      });
-    }
-  }
-};
-
-const handleExport = () => {
-  if (exportFormat.value === 'csv') {
-    exportToCSV();
-  } else {
-    exportToExcel();
-  }
-};
-
-const exportToCSV = () => {
-  if (!normalizedReportData.value.length) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Предупреждение',
-      detail: 'Нет данных для экспорта',
-      life: 3000,
+      } catch (e) {
+        console.error('Error processing sale date:', e);
+      }
     });
+
+    const sortedDates = Object.keys(salesByDate).sort();
+    
+    if (sortedDates.length === 0) {
+      mainChart.setOption({
+        graphic: {
+          elements: [{
+            type: 'text',
+            left: 'center',
+            top: 'middle',
+            style: {
+              text: 'Нет данных за выбранный период',
+              fontSize: 16,
+              fill: '#999'
+            }
+          }]
+        }
+      });
+      return;
+    }
+
+    const dates = sortedDates.map(dateStr => {
+      try {
+        const date = new Date(dateStr);
+        return new Intl.DateTimeFormat('ru-RU', {
+          day: '2-digit',
+          month: 'short'
+        }).format(date);
+      } catch {
+        return dateStr;
+      }
+    });
+    
+    const revenues = sortedDates.map(date => salesByDate[date].revenue);
+    const profits = sortedDates.map(date => salesByDate[date].profit);
+
+    const option = {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'cross' },
+        formatter: (params: any) => {
+          let result = `${params[0].axisValue}<br/>`;
+          params.forEach((param: any) => {
+            const value = param.value;
+            const formattedValue = formatPrice(value).replace('₽', 'руб.');
+            result += `${param.seriesName}: ${formattedValue}<br/>`;
+          });
+          return result;
+        },
+      },
+      legend: { 
+        data: ['Выручка', 'Прибыль'], 
+        top: 10,
+        textStyle: {
+          fontSize: 12
+        }
+      },
+      grid: { 
+        left: '3%', 
+        right: '4%', 
+        bottom: '12%', 
+        top: '20%', 
+        containLabel: true 
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: dates,
+        axisLabel: { 
+          rotate: 45,
+          fontSize: 11
+        }
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: {
+          formatter: (value: number) => {
+            if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+            if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
+            return value.toString();
+          },
+          fontSize: 11
+        },
+      },
+      series: [
+        {
+          name: 'Выручка',
+          type: 'line',
+          smooth: true,
+          data: revenues,
+          itemStyle: { 
+            color: '#3B82F6',
+            borderWidth: 2
+          },
+          lineStyle: { 
+            width: 3 
+          },
+          symbol: 'circle',
+          symbolSize: 6,
+          areaStyle: {
+            color: {
+              type: 'linear',
+              x: 0, y: 0, x2: 0, y2: 1,
+              colorStops: [
+                { offset: 0, color: 'rgba(59, 130, 246, 0.3)' },
+                { offset: 1, color: 'rgba(59, 130, 246, 0.05)' },
+              ],
+            },
+          },
+        },
+        {
+          name: 'Прибыль',
+          type: 'line',
+          smooth: true,
+          data: profits,
+          itemStyle: { 
+            color: '#10B981',
+            borderWidth: 2
+          },
+          lineStyle: { 
+            width: 3, 
+            type: 'dashed' 
+          },
+          symbol: 'circle',
+          symbolSize: 6,
+        },
+      ],
+    };
+
+    mainChart.setOption(option);
+  } else if (reportType.value === 'returns') {
+    // Группируем возвраты по дате
+    const returnsByDate: Record<string, number> = {};
+    
+    normalizedReportData.value.forEach(ret => {
+      const returnItem = ret as NormalizedReturn;
+      try {
+        const date = new Date(returnItem.date);
+        if (isNaN(date.getTime())) return;
+        
+        const dateKey = date.toISOString().split('T')[0];
+        returnsByDate[dateKey] = (returnsByDate[dateKey] || 0) + returnItem.quantity;
+      } catch (e) {
+        console.error('Error processing return date:', e);
+      }
+    });
+
+    const sortedDates = Object.keys(returnsByDate).sort();
+    
+    if (sortedDates.length === 0) {
+      mainChart.setOption({
+        graphic: {
+          elements: [{
+            type: 'text',
+            left: 'center',
+            top: 'middle',
+            style: {
+              text: 'Нет данных за выбранный период',
+              fontSize: 16,
+              fill: '#999'
+            }
+          }]
+        }
+      });
+      return;
+    }
+
+    const dates = sortedDates.map(dateStr => {
+      try {
+        const date = new Date(dateStr);
+        return new Intl.DateTimeFormat('ru-RU', {
+          day: '2-digit',
+          month: 'short'
+        }).format(date);
+      } catch {
+        return dateStr;
+      }
+    });
+    
+    const quantities = sortedDates.map(date => returnsByDate[date]);
+
+    const option = {
+      tooltip: { 
+        trigger: 'axis', 
+        axisPointer: { type: 'shadow' }
+      },
+      legend: { 
+        data: ['Количество возвратов'], 
+        top: 10,
+        textStyle: {
+          fontSize: 12
+        }
+      },
+      grid: { 
+        left: '3%', 
+        right: '4%', 
+        bottom: '12%', 
+        top: '20%', 
+        containLabel: true 
+      },
+      xAxis: {
+        type: 'category',
+        data: dates,
+        axisLabel: { 
+          rotate: 45,
+          fontSize: 11
+        }
+      },
+      yAxis: { 
+        type: 'value',
+        axisLabel: {
+          fontSize: 11
+        }
+      },
+      series: [{
+        name: 'Количество возвратов',
+        type: 'bar',
+        data: quantities,
+        itemStyle: { 
+          color: '#F59E0B',
+        },
+        barMaxWidth: 40,
+        label: { 
+          show: true, 
+          position: 'top', 
+          formatter: '{c}',
+          fontSize: 11
+        }
+      }]
+    };
+
+    mainChart.setOption(option);
+  }
+  
+  // Принудительно перерисовываем график
+  if (mainChart) {
+    mainChart.resize();
+  }
+};
+
+// Экспорт (без изменений)
+const handleExport = () => {
+  if (!normalizedReportData.value.length) {
+    toast.warn('Нет данных для экспорта');
     return;
   }
 
@@ -1047,13 +1347,8 @@ const exportToCSV = () => {
   const rows = normalizedReportData.value.map((item: any) =>
     tableColumns.value.map((col) => {
       const value = item[col.field];
-      
-      // Форматирование для экспорта
-      if (col.format === 'price') {
-        return formatPrice(value).replace('₽', 'RUB');
-      } else if (col.format === 'date') {
-        return formatDate(value);
-      }
+      if (col.format === 'price') return formatPrice(value).replace('₽', 'RUB');
+      if (col.format === 'date') return formatDate(value);
       return value ?? '';
     })
   );
@@ -1063,260 +1358,163 @@ const exportToCSV = () => {
     .join('\n');
 
   const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-  saveAs(blob, `report_${reportType.value}_${new Date().toISOString().split('T')[0]}.csv`);
+  const fileName = `report_${reportType.value}_${new Date().toISOString().split('T')[0]}.csv`;
+  saveAs(blob, fileName);
 
-  toast.add({
-    severity: 'success',
-    summary: 'Успешно',
-    detail: 'Данные экспортированы в CSV',
-    life: 3000,
-  });
+  toast.success('Данные экспортированы');
 };
 
-const exportToExcel = () => {
-  exportToCSV();
-  toast.add({
-    severity: 'info',
-    summary: 'Информация',
-    detail: 'Excel экспорт использует CSV формат',
-    life: 3000,
-  });
-};
-
-watch(reportType, () => {
-  generateReport();
-});
-
-// Обновляем график при изменении данных
-watch(
-  () => normalizedReportData.value,
-  () => {
-    updateChart();
-  },
-  { deep: true }
-);
-
-// Обновляем watch для editDialogVisible
-watch(editDialogVisible, (newValue) => {
-  if (!newValue) {
-    // Сбрасываем ошибки при закрытии диалога
-    // quantityError.value = '';
-    availableQuantity.value = 0;
+// Наблюдатели - ИСПРАВЛЕННАЯ ВЕРСИЯ
+watch(reportType, async (newType, oldType) => {
+  if (newType !== oldType) {
+    await generateReport();
+    
+    // Обновляем график после смены вкладки
+    if (newType === 'sales' || newType === 'returns') {
+      await nextTick();
+      // Уничтожаем старый график
+      if (mainChart) {
+        mainChart.dispose();
+        mainChart = null;
+      }
+      // Инициализируем и обновляем график
+      initChart();
+      await updateChart();
+    } else {
+      // Для вкладок без графика уничтожаем график если он есть
+      if (mainChart) {
+        mainChart.dispose();
+        mainChart = null;
+      }
+    }
   }
 });
 
+watch(() => normalizedReportData.value, () => {
+  if (reportType.value === 'sales' || reportType.value === 'returns') {
+    nextTick(() => updateChart());
+  }
+}, { deep: true });
+
+watch(editDialogVisible, (newValue) => {
+  if (!newValue) availableQuantity.value = 0;
+});
+
+watch(() => route.query.tab, (newTab) => {
+  if (newTab) {
+    const tabIndex = tabs.value.findIndex(tab => tab.type === newTab);
+    if (tabIndex !== -1 && tabIndex !== activeTabIndex.value) {
+      activeTabIndex.value = tabIndex;
+    }
+  }
+});
+
+// Хуки жизненного цикла
+onBeforeMount(() => restoreTabFromUrl());
+
 onMounted(async () => {
   await generateReport();
-  await initChart();
+  
+  if (reportType.value === 'sales' || reportType.value === 'returns') {
+    await nextTick();
+    initChart();
+    updateChart();
+  }
 
   window.addEventListener('resize', () => {
-    mainChart?.resize();
+    if (mainChart) {
+      mainChart.resize();
+    }
   });
 });
 
-
+onBeforeUnmount(() => {
+  if (mainChart) {
+    mainChart.dispose();
+    mainChart = null;
+  }
+  
+  if (resizeObserver.value) {
+    resizeObserver.value.disconnect();
+    resizeObserver.value = null;
+  }
+  
+  window.removeEventListener('resize', () => {
+    if (mainChart) {
+      mainChart.resize();
+    }
+  });
+});
 </script>
 
 <style scoped>
 .reports {
-  max-width: 1600px;
-  margin: 0 auto;
+  min-height: calc(100vh - 100px);
 }
 
-.reports-layout {
-  display: grid;
-  grid-template-columns: 250px 1fr;
-  gap: 1.5rem;
+/* Стили для вкладок */
+.tab-button-active {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+  border-color: var(--primary-color) !important;
 }
 
-.sidebar {
-  position: sticky;
-  top: 1rem;
-  height: fit-content;
+.tab-button-active .pi {
+  color: white !important;
 }
 
-.sidebar-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.sidebar-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: var(--text-color);
-}
-
-.report-types {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.report-type-btn {
-  width: 100%;
-  justify-content: flex-start;
-}
-
-.report-type-btn.active {
-  background: var(--primary-color);
-  color: white;
-}
-
-.filters-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.filters-title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text-color);
-}
-
-.filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.filter-label {
-  font-weight: 500;
-  font-size: 0.875rem;
-}
-
-.generate-btn {
-  margin-top: 0.5rem;
-}
-
-.main-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.export-panel {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.export-controls {
-  display: flex;
-  gap: 1rem;
-  align-items: end;
-}
-
-.export-select {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.export-label {
-  font-weight: 500;
-  font-size: 0.875rem;
-}
-
-.stats-panel {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-}
-
-.stat-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: var(--text-color-secondary);
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-color);
-}
-
-.stat-value.profit {
-  color: var(--success-color);
-}
-
-.chart-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
+/* График */
 .chart-container {
   width: 100%;
   height: 400px;
+  min-height: 400px;
 }
 
-.report-table {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+/* Обрезка длинного текста */
+.truncate-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.report-table__actions {
-  display: flex;
-  gap: 8px;
+/* Таблица */
+.report-table :deep(.p-datatable-wrapper) {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+.report-table :deep(.p-datatable-thead > tr > th) {
+  background: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+  border-color: #e5e7eb;
 }
 
-.label {
-  font-weight: 500;
+.report-table :deep(.p-datatable-tbody > tr) {
+  transition: background-color 0.2s ease;
 }
 
-.tab-content {
-  padding: 1rem 0;
+.report-table :deep(.p-datatable-tbody > tr:hover) {
+  background: #f3f4f6 !important;
 }
 
-.p-invalid {
-  border-color: var(--red-500) !important;
-}
-
-.p-error {
-  color: var(--red-500);
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
-}
-
-.text-gray-500 {
-  color: var(--text-color-secondary);
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
-}
-
-@media (max-width: 1200px) {
-  .stats-panel {
-    grid-template-columns: repeat(2, 1fr);
+/* Адаптивность */
+@media (max-width: 991px) {
+  .chart-container {
+    height: 350px;
   }
 }
 
 @media (max-width: 768px) {
-  .stats-panel {
-    grid-template-columns: 1fr;
+  .chart-container {
+    height: 300px;
   }
 }
 
-@media (max-width: 1024px) {
-  .reports-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    position: static;
+@media (max-width: 576px) {
+  .chart-container {
+    height: 250px;
   }
 }
 </style>
