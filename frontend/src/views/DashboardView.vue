@@ -17,27 +17,23 @@
             </div>
             <div class="stat-item">
               <div class="stat-label">Всего товара:</div>
-              <div class="stat-value">{{ formatNumber(stats.totalItems) }}</div>
+              <div class="stat-value">{{ formatNumber(stats.totalItemsQuantity) }}</div>
             </div>
-            <!-- <div class="stat-item">
-              <div class="stat-label">Активные товары:</div>
-              <div class="stat-value">{{ formatNumber(stats.activeItems) }}</div>
-            </div> -->
             <div class="stat-item">
               <div class="stat-label">Активные позиции:</div>
               <div class="stat-value">{{ formatNumber(stats.activePositions) }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">Активные товары:</div>
-              <div class="stat-value">{{ formatNumber(stats.activeItems) }}</div>
+              <div class="stat-value">{{ formatNumber(stats.activeItemsCount) }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">Продано:</div>
-              <div class="stat-value">{{ formatNumber(stats.soldItems) }}</div>
+              <div class="stat-value">{{ formatNumber(stats.soldItemsCount) }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">Возвращено:</div>
-              <div class="stat-value">{{ formatNumber(stats.returnedItems) }}</div>
+              <div class="stat-value">{{ formatNumber(stats.returnedItemsCount) }}</div>
             </div>
             <div class="stat-item">
               <div class="stat-label">На сумму:</div>
@@ -298,7 +294,7 @@ import Column from 'primevue/column';
 import { useAuthStore } from '@/stores/authStore';
 import { useProductsStore } from '@/stores/productsStore';
 import { apiService } from '@/services/api';
-import type { Product, Sale } from '@/types/api';
+import type { Product, Sale, Return as ApiReturn } from '@/types/api';
 import { useSalesStore } from '@/stores/salesStore';
 import { useReturnsStore } from '@/stores/returnsStore';
 
@@ -320,10 +316,11 @@ const returnsStore = useReturnsStore();
 const loading = ref(false);
 const stats = ref({
   totalPositions: 0, // Кол-во позиций
-  totalItems: 0, // Всего товара
-  activeItems: 0, // Активные товары
-  soldItems: 0, // Продано
-  returnedItems: 0, // Возвращено
+  totalItemsQuantity: 0, // Всего товара
+  activePositions: 0, // Активные позиции
+  activeItemsCount: 0, // Активные товары
+  soldItemsCount: 0, // Продано
+  returnedItemsCount: 0, // Возвращено
   totalValue: 0, // На сумму
 });
 const lowStockProducts = ref<Product[]>([]);
@@ -462,19 +459,17 @@ const loadStats = async () => {
     const productsResponse = await apiService.getProducts({ limit: 1000 });
     const allProducts = productsResponse.data;
 
-    // Загружаем все продажи
+    // Загружаем продажи и возвраты за последний месяц
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 30);
+    startDate.setMonth(startDate.getMonth() - 1);
 
     const salesResponse = await apiService.getSales({
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       limit: 1000,
     });
-    salesData.value = salesResponse.data;
-
-    // Загружаем все возвраты
+    
     const returnsResponse = await apiService.getReturns({
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
@@ -482,44 +477,50 @@ const loadStats = async () => {
 
     // Рассчитываем статистику
     let totalPositions = allProducts.length;
-    let totalItems = 0;
+    let totalItemsQuantity = 0;
     let activePositions = 0;
-    let activeItems = 0;
-    let soldItems = 0;
-    let returnedItems = 0;
+    let activeItemsCount = 0;
+    let soldItemsCount = 0;
+    let returnedItemsCount = 0;
     let totalValue = 0;
 
     // Товары
     allProducts.forEach((product: Product) => {
-      totalItems += product.quantity;
-      if (product.quantity > 0) {
-        activePositions++; // Активная позиция
-        activeItems += product.quantity; // Активные товары
+      const quantity = product.quantity || 0;
+      totalItemsQuantity += quantity;
+      
+      if (quantity > 0) {
+        activePositions++;
+        activeItemsCount += quantity;
       }
-      totalValue += product.salePrice * product.quantity;
+      
+      totalValue += product.salePrice * quantity;
     });
 
-    // Продажи
+    // Продажи за месяц
     salesResponse.data.forEach((sale: Sale) => {
-      soldItems += sale.quantity;
+      soldItemsCount += sale.quantity;
     });
 
-    // Возвраты
-    returnsResponse.forEach((ret: any) => {
-      returnedItems += ret.quantity;
+    // Возвраты за месяц
+    returnsResponse.forEach((ret: ApiReturn) => {
+      returnedItemsCount += ret.quantity;
     });
+    
+    // Складываем активные, проданные и возвращенные товары
+    totalItemsQuantity += soldItemsCount + returnedItemsCount;
 
     // Обновляем статистику
     stats.value = {
       totalPositions,
-      totalItems,
+      totalItemsQuantity,
       activePositions,
-      activeItems,
-      soldItems,
-      returnedItems,
+      activeItemsCount,
+      soldItemsCount,
+      returnedItemsCount,
       totalValue
     };
-
+    
     // Подсчитываем товары с низким запасом
     lowStockProducts.value = allProducts.filter(
       (product: Product) => product.minStockLevel > 0 && product.quantity < product.minStockLevel
@@ -568,12 +569,15 @@ const loadStats = async () => {
         action: `Продажа: ${sale.product?.name || 'Товар'} (${sale.quantity} шт.)`,
         time: sale.soldAt || sale.createdAt || new Date().toISOString(),
       })),
-      ...returnsResponse.slice(0, 3).map((ret: any) => ({
+      ...returnsResponse.slice(0, 3).map((ret: ApiReturn) => ({
         user: ret.user?.fullName || ret.user?.username || 'Неизвестно',
         action: `Возврат: ${ret.product?.name || 'Товар'} (${ret.quantity} шт.)`,
         time: ret.returnedAt || new Date().toISOString(),
       }))
     ].slice(0, 5);
+
+    // Сохраняем данные для графика
+    salesData.value = salesResponse.data;
 
   } catch (error) {
     console.error('Failed to load dashboard stats', error);
