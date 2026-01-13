@@ -104,7 +104,7 @@
             <Card class="stat-card text-center">
               <template #content>
                 <div class="text-500 mb-2">Кол-во позиций</div>
-                <div class="text-2xl font-bold text-primary">{{ stats?.metrics.totalItems || 0 }}</div>
+                <div class="text-2xl font-bold text-primary">{{ stats?.metrics.totalPositions || 0 }}</div>
               </template>
             </Card>
           </div>
@@ -114,7 +114,7 @@
             <Card class="stat-card text-center">
               <template #content>
                 <div class="text-500 mb-2">Всего товара</div>
-                <div class="text-2xl font-bold text-blue-500">{{ stats?.metrics.totalItems || 0 }}</div>
+                <div class="text-2xl font-bold text-blue-500">{{ stats?.metrics.totalItemsQuantity || 0 }}</div>
               </template>
             </Card>
           </div>
@@ -144,7 +144,7 @@
             <Card class="stat-card text-center">
               <template #content>
                 <div class="text-500 mb-2">Активные товары</div>
-                <div class="text-2xl font-bold text-green-600">{{ stats?.metrics.activeItems || 0 }}</div>
+                <div class="text-2xl font-bold text-green-600">{{ stats?.metrics.activeItemsCount || 0 }}</div>
               </template>
             </Card>
           </div>
@@ -154,7 +154,7 @@
             <Card class="stat-card text-center">
               <template #content>
                 <div class="text-500 mb-2">Продано</div>
-                <div class="text-2xl font-bold text-teal-500">{{ stats?.metrics.soldItems || 0 }}</div>
+                <div class="text-2xl font-bold text-teal-500">{{ stats?.metrics.soldItemsCount || 0 }}</div>
               </template>
             </Card>
           </div>
@@ -164,7 +164,7 @@
             <Card class="stat-card text-center">
               <template #content>
                 <div class="text-500 mb-2">Возвращено</div>
-                <div class="text-2xl font-bold text-orange-500">{{ stats?.metrics.returnedItems || 0 }}</div>
+                <div class="text-2xl font-bold text-orange-500">{{ stats?.metrics.returnedItemsCount || 0 }}</div>
               </template>
             </Card>
           </div>
@@ -264,15 +264,15 @@ const confirm = useConfirm();
 interface CommitteeStats {
   committee: Committee;
   metrics: {
-    totalPositions: number;      // Кол-во позиций
-    totalItems: number;          // Всего товара
-    activePositions: number;     // Активные позиции
-    activeItems: number;         // Активные товары
-    soldItems: number;           // Продано
-    returnedItems: number;       // Возвращено
-    totalRevenue: number;        // Выручка
-    totalProfit: number;         // Прибыль
-    totalPayout: number;         // Выплачено комитету
+    totalPositions: number;        // Кол-во позиций (записей товаров)
+    totalItemsQuantity: number;    // Всего товара (сумма quantity)
+    activePositions: number;       // Активные позиции (с quantity > 0)
+    activeItemsCount: number;      // Активные товары (сумма quantity > 0)
+    soldItemsCount: number;        // Продано
+    returnedItemsCount: number;    // Возвращено
+    totalRevenue: number;          // Выручка
+    totalProfit: number;           // Прибыль
+    totalPayout: number;           // Выплачено комитету
   };
   dailyStats: Record<string, any>;
 }
@@ -298,14 +298,23 @@ const editForm = reactive({
 const chartRef = ref<HTMLDivElement | null>(null);
 let chartInstance: echarts.ECharts | null = null;
 const chartMetric = ref('revenue');
+// const chartOptions = [
+//   { label: 'Выручка', value: 'revenue' },
+//   { label: 'Прибыль', value: 'profit' },
+//   { label: 'Выплаты', value: 'payout' },
+//   { label: 'Позиции', value: 'positions' },
+//   { label: 'Активные позиции', value: 'activePositions' },
+//   { label: 'Товар (шт)', value: 'items' },
+//   { label: 'Активные товары', value: 'activeItems' },
+//   { label: 'Продажи (шт)', value: 'sold' },
+//   { label: 'Возвраты (шт)', value: 'returned' },
+// ];
+// new chartOptions
+
 const chartOptions = [
   { label: 'Выручка', value: 'revenue' },
   { label: 'Прибыль', value: 'profit' },
   { label: 'Выплаты', value: 'payout' },
-  { label: 'Позиции', value: 'positions' },
-  { label: 'Активные позиции', value: 'activePositions' },
-  { label: 'Товар (шт)', value: 'items' },
-  { label: 'Активные товары', value: 'activeItems' },
   { label: 'Продажи (шт)', value: 'sold' },
   { label: 'Возвраты (шт)', value: 'returned' },
 ];
@@ -342,21 +351,13 @@ const fetchStatistics = async () => {
     // Форматируем даты для включения конечной даты
     const startDateStr = filters.startDate ? formatDateForApi(filters.startDate) : undefined;
     const endDateStr = filters.endDate ? formatDateForApi(filters.endDate, true) : undefined;
-    
-    console.log('Fetching stats with params:', {
-      committeeId,
-      startDateStr,
-      endDateStr
-    });
-    
+
     const data = await apiService.getCommitteeStatistics(committeeId, startDateStr, endDateStr);
     
-    console.log('Received data:', data);
+    console.log('Получены данные статистики:', data);
     
     committee.value = data.committee;
     stats.value = data;
-    
-    console.log('Stats after processing:', stats.value);
     
     updateChart();
   } catch (error: any) {
@@ -430,15 +431,27 @@ const updateChart = () => {
   const metricName = chartOptions.find(o => o.value === chartMetric.value)?.label;
 
   // Определяем цвет в зависимости от метрики
+  // const getMetricColor = (metric: string) => {
+  //   switch (metric) {
+  //     case 'revenue': return '#10B981'; // Зеленый
+  //     case 'profit': return '#3B82F6'; // Синий
+  //     case 'payout': return '#8B5CF6'; // Фиолетовый
+  //     case 'positions': return '#EF4444'; // Красный
+  //     case 'activePositions': return '#06B6D4'; // Бирюзовый
+  //     case 'items': return '#F59E0B'; // Оранжевый
+  //     case 'activeItems': return '#84CC16'; // Лаймовый
+  //     case 'sold': return '#8B5CF6'; // Фиолетовый
+  //     case 'returned': return '#F97316'; // Оранжевый
+  //     default: return '#6B7280'; // Серый
+  //   }
+  // };
+
+  // New Определяем цвет в зависимости от метрики
   const getMetricColor = (metric: string) => {
     switch (metric) {
       case 'revenue': return '#10B981'; // Зеленый
       case 'profit': return '#3B82F6'; // Синий
       case 'payout': return '#8B5CF6'; // Фиолетовый
-      case 'positions': return '#EF4444'; // Красный
-      case 'activePositions': return '#06B6D4'; // Бирюзовый
-      case 'items': return '#F59E0B'; // Оранжевый
-      case 'activeItems': return '#84CC16'; // Лаймовый
       case 'sold': return '#8B5CF6'; // Фиолетовый
       case 'returned': return '#F97316'; // Оранжевый
       default: return '#6B7280'; // Серый
