@@ -273,14 +273,14 @@ export interface CreateReturnDto {
   productId: number;
   quantity: number;
   reason?: string;
-  soldAt?: string;
+  returnedAt?: string;
 }
 
 export interface UpdateReturnDto {
   productId: number;
   quantity: number;
   reason?: string;
-  soldAt?: string;
+  returnedAt?: string;
 }
 
 export interface FileUploadEvent {
