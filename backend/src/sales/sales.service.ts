@@ -1,13 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { UpdateSaleDto } from './dto/update-sale.dto';
 import { QuerySalesDto } from './dto/query-sales.dto';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class SalesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly auditLogService: AuditLogService,
+    // @Inject(forwardRef(() => AuditLogService))
+    // private auditLogService?: AuditLogService,
+  ) {}
 
   async create(createSaleDto: CreateSaleDto, userId: number) {
     // Транзакция: проверка товара с блокировкой строки, создание продажи и уменьшение остатка

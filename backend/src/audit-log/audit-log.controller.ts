@@ -21,6 +21,10 @@ class QueryAuditLogDto {
   @IsOptional()
   entityType?: string;
 
+  @IsOptional()
+  @IsString()
+  entityId?: string;
+
   @IsDateString()
   @IsOptional()
   startDate?: string;

@@ -34,8 +34,8 @@ export class ProductsController {
 
   @Post()
   @Roles(Role.MANAGER, Role.ADMIN)
-  async create(@Body() createProductDto: CreateProductDto) {
-    return this.productsService.create(createProductDto);
+  async create(@Body() createProductDto: CreateProductDto, userId: number) {
+    return this.productsService.create(createProductDto, userId);
   }
 
   @Get()
