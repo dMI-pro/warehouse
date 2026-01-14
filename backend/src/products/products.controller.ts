@@ -44,6 +44,11 @@ export class ProductsController {
     return this.productsService.findAll(query);
   }
 
+  @Get('in-stock')
+  async getInStock() {
+    return this.productsService.findInStock();
+  }
+
   @Get(':id')
   @Public()
   async findOne(@Param('id', ParseIntPipe) id: number) {
@@ -62,8 +67,11 @@ export class ProductsController {
 
   @Delete(':id')
   @Roles(Role.ADMIN)
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    return this.productsService.remove(id);
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: User,
+  ) {
+    return this.productsService.remove(id, user.id);
   }
 
   @Post(':id/images')

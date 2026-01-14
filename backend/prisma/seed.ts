@@ -4,14 +4,28 @@ import * as bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting seed. ..');
+  console.log('🌱 Starting seed...');
 
-  // Existing code (commented out data cleaning)
-  // await prisma.$transaction([
-  //   prisma.user.deleteMany(),
-  //   prisma.product.deleteMany(),
-  //   // ... other deletions
-  // ]);
+  console.log('🚦 Creating user statuses...');
+  await prisma.userStatus.upsert({
+    where: { code: 'ACTIVE' },
+    update: {},
+    create: {
+      code: 'ACTIVE',
+      name: 'Активный',
+      description: 'Пользователь имеет доступ к системе',
+    },
+  });
+  await prisma.userStatus.upsert({
+    where: { code: 'BLOCKED' },
+    update: {},
+    create: {
+      code: 'BLOCKED',
+      name: 'Заблокированный',
+      description: 'Доступ к системе ограничен',
+    },
+  });
+  console.log('✅ User statuses created/verified');
 
   console.log('👤 Creating super admin...');
   const superAdmin = await prisma.user.create({
@@ -22,6 +36,9 @@ async function main() {
       role: 'ADMIN',
       fullName: 'Super Admin',
       isSuperAdmin: true,
+      status: {
+        connect: { code: 'ACTIVE' },
+      },
     },
   });
   console.log('✅ Super admin created:', superAdmin.email);

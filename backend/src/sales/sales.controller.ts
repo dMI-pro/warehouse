@@ -54,14 +54,15 @@ export class SalesController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateSaleDto: UpdateSaleDto,
+    @CurrentUser() user: any,
   ) {
-    return this.salesService.update(id, updateSaleDto);
+    return this.salesService.update(id, updateSaleDto, user.id);
   }
 
   @Delete(':id')
   @Roles(Role.MANAGER, Role.ADMIN)
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    return this.salesService.remove(id);
+  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.salesService.remove(id, user.id);
   }
 }
 

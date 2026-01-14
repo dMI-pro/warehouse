@@ -7,6 +7,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { Public } from '../common/decorators/public.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('committees')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -15,8 +16,8 @@ export class CommitteesController {
 
   @Post()
   @Roles(Role.MANAGER, Role.ADMIN)
-  async create(@Body() createCommitteeDto: CreateCommitteeDto) {
-    return this.committeesService.create(createCommitteeDto);
+  async create(@Body() createCommitteeDto: CreateCommitteeDto, @CurrentUser() user: any) {
+    return this.committeesService.create(createCommitteeDto, user.id);
   }
 
   @Get()
@@ -43,14 +44,14 @@ export class CommitteesController {
 
   @Patch(':id')
   @Roles(Role.MANAGER, Role.ADMIN)
-  async update(@Param('id', ParseIntPipe) id: number, @Body() updateCommitteeDto: UpdateCommitteeDto) {
-    return this.committeesService.update(id, updateCommitteeDto);
+  async update(@Param('id', ParseIntPipe) id: number, @Body() updateCommitteeDto: UpdateCommitteeDto, @CurrentUser() user: any) {
+    return this.committeesService.update(id, updateCommitteeDto, user.id);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN)
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    return this.committeesService.remove(id);
+  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.committeesService.remove(id, user.id);
   }
 }
 

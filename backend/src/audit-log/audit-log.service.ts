@@ -47,12 +47,13 @@ export class AuditLogService {
     userId?: number;
     action?: string;
     entityType?: string;
+    entityId?: number;
     startDate?: Date;
     endDate?: Date;
     page?: number;
     limit?: number;
   }) {
-    const { userId, action, entityType, startDate, endDate, page = 1, limit = 20 } = params || {};
+    const { userId, action, entityType, entityId, startDate, endDate, page = 1, limit = 20 } = params || {};
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -67,6 +68,10 @@ export class AuditLogService {
 
     if (entityType) {
       where.entityType = entityType;
+    }
+
+    if (entityId) {
+      where.entityId = entityId;
     }
 
     if (startDate || endDate) {

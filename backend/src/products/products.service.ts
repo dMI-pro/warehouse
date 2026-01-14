@@ -33,7 +33,7 @@ export class ProductsService {
     };
   }
 
-  async create(createProductDto: CreateProductDto) {
+  async create(createProductDto: CreateProductDto, userId: number) {
     // Проверка уникальности SKU
     const existingProduct = await this.prisma.product.findUnique({
       where: { sku: createProductDto.sku },
@@ -117,6 +117,17 @@ export class ProductsService {
       },
     });
 
+    if (this.auditLogService && userId) {
+      await this.auditLogService.create({
+        userId,
+        action: 'product.create',
+        entityType: 'Product',
+        entityId: product.id,
+        newValues: product,
+        success: true,
+      });
+    }
+
     return this.mapProduct(product);
   }
 
@@ -126,6 +137,7 @@ export class ProductsService {
       category,
       warehouse,
       committee,
+      inStock,
       page = 1,
       limit = 10,
     } = query;
@@ -140,6 +152,11 @@ export class ProductsService {
         { sku: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
       ];
+    }
+
+    // Фильтрация по наличию (quantity > 0)
+    if (inStock) {
+      where.quantity = { gt: 0 };
     }
 
     // Фильтрация по категории
@@ -323,13 +340,25 @@ export class ProductsService {
       });
 
       if (Object.keys(newValues).length > 0) {
+        let action = 'product.update';
+        const priceChanged = newValues.salePrice !== undefined || newValues.purchasePrice !== undefined;
+        const qtyChanged = newValues.quantity !== undefined;
+        const otherChanges = Object.keys(newValues).some(k => !['salePrice', 'purchasePrice', 'quantity'].includes(k));
+
+        if (priceChanged && !qtyChanged && !otherChanges) {
+            action = 'product.price_change';
+        } else if (qtyChanged && !priceChanged && !otherChanges) {
+            action = 'product.quantity_change';
+        }
+
         await this.auditLogService.create({
           userId,
-          action: 'product.update',
+          action,
           entityType: 'Product',
           entityId: id,
           oldValues,
           newValues,
+          success: true
         });
       }
     }
@@ -337,7 +366,21 @@ export class ProductsService {
     return this.mapProduct(updatedProduct);
   }
 
-  async remove(id: number) {
+  async findInStock() {
+    const products = await this.prisma.product.findMany({
+      where: { quantity: { gt: 0 } },
+      include: {
+        category: true,
+        warehouse: true,
+        committee: true,
+        transactionType: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return products.map(p => this.mapProduct(p));
+  }
+
+  async remove(id: number, userId: number) {
     const product = await this.prisma.product.findUnique({
       where: { id },
     });
@@ -355,9 +398,22 @@ export class ProductsService {
       throw new ConflictException('Cannot delete product with existing sales');
     }
 
-    return this.prisma.product.delete({
+    await this.prisma.product.delete({
       where: { id },
     });
+
+    if (this.auditLogService && userId) {
+      await this.auditLogService.create({
+        userId,
+        action: 'product.delete',
+        entityType: 'Product',
+        entityId: id,
+        oldValues: product,
+        success: true,
+      });
+    }
+
+    return { message: 'Product deleted successfully' };
   }
 
   async uploadImage(id: number, file: Express.Multer.File) {

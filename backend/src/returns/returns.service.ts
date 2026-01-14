@@ -1,11 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReturnDto } from './dto/create-return.dto';
 import { UpdateReturnDto } from './dto/update-return.dto';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class ReturnsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => AuditLogService))
+    private auditLogService: AuditLogService,
+  ) {}
 
   async create(createReturnDto: CreateReturnDto, userId: number) {
     const { productId, quantity, reason, returnedAt } = createReturnDto;
@@ -35,7 +40,7 @@ export class ReturnsService {
       throw new BadRequestException(`Insufficient stock. Available: ${product.quantity}, Requested return: ${quantity}`);
     }
 
-    return this.prisma.$transaction(async (prisma) => {
+    const result = await this.prisma.$transaction(async (prisma) => {
       // Decrease quantity (item leaving warehouse)
       await prisma.product.update({
         where: { id: productId },
@@ -59,6 +64,23 @@ export class ReturnsService {
 
       return returnRecord;
     });
+
+    if (userId) {
+        await this.auditLogService.create({
+            userId,
+            action: 'return.create',
+            entityType: 'Return',
+            entityId: result.id,
+            newValues: {
+                productId: result.productId,
+                quantity: result.quantity,
+                reason: result.reason
+            },
+            success: true
+        });
+    }
+
+    return result;
   }
 
   async findAll(query: any) {
@@ -89,8 +111,8 @@ export class ReturnsService {
     return returnRecord;
   }
 
-  async update(id: number, updateReturnDto: UpdateReturnDto) {
-    return this.prisma.$transaction(async (prisma) => {
+  async update(id: number, updateReturnDto: UpdateReturnDto, userId: number) {
+    const result = await this.prisma.$transaction(async (prisma) => {
       const existingReturn = await prisma.return.findUnique({
         where: { id },
       });
@@ -150,12 +172,42 @@ export class ReturnsService {
         },
       });
 
-      return updatedReturn;
+      return { existingReturn, updatedReturn };
     });
+
+    if (userId) {
+        const { existingReturn, updatedReturn } = result;
+        const oldValues: any = {};
+        const newValues: any = {};
+
+        Object.keys(updateReturnDto).forEach(key => {
+            const k = key as keyof UpdateReturnDto;
+             const val1 = (existingReturn as any)[k];
+             const val2 = (updatedReturn as any)[k];
+             if (JSON.stringify(val1) !== JSON.stringify(val2)) {
+                 oldValues[k] = val1;
+                 newValues[k] = val2;
+             }
+        });
+
+        if (Object.keys(newValues).length > 0) {
+            await this.auditLogService.create({
+                userId,
+                action: 'return.update',
+                entityType: 'Return',
+                entityId: id,
+                oldValues,
+                newValues,
+                success: true
+            });
+        }
+    }
+
+    return result.updatedReturn;
   }
 
-  async remove(id: number) {
-    return this.prisma.$transaction(async (prisma) => {
+  async remove(id: number, userId: number) {
+    const result = await this.prisma.$transaction(async (prisma) => {
       const returnRecord = await prisma.return.findUnique({
         where: { id },
       });
@@ -175,9 +227,24 @@ export class ReturnsService {
       });
 
       // Удаляем запись возврата
-      return prisma.return.delete({
+      await prisma.return.delete({
         where: { id },
       });
+      
+      return returnRecord;
     });
+
+    if (userId) {
+        await this.auditLogService.create({
+            userId,
+            action: 'return.delete',
+            entityType: 'Return',
+            entityId: id,
+            oldValues: result,
+            success: true
+        });
+    }
+
+    return { message: 'Return deleted successfully' };
   }
 }

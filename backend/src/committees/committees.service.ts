@@ -1,14 +1,19 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommitteeDto } from './dto/create-committee.dto';
 import { UpdateCommitteeDto } from './dto/update-committee.dto';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class CommitteesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => AuditLogService))
+    private auditLogService: AuditLogService,
+  ) {}
 
-  async create(createCommitteeDto: CreateCommitteeDto) {
-    return this.prisma.committee.create({
+  async create(createCommitteeDto: CreateCommitteeDto, userId: number) {
+    const committee = await this.prisma.committee.create({
       data: {
         name: createCommitteeDto.name,
         description: createCommitteeDto.description,
@@ -22,6 +27,19 @@ export class CommitteesService {
         },
       },
     });
+
+    if (userId) {
+      await this.auditLogService.create({
+        userId,
+        action: 'committee.create',
+        entityType: 'Committee',
+        entityId: committee.id,
+        newValues: committee,
+        success: true,
+      });
+    }
+
+    return committee;
   }
 
   async findAll() {
@@ -184,7 +202,7 @@ export class CommitteesService {
     };
   }
 
-  async update(id: number, updateCommitteeDto: UpdateCommitteeDto) {
+  async update(id: number, updateCommitteeDto: UpdateCommitteeDto, userId: number) {
     const committee = await this.prisma.committee.findUnique({
       where: { id },
     });
@@ -193,7 +211,7 @@ export class CommitteesService {
       throw new NotFoundException(`Committee with ID ${id} not found`);
     }
 
-    return this.prisma.committee.update({
+    const updatedCommittee = await this.prisma.committee.update({
       where: { id },
       data: updateCommitteeDto,
       include: {
@@ -204,9 +222,36 @@ export class CommitteesService {
         },
       },
     });
+
+    if (userId) {
+      const oldValues: any = {};
+      const newValues: any = {};
+      
+      Object.keys(updateCommitteeDto).forEach(key => {
+        const k = key as keyof UpdateCommitteeDto;
+        if ((committee as any)[k] !== updateCommitteeDto[k]) {
+          oldValues[k] = (committee as any)[k];
+          newValues[k] = updateCommitteeDto[k];
+        }
+      });
+
+      if (Object.keys(newValues).length > 0) {
+        await this.auditLogService.create({
+          userId,
+          action: 'committee.update',
+          entityType: 'Committee',
+          entityId: id,
+          oldValues,
+          newValues,
+          success: true,
+        });
+      }
+    }
+
+    return updatedCommittee;
   }
 
-  async remove(id: number) {
+  async remove(id: number, userId: number) {
     const committee = await this.prisma.committee.findUnique({
       where: { id },
       include: {
@@ -223,8 +268,21 @@ export class CommitteesService {
       throw new ConflictException('Cannot delete committee with associated products');
     }
 
-    return this.prisma.committee.delete({
+    await this.prisma.committee.delete({
       where: { id },
     });
+
+    if (userId) {
+      await this.auditLogService.create({
+        userId,
+        action: 'committee.delete',
+        entityType: 'Committee',
+        entityId: id,
+        oldValues: committee,
+        success: true,
+      });
+    }
+
+    return { message: 'Committee deleted successfully' };
   }
 }

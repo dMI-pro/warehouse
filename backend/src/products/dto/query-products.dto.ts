@@ -22,6 +22,10 @@ export class QueryProductsDto {
   @Type(() => Number)
   committee?: number;
 
+  @IsOptional()
+  @Type(() => Boolean)
+  inStock?: boolean;
+
   @IsInt()
   @Min(1)
   @Type(() => Number)

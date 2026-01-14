@@ -48,13 +48,14 @@ export class ReturnsController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateReturnDto: UpdateReturnDto,
+    @CurrentUser() user: any,
   ) {
-    return this.returnsService.update(id, updateReturnDto);
+    return this.returnsService.update(id, updateReturnDto, user.id);
   }
 
   @Delete(':id')
   @Roles(Role.MANAGER, Role.ADMIN)
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.returnsService.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.returnsService.remove(id, user.id);
   }
 }

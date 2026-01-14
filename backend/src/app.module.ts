@@ -16,6 +16,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { TransactionTypesModule } from './transaction-types/transaction-types.module';
 import { ReturnsModule } from './returns/returns.module';
 import { MinioModule } from './minio/minio.module';
+import { UserStatusesModule } from './user-statuses/user-statuses.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { MinioModule } from './minio/minio.module';
     AuditLogModule,
     TransactionTypesModule,
     ReturnsModule,
+    UserStatusesModule,
   ],
   controllers: [AppController],
   providers: [

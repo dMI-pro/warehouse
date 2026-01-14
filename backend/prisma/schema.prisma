@@ -16,15 +16,32 @@ model User {
   fullName     String
   role         String    @default("GUEST") // GUEST, SELLER, MANAGER, ADMIN
   isSuperAdmin Boolean   @default(false)
+  userStatusId Int?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   // Отношения
+  status     UserStatus? @relation(fields: [userStatusId], references: [id], onDelete: SetNull)
   sales      Sale[]
   auditLogs  AuditLog[]
   returns    Return[]
 
   @@map("users")
+}
+
+// Модель статуса пользователя
+model UserStatus {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique // ACTIVE, BLOCKED, etc.
+  name        String   // Активный, Заблокированный
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Отношения
+  users       User[]
+
+  @@map("user_statuses")
 }
 
 // Модель категории товаров
