@@ -79,6 +79,15 @@
           </div>
           <div class="filter-item">
             <Button
+              :label="inStockOnly ? 'В наличии: включено' : 'В наличии'"
+              :icon="inStockOnly ? 'pi pi-check' : 'pi pi-box'"
+              :severity="inStockOnly ? 'success' : 'secondary'"
+              :outlined="!inStockOnly"
+              @click="toggleInStock"
+            />
+          </div>
+          <div class="filter-item">
+            <Button
               label="Сбросить"
               icon="pi pi-refresh"
               severity="secondary"
@@ -152,7 +161,7 @@
                 
                 <!-- Цена с форматированием -->
                 <template v-else-if="column.template === 'price'">
-                  {{ formatPrice(data[column.field]) }}
+                  {{ column.field ? formatPrice((data as any)[column.field]) : '' }}
                 </template>
                 
                 <!-- Количество с цветовой индикацией -->
@@ -238,7 +247,7 @@
               
               <!-- Простое отображение поля -->
               <template v-else>
-                {{ data[column.field] }}
+                {{ column.field ? (data as any)[column.field] : '' }}
               </template>
             </template>
           </Column>
@@ -257,7 +266,7 @@
       <form @submit.prevent="saveProduct" class="product-form">
         <TabView>
           <!-- Вкладка 1: Основная информация -->
-          <TabPanel header="Основная информация">
+          <TabPanel header="Основная информация" value="main">
             <div class="tab-content">
               <div class="field">
                 <label for="name" class="label">Название товара *</label>
@@ -362,7 +371,7 @@
           </TabPanel>
 
           <!-- Вкладка 2: Цены и количество -->
-          <TabPanel header="Цены и количество">
+          <TabPanel header="Цены и количество" value="pricing">
             <div class="tab-content">
               <div class="field">
                 <label for="purchasePrice" class="label">Цена закупа * (₽)</label>
@@ -437,7 +446,7 @@
           </TabPanel>
 
           <!-- Вкладка 3: Изображения -->
-          <TabPanel header="Изображения">
+          <TabPanel header="Изображения" value="images">
             <div class="tab-content">
               <div class="field">
                 <label class="label">Загрузка изображений</label>
@@ -492,7 +501,7 @@
           </TabPanel>
 
           <!-- Вкладка 4: Дополнительные поля -->
-          <TabPanel header="Дополнительные поля">
+          <TabPanel header="Дополнительные поля" value="extra">
             <div class="tab-content">
               <div class="field">
                 <label class="label">Дополнительные настройки</label>
@@ -706,6 +715,7 @@ const searchQuery = ref('');
 const selectedCategory = ref<number | null>(null);
 const selectedWarehouse = ref<number | null>(null);
 const selectedCommittee = ref<number | null>(null);
+const inStockOnly = ref(false);
 const sortField = ref('name');
 const productDialogVisible = ref(false);
 const saleDialogVisible = ref(false);
@@ -732,7 +742,12 @@ interface TableColumn {
   format?: 'price' | 'date';
 }
 
-const productForm = reactive<CreateProductDto & { images?: string[]; arrivalDate?: Date }>({
+type ProductForm = Omit<CreateProductDto, 'arrivalDate' | 'images'> & {
+  arrivalDate?: Date;
+  images: string[];
+};
+
+const productForm = reactive<ProductForm>({
   name: '',
   sku: '',
   description: '',
@@ -773,7 +788,7 @@ const saleFormErrors = reactive({
 });
 
 const categoryOptions = computed(() => {
-  const options = [{ label: 'Все категории', value: null }];
+  const options: { label: string; value: number | null }[] = [{ label: 'Все категории', value: null }];
 
   categoriesStore.categories.forEach((cat) => {
     options.push({ label: cat.name, value: cat.id });
@@ -782,7 +797,7 @@ const categoryOptions = computed(() => {
 });
 
 const warehouseOptions = computed(() => {
-  const options = [{ label: 'Все склады', value: null }];
+  const options: { label: string; value: number | null }[] = [{ label: 'Все склады', value: null }];
   warehousesStore.warehouses.forEach((wh) => {
     options.push({ label: wh.name, value: wh.id });
   });
@@ -790,7 +805,7 @@ const warehouseOptions = computed(() => {
 });
 
 const committeeOptions = computed(() => {
-  const options = [{ label: 'Все коммитеты', value: null }];
+  const options: { label: string; value: number | null }[] = [{ label: 'Все коммитеты', value: null }];
   committeesStore.committees.forEach((com) => {
     options.push({ label: com.name, value: com.id });
   });
@@ -798,7 +813,7 @@ const committeeOptions = computed(() => {
 });
 
 const transactionTypeOptions = computed(() => {
-  const options = [{ label: 'Без типа', value: undefined }];
+  const options: { label: string; value: number | undefined }[] = [{ label: 'Без типа', value: undefined }];
   transactionTypesStore.transactionTypes.forEach((tt) => {
     options.push({ label: tt.name, value: tt.id });
   });
@@ -969,8 +984,9 @@ const resetFilters = () => {
   selectedCategory.value = null;
   selectedWarehouse.value = null;
   selectedCommittee.value = null;
+  inStockOnly.value = false;
   sortField.value = 'name';
-  productsStore.setFilters({ search: '', category: undefined, warehouse: undefined, committee: undefined });
+  productsStore.setFilters({ search: '', category: undefined, warehouse: undefined, committee: undefined, inStock: false });
   productsStore.setPage(1);
   productsStore.fetchProducts();
 };
@@ -1179,15 +1195,17 @@ const removeImage = async (index: number) => {
 
 const setMainImage = (index: number) => {
   if (productForm.images && productForm.images.length > index) {
-    const image = productForm.images[index];
+    const image: string = productForm.images![index] as string;
     productForm.images.splice(index, 1);
-    productForm.images.unshift(image);
+    productForm.images!.unshift(image as string);
     
     // Если есть отложенные файлы (при создании), меняем их порядок тоже
     if (pendingFiles.value.length > index && pendingFiles.value.length === productForm.images.length) {
       const file = pendingFiles.value[index];
-      pendingFiles.value.splice(index, 1);
-      pendingFiles.value.unshift(file);
+      if (file) {
+        pendingFiles.value.splice(index, 1);
+        pendingFiles.value.unshift(file);
+      }
     }
   }
 };
@@ -1334,7 +1352,7 @@ const handleReturn = async () => {
       productId: selectedProduct.value.id,
       quantity: returnForm.quantity,
       reason: returnForm.reason,
-      returnedAt: returnForm.returnedAt.toISOString(),
+      soldAt: returnForm.returnedAt.toISOString(),
     });
 
     toast.add({
@@ -1430,6 +1448,12 @@ onMounted(async () => {
   await transactionTypesStore.fetchTransactionTypes();
   await productsStore.fetchProducts();
 });
+
+const toggleInStock = async () => {
+  inStockOnly.value = !inStockOnly.value;
+  productsStore.setFilters({ inStock: inStockOnly.value });
+  await productsStore.fetchProducts({ page: 1 });
+};
 </script>
 
 <style scoped>

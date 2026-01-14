@@ -358,7 +358,7 @@
         </label>
         <InputText 
           id="product" 
-          :modelValue="editingItem.productName" 
+          :modelValue="getItemName(editingItem)" 
           disabled 
           class="w-full" 
         />
@@ -542,7 +542,7 @@ const dateRangeError = ref<string>('');
 const resizeObserver = ref<ResizeObserver | null>(null);
 
 // Вкладки
-const tabs = ref([
+const tabs = ref<Array<{ label: string; icon: string; type: 'sales' | 'stock' | 'movement' | 'returns' }>>([
   { label: 'Продажи', icon: 'pi pi-shopping-cart', type: 'sales' },
   { label: 'Остатки', icon: 'pi pi-box', type: 'stock' },
   { label: 'Движение товаров', icon: 'pi pi-arrows-h', type: 'movement' },
@@ -856,7 +856,7 @@ const saveEdit = async () => {
   if (quantityInputRef.value) {
     const isValid = quantityInputRef.value.validate();
     if (!isValid) {
-      toast.error('Пожалуйста, проверьте количество');
+      toast.add({ severity: 'error', summary: 'Ошибка', detail: 'Пожалуйста, проверьте количество', life: 3000 });
       return;
     }
   }
@@ -881,7 +881,7 @@ const saveEdit = async () => {
       }
       
       await salesStore.updateSale(saleItem.id, updateData);
-      toast.success('Продажа обновлена');
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Продажа обновлена', life: 3000 });
     } else if (reportType.value === 'returns') {
       const returnItem = editingItem.value as NormalizedReturn;
       const originalData = returnItem.originalData as Return;
@@ -900,14 +900,14 @@ const saveEdit = async () => {
       }
       
       await returnsStore.updateReturn(returnItem.id, updateData);
-      toast.success('Возврат обновлен');
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Возврат обновлен', life: 3000 });
     }
     
     editDialogVisible.value = false;
     await generateReport();
   } catch (e: any) {
     const action = reportType.value === 'sales' ? 'продажу' : 'возврат';
-    toast.error(`Не удалось обновить ${action}: ${e.message}`);
+    toast.add({ severity: 'error', summary: 'Ошибка', detail: `Не удалось обновить ${action}: ${e.message}`, life: 3000 });
   } finally {
     saving.value = false;
   }
@@ -915,7 +915,7 @@ const saveEdit = async () => {
 
 const deleteItem = async (item: NormalizedItem) => {
   if (!canDeleteItem(item)) {
-    toast.error('У вас нет прав для удаления');
+    toast.add({ severity: 'error', summary: 'Ошибка', detail: 'У вас нет прав для удаления', life: 3000 });
     return;
   }
   
@@ -926,24 +926,28 @@ const deleteItem = async (item: NormalizedItem) => {
     if (reportType.value === 'sales') {
       const saleItem = item as NormalizedSale;
       await salesStore.deleteSale(saleItem.id);
-      toast.success('Продажа удалена');
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Продажа удалена', life: 3000 });
     } else if (reportType.value === 'returns') {
       const returnItem = item as NormalizedReturn;
       await returnsStore.deleteReturn(returnItem.id);
-      toast.success('Возврат удален');
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Возврат удален', life: 3000 });
     }
     
     await generateReport();
   } catch (e: any) {
     const action = reportType.value === 'sales' ? 'продажу' : 'возврат';
-    toast.error(`Не удалось удалить ${action}: ${e.message}`);
+    toast.add({ severity: 'error', summary: 'Ошибка', detail: `Не удалось удалить ${action}: ${e.message}`, life: 3000 });
   }
 };
 
 const viewItem = (item: NormalizedItem) => {
-  toast.info('Просмотр деталей записи');
+  toast.add({ severity: 'info', summary: 'Информация', detail: 'Просмотр деталей записи', life: 3000 });
 };
 
+const getItemName = (item: NormalizedItem): string => {
+  const anyItem = item as any;
+  return anyItem.productName ?? anyItem.name ?? `ID: ${anyItem.id}`;
+};
 // Валидация дат (без изменений)
 const validateDateRange = () => {
   dateRangeError.value = '';
@@ -990,7 +994,7 @@ const generateReport = async () => {
       await salesStore.fetchSales(params);
     }
   } catch (error: any) {
-    toast.error(`Не удалось загрузить отчет: ${error.message}`);
+    toast.add({ severity: 'error', summary: 'Ошибка', detail: `Не удалось загрузить отчет: ${error.message}`, life: 3000 });
   } finally {
     isLoading.value = false;
   }
@@ -1129,8 +1133,8 @@ const updateChart = async () => {
       }
     });
     
-    const revenues = sortedDates.map(date => salesByDate[date].revenue);
-    const profits = sortedDates.map(date => salesByDate[date].profit);
+    const revenues = sortedDates.map(date => salesByDate[date]!.revenue);
+    const profits = sortedDates.map(date => salesByDate[date]!.profit);
 
     const option = {
       tooltip: {
@@ -1236,7 +1240,7 @@ const updateChart = async () => {
         const date = new Date(returnItem.date);
         if (isNaN(date.getTime())) return;
         
-        const dateKey = date.toISOString().split('T')[0];
+        const dateKey = date.toISOString().split('T')[0] as string;
         returnsByDate[dateKey] = (returnsByDate[dateKey] || 0) + returnItem.quantity;
       } catch (e) {
         console.error('Error processing return date:', e);
@@ -1339,7 +1343,7 @@ const updateChart = async () => {
 // Экспорт (без изменений)
 const handleExport = () => {
   if (!normalizedReportData.value.length) {
-    toast.warn('Нет данных для экспорта');
+    toast.add({ severity: 'warn', summary: 'Предупреждение', detail: 'Нет данных для экспорта', life: 3000 });
     return;
   }
 
@@ -1361,7 +1365,7 @@ const handleExport = () => {
   const fileName = `report_${reportType.value}_${new Date().toISOString().split('T')[0]}.csv`;
   saveAs(blob, fileName);
 
-  toast.success('Данные экспортированы');
+  toast.add({ severity: 'success', summary: 'Успешно', detail: 'Данные экспортированы', life: 3000 });
 };
 
 // Наблюдатели - ИСПРАВЛЕННАЯ ВЕРСИЯ

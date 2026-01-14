@@ -19,6 +19,7 @@ export const useProductsStore = defineStore('products', () => {
     category: undefined as number | undefined,
     warehouse: undefined as number | undefined,
     committee: undefined as number | undefined,
+    inStock: false as boolean,
   });
 
   const filteredProducts = computed(() => {
@@ -30,6 +31,7 @@ export const useProductsStore = defineStore('products', () => {
     category?: number;
     warehouse?: number;
     committee?: number;
+    inStock?: boolean;
     page?: number;
     limit?: number;
   }) => {
@@ -42,6 +44,7 @@ export const useProductsStore = defineStore('products', () => {
         category: params?.category || filters.value.category,
         warehouse: params?.warehouse || filters.value.warehouse,
         committee: params?.committee || filters.value.committee,
+        inStock: (params?.inStock ?? filters.value.inStock) || undefined,
         page: params?.page || pagination.value.page,
         limit: params?.limit || pagination.value.limit,
       });
@@ -179,7 +182,7 @@ export const useProductsStore = defineStore('products', () => {
     }
   };
 
-  const setFilters = (newFilters: { search?: string; category?: number; warehouse?: number; committee?: number }) => {
+  const setFilters = (newFilters: { search?: string; category?: number; warehouse?: number; committee?: number; inStock?: boolean }) => {
     filters.value = { ...filters.value, ...newFilters };
   };
 

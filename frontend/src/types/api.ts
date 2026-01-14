@@ -12,6 +12,9 @@ export interface User {
   fullName: string;
   role: Role;
   isSuperAdmin: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  status?: UserStatus | null;
 }
 
 export interface AuthResponse {
@@ -283,6 +286,48 @@ export interface UpdateReturnDto {
 export interface FileUploadEvent {
     files: File[];
     originalEvent: Event;
+}
+
+export interface UserStatus {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  color?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateUserStatusDto {
+  name: string;
+  code: string;
+  description?: string;
+  color?: string;
+}
+
+export interface UpdateUserStatusDto {
+  name?: string;
+  code?: string;
+  description?: string;
+  color?: string;
+}
+
+export interface CreateUserDto {
+  email: string;
+  username: string;
+  password: string;
+  fullName: string;
+  role?: Role;
+  userStatusId?: number;
+}
+
+export interface UpdateUserDto {
+  email?: string;
+  username?: string;
+  password?: string;
+  fullName?: string;
+  role?: Role;
+  userStatusId?: number;
 }
 
 

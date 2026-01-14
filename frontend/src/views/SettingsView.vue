@@ -77,6 +77,95 @@
           </template>
         </Card>
 
+        <!-- Вкладка: Статусы пользователей -->
+        <Card v-if="activeTab === 'userStatuses'" class="content-card">
+          <template #title>
+            <div class="card-header">
+              <span>Управление статусами пользователей</span>
+              <Button
+                v-if="authStore.isAdmin"
+                label="Добавить статус"
+                icon="pi pi-plus"
+                @click="openAddUserStatusDialog"
+              />
+            </div>
+          </template>
+          <template #content>
+            <Message v-if="userStatusesStore.error" severity="error" :closable="false" class="mb-3">
+              {{ userStatusesStore.error }}
+            </Message>
+
+            <DataTable
+              :value="userStatusesStore.userStatuses"
+              :loading="userStatusesStore.loading"
+              :emptyMessage="userStatusesStore.loading ? 'Загрузка...' : 'Нет статусов'"
+              class="user-statuses-table"
+            >
+              <Column field="code" header="Код" :sortable="true" />
+              <Column field="name" header="Название" :sortable="true" />
+              <Column header="Действия" style="width: 150px">
+                <template #body="{ data }">
+                  <div class="action-buttons">
+                    <Button
+                      v-if="authStore.isAdmin"
+                      icon="pi pi-pencil"
+                      severity="info"
+                      size="small"
+                      outlined
+                      rounded
+                      v-tooltip.top="'Редактировать'"
+                      @click="openEditUserStatusDialog(data)"
+                    />
+                    <Button
+                      v-if="authStore.isAdmin"
+                      icon="pi pi-trash"
+                      severity="danger"
+                      size="small"
+                      outlined
+                      rounded
+                      v-tooltip.top="'Удалить'"
+                      @click="confirmDeleteUserStatus(data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+            </DataTable>
+
+            <Dialog
+              v-model:visible="userStatusDialogVisible"
+              :header="editingUserStatus ? 'Редактировать статус' : 'Добавить статус'"
+              :modal="true"
+              :style="{ width: '500px' }"
+              @hide="closeUserStatusDialog"
+            >
+              <form @submit.prevent="saveUserStatus" class="user-status-form">
+                <div class="field">
+                  <label class="label">Код *</label>
+                  <InputText v-model="userStatusForm.code" class="w-full" :disabled="!!editingUserStatus" required />
+                  <small v-if="userStatusFormErrors.code" class="p-error">{{ userStatusFormErrors.code }}</small>
+                </div>
+                <div class="field">
+                  <label class="label">Название *</label>
+                  <InputText v-model="userStatusForm.name" class="w-full" required />
+                  <small v-if="userStatusFormErrors.name" class="p-error">{{ userStatusFormErrors.name }}</small>
+                </div>
+                <div class="field">
+                  <label class="label">Описание</label>
+                  <Textarea v-model="userStatusForm.description" class="w-full" rows="3" />
+                </div>
+                <div class="field">
+                  <label class="label">Цвет (hex)</label>
+                  <InputText v-model="userStatusForm.color" class="w-full" placeholder="#52c41a" />
+                </div>
+                <div class="dialog-footer">
+                  <Button label="Отмена" severity="secondary" outlined @click="closeUserStatusDialog" />
+                  <Button type="submit" :label="editingUserStatus ? 'Сохранить' : 'Создать'" :loading="userStatusesStore.loading" />
+                </div>
+              </form>
+            </Dialog>
+          </template>
+        </Card>
+
         <!-- Вкладка: Склады -->
         <Card v-if="activeTab === 'warehouses'" class="content-card">
           <template #title>
@@ -602,26 +691,29 @@ import { useWarehousesStore } from '@/stores/warehousesStore';
 import { useCommitteesStore } from '@/stores/committeesStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useTransactionTypesStore } from '@/stores/transactionTypesStore';
-import type { Category, CreateCategoryDto, UpdateCategoryDto, Warehouse, CreateWarehouseDto, UpdateWarehouseDto, Committee, CreateCommitteeDto, UpdateCommitteeDto, TransactionType, CreateTransactionTypeDto, UpdateTransactionTypeDto } from '@/types/api';
+import { useUserStatusesStore } from '@/stores/userStatusesStore';
+import type { Category, CreateCategoryDto, UpdateCategoryDto, Warehouse, CreateWarehouseDto, UpdateWarehouseDto, Committee, CreateCommitteeDto, UpdateCommitteeDto, TransactionType, CreateTransactionTypeDto, UpdateTransactionTypeDto, UserStatus, CreateUserStatusDto, UpdateUserStatusDto } from '@/types/api';
 import { Role } from '@/types/api';
 
 const categoriesStore = useCategoriesStore();
 const warehousesStore = useWarehousesStore();
 const committeesStore = useCommitteesStore();
 const transactionTypesStore = useTransactionTypesStore();
+const userStatusesStore = useUserStatusesStore();
 const authStore = useAuthStore();
 const confirm = useConfirm();
 const toast = useToast();
 const router = useRouter();
 
-const activeTab = ref<'categories' | 'warehouses' | 'committees' | 'transactionTypes' | 'fields' | 'templates' | 'system'>('categories');
+const activeTab = ref<'categories' | 'warehouses' | 'committees' | 'transactionTypes' | 'userStatuses' | 'fields' | 'templates' | 'system'>('categories');
 const expandedKeys = ref<Record<string, boolean>>({});
 
-const tabs = [
+const tabs: Array<{ key: typeof activeTab.value; label: string; icon: string }> = [
   { key: 'categories', label: 'Категории', icon: 'pi pi-sitemap' },
   { key: 'warehouses', label: 'Склады', icon: 'pi pi-building' },
   { key: 'committees', label: 'Коммитеты', icon: 'pi pi-users' },
   { key: 'transactionTypes', label: 'Типы транзакций', icon: 'pi pi-tags' },
+  { key: 'userStatuses', label: 'Статусы пользователей', icon: 'pi pi-id-card' },
   { key: 'fields', label: 'Дополнительные поля', icon: 'pi pi-list' },
   { key: 'templates', label: 'Шаблоны экспорта', icon: 'pi pi-file-export' },
   { key: 'system', label: 'Системные настройки', icon: 'pi pi-cog' },
@@ -635,6 +727,18 @@ const committeeDialogVisible = ref(false);
 const editingCommittee = ref<Committee | null>(null);
 const transactionTypeDialogVisible = ref(false);
 const editingTransactionType = ref<TransactionType | null>(null);
+const userStatusDialogVisible = ref(false);
+const editingUserStatus = ref<UserStatus | null>(null);
+const userStatusForm = reactive<CreateUserStatusDto>({
+  name: '',
+  code: '',
+  description: '',
+  color: '',
+});
+const userStatusFormErrors = reactive({
+  name: '',
+  code: '',
+});
 
 const categoryForm = reactive<CreateCategoryDto>({
   name: '',
@@ -711,7 +815,7 @@ const currencies = [
 ];
 
 const parentCategoryOptions = computed(() => {
-  const options = [{ label: 'Нет родительской категории', value: undefined }];
+  const options: { label: string; value: number | undefined }[] = [{ label: 'Нет родительской категории', value: undefined }];
   categoriesStore.categories.forEach((cat) => {
     if (!editingCategory.value || cat.id !== editingCategory.value.id) {
       options.push({ label: cat.name, value: cat.id });
@@ -1076,6 +1180,98 @@ const confirmDeleteTransactionType = (type: TransactionType) => {
       try {
         await transactionTypesStore.deleteTransactionType(type.id);
         toast.add({ severity: 'success', summary: 'Успешно', detail: 'Тип транзакции удален', life: 3000 });
+      } catch (error) {
+        // Ошибка уже обработана в store
+      }
+    },
+  });
+};
+
+// User Status methods
+const openAddUserStatusDialog = () => {
+  editingUserStatus.value = null;
+  resetUserStatusForm();
+  userStatusDialogVisible.value = true;
+};
+
+const openEditUserStatusDialog = (status: UserStatus) => {
+  editingUserStatus.value = status;
+  userStatusForm.name = status.name;
+  userStatusForm.code = status.code;
+  userStatusForm.description = status.description || '';
+  userStatusForm.color = status.color || '';
+  userStatusDialogVisible.value = true;
+};
+
+const closeUserStatusDialog = () => {
+  userStatusDialogVisible.value = false;
+  editingUserStatus.value = null;
+  resetUserStatusForm();
+};
+
+const resetUserStatusForm = () => {
+  userStatusForm.name = '';
+  userStatusForm.code = '';
+  userStatusForm.description = '';
+  userStatusForm.color = '';
+  userStatusFormErrors.name = '';
+  userStatusFormErrors.code = '';
+};
+
+const validateUserStatusForm = () => {
+  let isValid = true;
+  userStatusFormErrors.name = '';
+  userStatusFormErrors.code = '';
+
+  if (!userStatusForm.name.trim()) {
+    userStatusFormErrors.name = 'Название обязательно';
+    isValid = false;
+  }
+  if (!userStatusForm.code.trim()) {
+    userStatusFormErrors.code = 'Код обязателен';
+    isValid = false;
+  }
+
+  return isValid;
+};
+
+const saveUserStatus = async () => {
+  if (!validateUserStatusForm()) return;
+
+  try {
+    if (editingUserStatus.value) {
+      const updateDto: UpdateUserStatusDto = {
+        name: userStatusForm.name,
+        description: userStatusForm.description || undefined,
+        color: userStatusForm.color || undefined,
+      };
+      await userStatusesStore.updateUserStatus(editingUserStatus.value.id, updateDto);
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Статус обновлен', life: 3000 });
+    } else {
+      const createDto: CreateUserStatusDto = {
+        name: userStatusForm.name,
+        code: userStatusForm.code,
+        description: userStatusForm.description || undefined,
+        color: userStatusForm.color || undefined,
+      };
+      await userStatusesStore.createUserStatus(createDto);
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Статус создан', life: 3000 });
+    }
+    closeUserStatusDialog();
+  } catch (error) {
+    // Ошибка уже обработана в store
+  }
+};
+
+const confirmDeleteUserStatus = (status: UserStatus) => {
+  confirm.require({
+    message: `Вы уверены, что хотите удалить статус "${status.name}"?`,
+    header: 'Подтверждение удаления',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      try {
+        await userStatusesStore.deleteUserStatus(status.id);
+        toast.add({ severity: 'success', summary: 'Успешно', detail: 'Статус удален', life: 3000 });
       } catch (error) {
         // Ошибка уже обработана в store
       }
