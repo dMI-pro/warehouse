@@ -5,6 +5,12 @@ export enum Role {
   ADMIN = 'ADMIN',
 }
 
+export enum UserStatusColor {
+  active = 'active',
+  blocked = 'blocked',
+  disabled = 'disabled',
+}
+
 export interface User {
   id: number;
   email: string;

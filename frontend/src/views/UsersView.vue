@@ -48,11 +48,11 @@
                 <Tag :value="getRoleName(data.role)" :severity="getRoleSeverity(data.role)" />
               </template>
             </Column>
-            <Column field="isActive" header="Статус" :sortable="true">
+            <Column field="isActive" header="Статус" :sortable="false">
               <template #body="{ data }">
                 <Tag
-                  :value="data.isActive !== false ? 'Активен' : 'Заблокирован'"
-                  :severity="data.isActive !== false ? 'success' : 'danger'"
+                  :value="data.status.name"
+                  :severity="getUserStatusColor(data.status.code)"
                 />
               </template>
             </Column>
@@ -114,7 +114,7 @@
                 <span class="info-label">Статус:</span>
                 <Tag
                   :value="selectedUser.status?.name || '—'"
-                  :severity="getStatusSeverity(selectedUser.status?.code)"
+                  :severity="getUserStatusColor(selectedUser.status?.code)"
                 />
               </div>
               <div class="info-item">
@@ -259,7 +259,7 @@ import { useUsersStore } from '@/stores/usersStore';
 import { useUserStatusesStore } from '@/stores/userStatusesStore';
 import { useAuthStore } from '@/stores/authStore';
 import type { User, CreateUserDto, UpdateUserDto, AuditLog } from '@/types/api';
-import { Role } from '@/types/api';
+import { Role, UserStatusColor } from '@/types/api';
 import { apiService } from '@/services/api';
 
 const usersStore = useUsersStore();
@@ -333,6 +333,15 @@ const getAvatarColor = (role: Role): string => {
     ADMIN: '#1890ff',
   };
   return colorMap[role] || '#8c8c8c';
+};
+
+const getUserStatusColor = (code: UserStatusColor): 'success' | 'info' | 'warn' | 'danger' | 'secondary' => {
+  const severityMap: Record<string, 'success' | 'warn' | 'danger' | 'secondary' > = {
+    'active': 'success',
+    'blocked': 'danger',
+    'disabled': 'secondary',
+  };
+  return severityMap[code?.toLowerCase()] || 'secondary';
 };
 
 const getInitials = (name: string): string => {
@@ -508,12 +517,12 @@ onMounted(async () => {
   await userStatusesStore.fetchUserStatuses();
 });
 
-const getStatusSeverity = (code?: string) => {
-  if (!code) return 'secondary';
-  if (code === 'ACTIVE') return 'success';
-  if (code === 'BLOCKED') return 'danger';
-  return 'secondary';
-};
+// const getStatusSeverity = (code?: string) => {
+//   if (!code) return 'secondary';
+//   if (code === 'ACTIVE') return 'success';
+//   if (code === 'BLOCKED') return 'danger';
+//   return 'secondary';
+// };
 
 const getUserActionLabel = (action: string): string => {
   const map: Record<string, string> = {
