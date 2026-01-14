@@ -8,19 +8,19 @@ async function main() {
 
   console.log('🚦 Creating user statuses...');
   await prisma.userStatus.upsert({
-    where: { code: 'ACTIVE' },
+    where: { code: 'active' },
     update: {},
     create: {
-      code: 'ACTIVE',
+      code: 'active',
       name: 'Активный',
       description: 'Пользователь имеет доступ к системе',
     },
   });
   await prisma.userStatus.upsert({
-    where: { code: 'BLOCKED' },
+    where: { code: 'blocked' },
     update: {},
     create: {
-      code: 'BLOCKED',
+      code: 'blocked',
       name: 'Заблокированный',
       description: 'Доступ к системе ограничен',
     },

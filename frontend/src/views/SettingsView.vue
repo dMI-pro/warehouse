@@ -1284,6 +1284,7 @@ onMounted(async () => {
   await warehousesStore.fetchWarehouses();
   await committeesStore.fetchCommittees();
   await transactionTypesStore.fetchTransactionTypes();
+  await userStatusesStore.fetchUserStatuses();
 });
 </script>
 
