@@ -98,12 +98,9 @@ export class CommitteesService {
     const dateFilter: any = {};
     if (startDate) {
       dateFilter.gte = new Date(startDate);
-      dateFilter.gte.setUTCHours(0, 0, 0, 0);
     }
     if (endDate) {
-      const end = new Date(endDate);
-      end.setUTCHours(23, 59, 59, 999);
-      dateFilter.lte = end;
+      dateFilter.lte = new Date(endDate);
     }
 
     // Получаем ВСЕ товары комитета
