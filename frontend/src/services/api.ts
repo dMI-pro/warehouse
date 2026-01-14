@@ -29,6 +29,11 @@ import type {
   CreateTransactionTypeDto,
   UpdateTransactionTypeDto,
   AuditLog,
+  UserStatus,
+  CreateUserStatusDto,
+  UpdateUserStatusDto,
+  CreateUserDto,
+  UpdateUserDto,
 } from '@/types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -99,6 +104,25 @@ class ApiService {
     return response.data;
   }
 
+  async getUser(id: number): Promise<User> {
+    const response = await this.api.get<User>(`/users/${id}`);
+    return response.data;
+  }
+
+  async createUser(createUserDto: CreateUserDto): Promise<User> {
+    const response = await this.api.post<User>('/users', createUserDto);
+    return response.data;
+  }
+
+  async updateUser(id: number, updateUserDto: UpdateUserDto): Promise<User> {
+    const response = await this.api.patch<User>(`/users/${id}`, updateUserDto);
+    return response.data;
+  }
+
+  async deleteUser(id: number): Promise<void> {
+    await this.api.delete(`/users/${id}`);
+  }
+
   // Products endpoints
   async getProducts(params?: {
     search?: string;
@@ -107,6 +131,7 @@ class ApiService {
     committee?: number;
     page?: number;
     limit?: number;
+    inStock?: boolean;
   }): Promise<PaginatedResponse<Product>> {
     const response = await this.api.get<PaginatedResponse<Product>>('/products', { params });
     return response.data;
@@ -328,6 +353,7 @@ class ApiService {
     userId?: number;
     action?: string;
     entityType?: string;
+    entityId?: number;
     startDate?: string;
     endDate?: string;
     page?: number;
@@ -336,9 +362,26 @@ class ApiService {
     const response = await this.api.get<PaginatedResponse<AuditLog>>('/audit-logs', { params });
     return response.data;
   }
+
+  // User Statuses endpoints
+  async getUserStatuses(): Promise<UserStatus[]> {
+    const response = await this.api.get<UserStatus[]>('/user-statuses');
+    return response.data;
+  }
+
+  async createUserStatus(createUserStatusDto: CreateUserStatusDto): Promise<UserStatus> {
+    const response = await this.api.post<UserStatus>('/user-statuses', createUserStatusDto);
+    return response.data;
+  }
+
+  async updateUserStatus(id: number, updateUserStatusDto: UpdateUserStatusDto): Promise<UserStatus> {
+    const response = await this.api.patch<UserStatus>(`/user-statuses/${id}`, updateUserStatusDto);
+    return response.data;
+  }
+
+  async deleteUserStatus(id: number): Promise<void> {
+    await this.api.delete(`/user-statuses/${id}`);
+  }
 }
 
 export const apiService = new ApiService();
-
-
-

@@ -152,7 +152,7 @@
         </div>
         <div class="detail-section">
           <h4>Время</h4>
-          <p>{{ formatDateTime(selectedLog.time) }}</p>
+          <p>{{ formatDateTime(selectedLog.createdAt) }}</p>
         </div>
         <div v-if="selectedLog.ipAddress || selectedLog.userAgent" class="detail-section">
           <h4>Информация о подключении</h4>
@@ -341,7 +341,9 @@ const getInitials = (name: string): string => {
   if (!name) return '?';
   const parts = name.split(' ');
   if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
+    const first = parts[0]?.[0] ?? '';
+    const second = parts[1]?.[0] ?? '';
+    return (first + second || '?').toUpperCase();
   }
   return name.substring(0, 2).toUpperCase();
 };

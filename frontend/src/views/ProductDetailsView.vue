@@ -125,7 +125,7 @@
                           class="thumbnail-image"
                           @error="handleImageError"
                         />
-                        <div v-if="slotProps.index === 0" class="main-image-indicator">
+                        <div v-if="slotProps.item === product.images[0]" class="main-image-indicator">
                           <i class="pi pi-star-fill text-yellow-500 text-xs"></i>
                         </div>
                       </div>
@@ -152,13 +152,13 @@
                             class="image-preview-img"
                             @error="handleImageError"
                           />
-                          <div v-if="slotProps.index === 0" class="main-image-badge">
+                          <div v-if="slotProps.item.url === wrappedImages[0]?.url" class="main-image-badge">
                             <i class="pi pi-star-fill text-yellow-500 text-xs"></i>
                           </div>
                         </div>
                         <div class="image-info">
                           <p class="image-filename">{{ getFileName(slotProps.item.url) }}</p>
-                          <p class="image-position">Позиция {{ slotProps.index + 1 }}</p>
+                          <p class="image-position">Позиция {{ getImageIndex(slotProps.item.url) }}</p>
                         </div>
                         <div class="image-actions">
                           <Button
@@ -418,6 +418,73 @@
           </Card>
         </div>
       </div>
+      <div class="mt-4">
+        <Card>
+          <template #title>
+            <span class="font-semibold">История действий</span>
+          </template>
+          <template #content>
+            <div v-if="logsLoading" class="flex justify-content-center align-items-center" style="min-height: 150px;">
+              <ProgressSpinner />
+            </div>
+            <div v-else-if="productLogs.length === 0" class="text-center py-4 text-600">
+              Нет записей истории для этого товара
+            </div>
+            <div v-else class="history-list">
+              <div v-for="log in productLogs" :key="log.id" class="history-item">
+                <div class="history-time">{{ formatDateTime(log.createdAt as any) }}</div>
+                <div class="history-action">{{ getActionLabel(log.action) }}</div>
+                <div class="history-details">
+                  <Button
+                    v-if="log.oldValues || log.newValues"
+                    label="Подробности"
+                    icon="pi pi-eye"
+                    severity="info"
+                    text
+                    size="small"
+                    @click="showDetails(log)"
+                  />
+                </div>
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+      <Dialog
+        v-model:visible="detailsDialogVisible"
+        header="Подробности действия"
+        :modal="true"
+        :style="{ width: '600px' }"
+      >
+        <div v-if="selectedLog" class="details-content">
+          <div class="detail-section">
+            <h4>Действие</h4>
+            <p>{{ getActionLabel(selectedLog.action) }}</p>
+          </div>
+          <div class="detail-section">
+            <h4>Время</h4>
+            <p>{{ formatDateTime((selectedLog as any).createdAt) }}</p>
+          </div>
+          <div v-if="selectedLog.ipAddress || selectedLog.userAgent" class="detail-section">
+            <h4>Информация о подключении</h4>
+            <p v-if="selectedLog.ipAddress"><strong>IP адрес:</strong> {{ selectedLog.ipAddress }}</p>
+            <p v-if="selectedLog.userAgent"><strong>User Agent:</strong> {{ selectedLog.userAgent }}</p>
+          </div>
+          <div v-if="selectedLog.oldValues || selectedLog.newValues" class="detail-section">
+            <h4>Изменения</h4>
+            <div class="changes">
+              <div v-if="selectedLog.oldValues" class="change-item">
+                <strong>Было:</strong>
+                <pre>{{ JSON.stringify(selectedLog.oldValues, null, 2) }}</pre>
+              </div>
+              <div v-if="selectedLog.newValues" class="change-item">
+                <strong>Стало:</strong>
+                <pre>{{ JSON.stringify(selectedLog.newValues, null, 2) }}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Dialog>
     </div>
 
     <ConfirmDialog />
@@ -441,6 +508,7 @@ import OrderList from 'primevue/orderlist';
 import Tag from 'primevue/tag';
 import ProgressSpinner from 'primevue/progressspinner';
 import ConfirmDialog from 'primevue/confirmdialog';
+import Dialog from 'primevue/dialog';
 
 import { useProductsStore } from '@/stores/productsStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -448,7 +516,8 @@ import { useWarehousesStore } from '@/stores/warehousesStore';
 import { useCommitteesStore } from '@/stores/committeesStore';
 import { useTransactionTypesStore } from '@/stores/transactionTypesStore';
 import { useCategoriesStore } from '@/stores/categoriesStore';
-import { Role } from '@/types/api';
+import { Role, type AuditLog, type PaginatedResponse } from '@/types/api';
+import { apiService } from '@/services/api';
 import type { UpdateProductDto } from '@/types/api';
 
 const route = useRoute();
@@ -467,6 +536,10 @@ const productId = Number(route.params.id);
 const saving = ref(false);
 const savingOrder = ref(false);
 const wrappedImages = ref<{ url: string }[]>([]);
+const productLogs = ref<AuditLog[]>([]);
+const logsLoading = ref(false);
+const detailsDialogVisible = ref(false);
+const selectedLog = ref<AuditLog | null>(null);
 
 // Form State
 const form = reactive({
@@ -543,6 +616,7 @@ onMounted(async () => {
   if (product.value) {
     populateForm();
     syncImages();
+    await fetchProductLogs();
   }
 });
 
@@ -550,6 +624,7 @@ watch(product, () => {
   if (product.value) {
     populateForm();
     syncImages();
+    fetchProductLogs();
   }
 }, { deep: true });
 
@@ -579,7 +654,7 @@ const syncImages = () => {
 
 const getFileName = (url: string) => {
   const parts = url.split('/');
-  return decodeURIComponent(parts[parts.length - 1]);
+  return decodeURIComponent(parts[parts.length - 1] || '');
 };
 
 const getFullImageUrl = (url: string) => {
@@ -587,6 +662,10 @@ const getFullImageUrl = (url: string) => {
   if (url.startsWith('http') || url.startsWith('blob:')) return url;
   if (url.startsWith('/')) return `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${url}`;
   return url;
+};
+
+const getImageIndex = (url: string): number => {
+  return wrappedImages.value.findIndex(i => i.url === url) + 1;
 };
 
 const formatPrice = (price: number) => {
@@ -722,6 +801,52 @@ const saveImageOrder = async () => {
   } finally {
     savingOrder.value = false;
   }
+};
+
+const fetchProductLogs = async () => {
+  logsLoading.value = true;
+  try {
+    const resp: PaginatedResponse<AuditLog> = await apiService.getAuditLogs({
+      entityType: 'Product',
+      entityId: productId,
+      page: 1,
+      limit: 50,
+    });
+    productLogs.value = resp.data;
+  } catch (e) {
+  } finally {
+    logsLoading.value = false;
+  }
+};
+
+const formatDateTime = (dateString: string) => {
+  return new Date(dateString).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const getActionLabel = (action: string): string => {
+  const map: Record<string, string> = {
+    'product.create': 'Создание товара',
+    'product.update': 'Обновление товара',
+    'product.delete': 'Удаление товара',
+    'product.price_change': 'Изменение цены',
+    'product.quantity_change': 'Изменение количества',
+    'sale.create': 'Продажа',
+    'sale.delete': 'Удаление продажи',
+    'return.create': 'Возврат',
+    'return.delete': 'Удаление возврата',
+  };
+  return map[action] || action;
+};
+
+const showDetails = (log: AuditLog) => {
+  selectedLog.value = log;
+  detailsDialogVisible.value = true;
 };
 </script>
 

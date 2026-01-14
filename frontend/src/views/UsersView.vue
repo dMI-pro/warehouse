@@ -113,13 +113,13 @@
               <div class="info-item">
                 <span class="info-label">Статус:</span>
                 <Tag
-                  :value="selectedUser.isActive !== false ? 'Активен' : 'Заблокирован'"
-                  :severity="selectedUser.isActive !== false ? 'success' : 'danger'"
+                  :value="selectedUser.status?.name || '—'"
+                  :severity="getStatusSeverity(selectedUser.status?.code)"
                 />
               </div>
               <div class="info-item">
                 <span class="info-label">Дата регистрации:</span>
-                <span class="info-value">{{ formatDate(selectedUser.createdAt) }}</span>
+                <span class="info-value">{{ selectedUser.createdAt ? formatDate(selectedUser.createdAt) : '—' }}</span>
               </div>
             </div>
 
@@ -146,7 +146,7 @@
               </div>
               <div v-else class="history-list">
                 <div v-for="(action, index) in userHistory" :key="index" class="history-item">
-                  <div class="history-time">{{ formatDateTime(action.time) }}</div>
+                  <div class="history-time">{{ formatDateTime(action.createdAt) }}</div>
                   <div class="history-action">{{ action.action }}</div>
                 </div>
               </div>
@@ -207,6 +207,18 @@
             required
           />
         </div>
+        <div class="field">
+          <label for="userStatusId" class="label">Статус пользователя</label>
+          <Dropdown
+            id="userStatusId"
+            v-model="userForm.userStatusId"
+            :options="statusOptions"
+            optionLabel="label"
+            optionValue="value"
+            class="w-full"
+            placeholder="Выберите статус"
+          />
+        </div>
 
         <Message v-if="usersStore.error" severity="error" :closable="false" class="mb-3">
           {{ usersStore.error }}
@@ -244,13 +256,15 @@ import Dropdown from 'primevue/dropdown';
 import Divider from 'primevue/divider';
 import ConfirmDialog from 'primevue/confirmdialog';
 import { useUsersStore } from '@/stores/usersStore';
+import { useUserStatusesStore } from '@/stores/userStatusesStore';
 import { useAuthStore } from '@/stores/authStore';
-import type { User } from '@/types/api';
+import type { User, CreateUserDto, UpdateUserDto, AuditLog } from '@/types/api';
 import { Role } from '@/types/api';
 import { apiService } from '@/services/api';
 
 const usersStore = useUsersStore();
 const authStore = useAuthStore();
+const userStatusesStore = useUserStatusesStore();
 const confirm = useConfirm();
 const toast = useToast();
 
@@ -264,6 +278,7 @@ const userForm = reactive({
   fullName: '',
   password: '',
   role: Role.SELLER as Role,
+  userStatusId: undefined as number | undefined,
 });
 
 const formErrors = reactive({
@@ -280,10 +295,15 @@ const roleOptions = [
   { label: 'Администратор', value: Role.ADMIN },
 ];
 
-const userHistory = ref<Array<{ time: string; action: string }>>([
-  { time: new Date().toISOString(), action: 'Вход в систему' },
-  { time: new Date(Date.now() - 3600000).toISOString(), action: 'Просмотр товаров' },
-]);
+const statusOptions = computed(() => {
+  return userStatusesStore.userStatuses.map(s => ({
+    label: s.name,
+    value: s.id,
+    code: s.code,
+  }));
+});
+
+const userHistory = ref<AuditLog[]>([]);
 
 const getRoleName = (role: Role): string => {
   const roleNames: Record<Role, string> = {
@@ -319,7 +339,9 @@ const getInitials = (name: string): string => {
   if (!name) return '?';
   const parts = name.split(' ');
   if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
+    const first = parts[0]?.[0] ?? '';
+    const second = parts[1]?.[0] ?? '';
+    return (first + second || '?').toUpperCase();
   }
   return name.substring(0, 2).toUpperCase();
 };
@@ -345,16 +367,20 @@ const formatDateTime = (dateString: string) => {
 
 const onUserSelect = (event: any) => {
   selectedUser.value = event.data;
-  // Загрузить историю действий пользователя
   loadUserHistory(event.data.id);
 };
 
 const loadUserHistory = async (userId: number) => {
-  // В реальном приложении здесь будет запрос к API
-  userHistory.value = [
-    { time: new Date().toISOString(), action: 'Вход в систему' },
-    { time: new Date(Date.now() - 3600000).toISOString(), action: 'Просмотр товаров' },
-  ];
+  try {
+    const resp = await apiService.getAuditLogs({
+      userId,
+      page: 1,
+      limit: 50,
+    });
+    userHistory.value = resp.data;
+  } catch (e) {
+    userHistory.value = [];
+  }
 };
 
 const openAddUserDialog = () => {
@@ -370,6 +396,7 @@ const openEditUserDialog = (user: User) => {
   userForm.fullName = user.fullName;
   userForm.role = user.role;
   userForm.password = '';
+  userForm.userStatusId = user.status?.id || undefined;
   userDialogVisible.value = true;
 };
 
@@ -384,6 +411,7 @@ const resetUserForm = () => {
   userForm.fullName = '';
   userForm.password = '';
   userForm.role = Role.SELLER;
+  userForm.userStatusId = undefined;
   Object.keys(formErrors).forEach((key) => {
     formErrors[key as keyof typeof formErrors] = '';
   });
@@ -422,13 +450,29 @@ const saveUser = async () => {
   if (!validateUserForm()) return;
 
   try {
-    // В реальном приложении здесь будет вызов API
-    toast.add({
-      severity: 'success',
-      summary: 'Успешно',
-      detail: editingUser.value ? 'Пользователь обновлен' : 'Пользователь создан',
-      life: 3000,
-    });
+    if (editingUser.value) {
+      const dto: UpdateUserDto = {
+        email: userForm.email,
+        username: userForm.username,
+        fullName: userForm.fullName,
+        role: userForm.role,
+        userStatusId: userForm.userStatusId,
+        password: userForm.password || undefined,
+      };
+      await usersStore.updateUser(editingUser.value.id, dto);
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Пользователь обновлен', life: 3000 });
+    } else {
+      const dto: CreateUserDto = {
+        email: userForm.email,
+        username: userForm.username,
+        fullName: userForm.fullName,
+        role: userForm.role,
+        userStatusId: userForm.userStatusId,
+        password: userForm.password,
+      };
+      await usersStore.createUser(dto);
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Пользователь создан', life: 3000 });
+    }
     closeUserDialog();
     await usersStore.fetchUsers();
   } catch (error) {
@@ -459,9 +503,29 @@ const handleResetPassword = () => {
   });
 };
 
-onMounted(() => {
-  usersStore.fetchUsers();
+onMounted(async () => {
+  await usersStore.fetchUsers();
+  await userStatusesStore.fetchUserStatuses();
 });
+
+const getStatusSeverity = (code?: string) => {
+  if (!code) return 'secondary';
+  if (code === 'ACTIVE') return 'success';
+  if (code === 'BLOCKED') return 'danger';
+  return 'secondary';
+};
+
+const getUserActionLabel = (action: string): string => {
+  const map: Record<string, string> = {
+    login: 'Вход в систему',
+    login_attempt: 'Попытка входа',
+    'user.create': 'Создание пользователя',
+    'user.update': 'Обновление пользователя',
+    'user.delete': 'Удаление пользователя',
+    'sale.create': 'Продажа',
+  };
+  return map[action] || action;
+};
 </script>
 
 <style scoped>
