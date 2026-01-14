@@ -1352,7 +1352,7 @@ const handleReturn = async () => {
       productId: selectedProduct.value.id,
       quantity: returnForm.quantity,
       reason: returnForm.reason,
-      soldAt: returnForm.returnedAt.toISOString(),
+      returnedAt: returnForm.returnedAt.toISOString(),
     });
 
     toast.add({
