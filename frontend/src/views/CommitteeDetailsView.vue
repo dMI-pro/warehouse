@@ -376,11 +376,9 @@ const fetchStatistics = async () => {
 const formatDateForApi = (date: Date, isEndDate: boolean = false): string => {
   const d = new Date(date);
   if (isEndDate) {
-    // Для конечной даты устанавливаем конец дня (23:59:59.999)
-    d.setUTCHours(23, 59, 59, 999);
+    d.setHours(23, 59, 59, 999);
   } else {
-    // Для начальной даты устанавливаем начало дня (00:00:00.000)
-    d.setUTCHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
   }
   return d.toISOString();
 };
