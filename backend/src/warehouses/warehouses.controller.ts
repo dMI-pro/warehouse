@@ -7,6 +7,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
 import { Public } from '../common/decorators/public.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('warehouses')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -15,8 +16,8 @@ export class WarehousesController {
 
   @Post()
   @Roles(Role.MANAGER, Role.ADMIN)
-  async create(@Body() createWarehouseDto: CreateWarehouseDto) {
-    return this.warehousesService.create(createWarehouseDto);
+  async create(@Body() createWarehouseDto: CreateWarehouseDto, @CurrentUser() user: any) {
+    return this.warehousesService.create(createWarehouseDto, user.id);
   }
 
   @Get()
@@ -33,14 +34,14 @@ export class WarehousesController {
 
   @Patch(':id')
   @Roles(Role.MANAGER, Role.ADMIN)
-  async update(@Param('id', ParseIntPipe) id: number, @Body() updateWarehouseDto: UpdateWarehouseDto) {
-    return this.warehousesService.update(id, updateWarehouseDto);
+  async update(@Param('id', ParseIntPipe) id: number, @Body() updateWarehouseDto: UpdateWarehouseDto, @CurrentUser() user: any) {
+    return this.warehousesService.update(id, updateWarehouseDto, user.id);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN)
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    return this.warehousesService.remove(id);
+  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.warehousesService.remove(id, user.id);
   }
 }
 

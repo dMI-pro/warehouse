@@ -1,14 +1,19 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWarehouseDto } from './dto/create-warehouse.dto';
 import { UpdateWarehouseDto } from './dto/update-warehouse.dto';
+import { AuditLogService } from '../audit-log/audit-log.service';
 
 @Injectable()
 export class WarehousesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => AuditLogService))
+    private auditLogService: AuditLogService,
+  ) {}
 
-  async create(createWarehouseDto: CreateWarehouseDto) {
-    return this.prisma.warehouse.create({
+  async create(createWarehouseDto: CreateWarehouseDto, userId: number) {
+    const warehouse = await this.prisma.warehouse.create({
       data: {
         name: createWarehouseDto.name,
         description: createWarehouseDto.description,
@@ -22,6 +27,19 @@ export class WarehousesService {
         },
       },
     });
+
+    if (userId) {
+      await this.auditLogService.create({
+        userId,
+        action: 'warehouse.create',
+        entityType: 'Warehouse',
+        entityId: warehouse.id,
+        newValues: warehouse,
+        success: true,
+      });
+    }
+
+    return warehouse;
   }
 
   async findAll() {
@@ -67,7 +85,7 @@ export class WarehousesService {
     return warehouse;
   }
 
-  async update(id: number, updateWarehouseDto: UpdateWarehouseDto) {
+  async update(id: number, updateWarehouseDto: UpdateWarehouseDto, userId: number) {
     const warehouse = await this.prisma.warehouse.findUnique({
       where: { id },
     });
@@ -76,7 +94,7 @@ export class WarehousesService {
       throw new NotFoundException(`Warehouse with ID ${id} not found`);
     }
 
-    return this.prisma.warehouse.update({
+    const updatedWarehouse = await this.prisma.warehouse.update({
       where: { id },
       data: updateWarehouseDto,
       include: {
@@ -87,9 +105,36 @@ export class WarehousesService {
         },
       },
     });
+
+    if (userId) {
+      const oldValues: any = {};
+      const newValues: any = {};
+      
+      Object.keys(updateWarehouseDto).forEach(key => {
+        const k = key as keyof UpdateWarehouseDto;
+        if ((warehouse as any)[k] !== updateWarehouseDto[k]) {
+          oldValues[k] = (warehouse as any)[k];
+          newValues[k] = updateWarehouseDto[k];
+        }
+      });
+
+      if (Object.keys(newValues).length > 0) {
+        await this.auditLogService.create({
+          userId,
+          action: 'warehouse.update',
+          entityType: 'Warehouse',
+          entityId: id,
+          oldValues,
+          newValues,
+          success: true,
+        });
+      }
+    }
+
+    return updatedWarehouse;
   }
 
-  async remove(id: number) {
+  async remove(id: number, userId: number) {
     const warehouse = await this.prisma.warehouse.findUnique({
       where: { id },
       include: {
@@ -106,9 +151,22 @@ export class WarehousesService {
       throw new ConflictException('Cannot delete warehouse with associated products');
     }
 
-    return this.prisma.warehouse.delete({
+    await this.prisma.warehouse.delete({
       where: { id },
     });
+
+    if (userId) {
+      await this.auditLogService.create({
+        userId,
+        action: 'warehouse.delete',
+        entityType: 'Warehouse',
+        entityId: id,
+        oldValues: warehouse,
+        success: true,
+      });
+    }
+
+    return { message: 'Warehouse deleted successfully' };
   }
 }
 

@@ -54,6 +54,7 @@ export class AuditLogController {
       userId: query.userId,
       action: query.action,
       entityType: query.entityType,
+      entityId: query.entityId,
       page: query.page,
       limit: query.limit,
     };

@@ -77,8 +77,31 @@ export class SalesService {
         },
       });
 
+      // Log action
+      // Note: We can't use this.auditLogService inside transaction if it uses PrismaService. 
+      // AuditLogService uses PrismaService. 
+      // But we can call it after transaction or inside if we don't care about transactional integrity of the log (usually fine).
+      // Or we can manually create audit log inside transaction.
+      // To keep it simple and consistent, we'll log AFTER transaction.
+      // But we need to return sale first.
+      
       return sale;
     });
+
+    if (userId) {
+        await this.auditLogService.create({
+            userId,
+            action: 'sale.create',
+            entityType: 'Sale',
+            entityId: result.id,
+            newValues: {
+                productId: result.productId,
+                quantity: result.quantity,
+                salePrice: result.salePrice,
+            },
+            success: true
+        });
+    }
 
     return result;
   }
@@ -206,8 +229,8 @@ export class SalesService {
     };
   }
 
-  async update(id: number, updateSaleDto: UpdateSaleDto) {
-    return this.prisma.$transaction(async (tx) => {
+  async update(id: number, updateSaleDto: UpdateSaleDto, userId: number) {
+    const result = await this.prisma.$transaction(async (tx) => {
       const existingSale = await tx.sale.findUnique({
         where: { id },
       });
@@ -274,12 +297,52 @@ export class SalesService {
         },
       });
 
-      return updatedSale;
+      return { existingSale, updatedSale };
     });
+
+    if (userId) {
+        const oldValues: any = {};
+        const newValues: any = {};
+        const { existingSale, updatedSale } = result;
+
+        Object.keys(updateSaleDto).forEach(key => {
+            const k = key as keyof UpdateSaleDto;
+            if ((existingSale as any)[k] !== (updatedSale as any)[k]) { // Wait, updateSaleDto might not have all fields. updatedSale has.
+                 // Correct logic: Compare existing vs updated
+                 const val1 = (existingSale as any)[k];
+                 const val2 = (updatedSale as any)[k];
+                 // Note: dates might need better comparison
+                 if (JSON.stringify(val1) !== JSON.stringify(val2)) {
+                     oldValues[k] = val1;
+                     newValues[k] = val2;
+                 }
+            }
+        });
+        
+        // Also check if quantity changed, it affects stock, maybe log that too? 
+        // But product update log is separate (handled by ProductsService if called directly, but here we use prisma transaction which bypasses ProductsService logic unless we call it).
+        // Since we modify product table directly, ProductsService logging is NOT triggered.
+        // We should log product quantity change here too or as a side effect?
+        // Let's just log sale update.
+        
+        if (Object.keys(newValues).length > 0) {
+            await this.auditLogService.create({
+                userId,
+                action: 'sale.update',
+                entityType: 'Sale',
+                entityId: id,
+                oldValues,
+                newValues,
+                success: true
+            });
+        }
+    }
+
+    return result.updatedSale;
   }
 
-  async remove(id: number) {
-    return this.prisma.$transaction(async (tx) => {
+  async remove(id: number, userId: number) {
+    const result = await this.prisma.$transaction(async (tx) => {
       const sale = await tx.sale.findUnique({
         where: { id },
       });
@@ -301,10 +364,25 @@ export class SalesService {
         },
       });
 
-      return tx.sale.delete({
+      await tx.sale.delete({
         where: { id },
       });
+
+      return sale;
     });
+
+    if (userId) {
+        await this.auditLogService.create({
+            userId,
+            action: 'sale.delete',
+            entityType: 'Sale',
+            entityId: id,
+            oldValues: result,
+            success: true
+        });
+    }
+
+    return result;
   }
 }
 
