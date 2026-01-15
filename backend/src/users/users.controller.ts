@@ -1,4 +1,14 @@
-import { Controller, Get, Patch, Post, Delete, Param, Body, UseGuards, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -15,7 +25,10 @@ export class UsersController {
 
   @Post()
   @Roles(Role.ADMIN)
-  async create(@Body() createUserDto: CreateUserDto, @CurrentUser() currentUser: any) {
+  async create(
+    @Body() createUserDto: CreateUserDto,
+    @CurrentUser() currentUser: any,
+  ) {
     return this.usersService.create(createUserDto, currentUser.id);
   }
 
@@ -42,7 +55,10 @@ export class UsersController {
 
   @Delete(':id')
   @Roles(Role.ADMIN)
-  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() currentUser: any) {
-      return this.usersService.remove(id, currentUser);
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() currentUser: any,
+  ) {
+    return this.usersService.remove(id, currentUser);
   }
 }

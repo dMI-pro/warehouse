@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReturnDto } from './dto/create-return.dto';
 import { UpdateReturnDto } from './dto/update-return.dto';
@@ -34,10 +40,12 @@ export class ReturnsService {
     // which implies the item is leaving the warehouse (returned TO owner), NOT returned FROM customer.
     // The previous implementation DECREMENTED quantity, which aligns with "item leaving warehouse".
     // I will keep decrement logic but ensure it's correct.
-    
+
     // Check stock availability if we are removing items
     if (product.quantity < quantity) {
-      throw new BadRequestException(`Insufficient stock. Available: ${product.quantity}, Requested return: ${quantity}`);
+      throw new BadRequestException(
+        `Insufficient stock. Available: ${product.quantity}, Requested return: ${quantity}`,
+      );
     }
 
     const result = await this.prisma.$transaction(async (prisma) => {
@@ -66,36 +74,36 @@ export class ReturnsService {
     });
 
     if (userId) {
-        await this.auditLogService.create({
-            userId,
-            action: 'return.create',
-            entityType: 'Return',
-            entityId: result.id,
-            newValues: {
-                productId: result.productId,
-                quantity: result.quantity,
-                reason: result.reason
-            },
-            success: true
-        });
+      await this.auditLogService.create({
+        userId,
+        action: 'return.create',
+        entityType: 'Return',
+        entityId: result.id,
+        newValues: {
+          productId: result.productId,
+          quantity: result.quantity,
+          reason: result.reason,
+        },
+        success: true,
+      });
     }
 
     return result;
   }
 
   async findAll(query: any) {
-     return this.prisma.return.findMany({
-       include: {
-         product: true,
-         user: true,
-       },
-       orderBy: {
-         returnedAt: 'desc',
-       },
-     });
+    return this.prisma.return.findMany({
+      include: {
+        product: true,
+        user: true,
+      },
+      orderBy: {
+        returnedAt: 'desc',
+      },
+    });
   }
 
-    async findOne(id: number) {
+  async findOne(id: number) {
     const returnRecord = await this.prisma.return.findUnique({
       where: { id },
       include: {
@@ -131,7 +139,9 @@ export class ReturnsService {
       });
 
       if (!product) {
-        throw new NotFoundException(`Product with ID ${existingReturn.productId} not found`);
+        throw new NotFoundException(
+          `Product with ID ${existingReturn.productId} not found`,
+        );
       }
 
       // Рассчитываем разницу в количестве
@@ -162,8 +172,8 @@ export class ReturnsService {
         data: {
           quantity: updateReturnDto.quantity,
           reason: updateReturnDto.reason,
-          returnedAt: updateReturnDto.returnedAt 
-            ? new Date(updateReturnDto.returnedAt) 
+          returnedAt: updateReturnDto.returnedAt
+            ? new Date(updateReturnDto.returnedAt)
             : existingReturn.returnedAt,
         },
         include: {
@@ -176,31 +186,31 @@ export class ReturnsService {
     });
 
     if (userId) {
-        const { existingReturn, updatedReturn } = result;
-        const oldValues: any = {};
-        const newValues: any = {};
+      const { existingReturn, updatedReturn } = result;
+      const oldValues: any = {};
+      const newValues: any = {};
 
-        Object.keys(updateReturnDto).forEach(key => {
-            const k = key as keyof UpdateReturnDto;
-             const val1 = (existingReturn as any)[k];
-             const val2 = (updatedReturn as any)[k];
-             if (JSON.stringify(val1) !== JSON.stringify(val2)) {
-                 oldValues[k] = val1;
-                 newValues[k] = val2;
-             }
-        });
-
-        if (Object.keys(newValues).length > 0) {
-            await this.auditLogService.create({
-                userId,
-                action: 'return.update',
-                entityType: 'Return',
-                entityId: id,
-                oldValues,
-                newValues,
-                success: true
-            });
+      Object.keys(updateReturnDto).forEach((key) => {
+        const k = key as keyof UpdateReturnDto;
+        const val1 = (existingReturn as any)[k];
+        const val2 = (updatedReturn as any)[k];
+        if (JSON.stringify(val1) !== JSON.stringify(val2)) {
+          oldValues[k] = val1;
+          newValues[k] = val2;
         }
+      });
+
+      if (Object.keys(newValues).length > 0) {
+        await this.auditLogService.create({
+          userId,
+          action: 'return.update',
+          entityType: 'Return',
+          entityId: id,
+          oldValues,
+          newValues,
+          success: true,
+        });
+      }
     }
 
     return result.updatedReturn;
@@ -230,19 +240,19 @@ export class ReturnsService {
       await prisma.return.delete({
         where: { id },
       });
-      
+
       return returnRecord;
     });
 
     if (userId) {
-        await this.auditLogService.create({
-            userId,
-            action: 'return.delete',
-            entityType: 'Return',
-            entityId: id,
-            oldValues: result,
-            success: true
-        });
+      await this.auditLogService.create({
+        userId,
+        action: 'return.delete',
+        entityType: 'Return',
+        entityId: id,
+        oldValues: result,
+        success: true,
+      });
     }
 
     return { message: 'Return deleted successfully' };

@@ -39,7 +39,10 @@ export class SalesController {
 
   @Get('statistics')
   @Roles(Role.MANAGER, Role.ADMIN)
-  async getStatistics(@Query('startDate') startDate?: string, @Query('endDate') endDate?: string) {
+  async getStatistics(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
     return this.salesService.getStatistics(startDate, endDate);
   }
 
@@ -61,8 +64,10 @@ export class SalesController {
 
   @Delete(':id')
   @Roles(Role.MANAGER, Role.ADMIN)
-  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
     return this.salesService.remove(id, user.id);
   }
 }
-

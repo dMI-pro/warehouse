@@ -80,8 +80,18 @@ export class ProductsController {
     @Param('id', ParseIntPipe) id: number,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @CurrentUser() user?: User,
   ) {
-    return this.productsService.getHistory(id, page ?? 1, limit ?? 50);
+    console.log(`[DEBUG] Getting history for product ${id}, user: ${user?.id}`);
+    const result = await this.productsService.getHistory(
+      id,
+      page ?? 1,
+      limit ?? 50,
+    );
+    console.log(
+      `[DEBUG] Found ${result.meta.total} history records for product ${id}`,
+    );
+    return result;
   }
 
   @Post(':id/images')
@@ -130,4 +140,3 @@ export class ProductsController {
     return this.productsService.reorderImages(id, images);
   }
 }
-

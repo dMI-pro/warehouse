@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { TransactionTypesService } from './transaction-types.service';
 import { CreateTransactionTypeDto } from './dto/create-transaction-type.dto';
 import { UpdateTransactionTypeDto } from './dto/update-transaction-type.dto';
@@ -11,7 +21,9 @@ import { Public } from '../common/decorators/public.decorator';
 @Controller('transaction-types')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TransactionTypesController {
-  constructor(private readonly transactionTypesService: TransactionTypesService) {}
+  constructor(
+    private readonly transactionTypesService: TransactionTypesService,
+  ) {}
 
   @Post()
   @Roles(Role.MANAGER, Role.ADMIN)
@@ -33,7 +45,10 @@ export class TransactionTypesController {
 
   @Patch(':id')
   @Roles(Role.MANAGER, Role.ADMIN)
-  async update(@Param('id', ParseIntPipe) id: number, @Body() updateDto: UpdateTransactionTypeDto) {
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateDto: UpdateTransactionTypeDto,
+  ) {
     return this.transactionTypesService.update(id, updateDto);
   }
 
@@ -43,4 +58,3 @@ export class TransactionTypesController {
     return this.transactionTypesService.remove(id);
   }
 }
-

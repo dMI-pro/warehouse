@@ -1,4 +1,11 @@
-import { IsOptional, IsString, IsInt, Min, Max, MaxLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsInt,
+  Min,
+  Max,
+  MaxLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QueryProductsDto {
@@ -39,4 +46,3 @@ export class QueryProductsDto {
   @IsOptional()
   limit?: number = 10;
 }
-

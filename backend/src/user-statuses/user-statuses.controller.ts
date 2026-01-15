@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { UserStatusesService } from './user-statuses.service';
 import { CreateUserStatusDto } from './dto/create-user-status.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
@@ -16,7 +26,10 @@ export class UserStatusesController {
 
   @Post()
   @Roles(Role.ADMIN)
-  create(@Body() createUserStatusDto: CreateUserStatusDto, @CurrentUser() user: User) {
+  create(
+    @Body() createUserStatusDto: CreateUserStatusDto,
+    @CurrentUser() user: User,
+  ) {
     return this.userStatusesService.create(createUserStatusDto, user.id);
   }
 
@@ -33,9 +46,9 @@ export class UserStatusesController {
   @Patch(':id')
   @Roles(Role.ADMIN)
   update(
-    @Param('id', ParseIntPipe) id: number, 
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateUserStatusDto: UpdateUserStatusDto,
-    @CurrentUser() user: User
+    @CurrentUser() user: User,
   ) {
     return this.userStatusesService.update(id, updateUserStatusDto, user.id);
   }

@@ -11,13 +11,25 @@ export class MinioService implements OnModuleInit {
   private readonly logger = new Logger(MinioService.name);
 
   constructor(private configService: ConfigService) {
-    this.bucketName = this.configService.get<string>('MINIO_BUCKET', 'antiquar-products');
-    
-    const endPoint = this.configService.get<string>('MINIO_ENDPOINT', 'localhost');
+    this.bucketName = this.configService.get<string>(
+      'MINIO_BUCKET',
+      'antiquar-products',
+    );
+
+    const endPoint = this.configService.get<string>(
+      'MINIO_ENDPOINT',
+      'localhost',
+    );
     const port = parseInt(this.configService.get<string>('MINIO_PORT', '9000'));
     const useSSL = this.configService.get<string>('MINIO_USE_SSL') === 'true';
-    const accessKey = this.configService.get<string>('MINIO_ACCESS_KEY', 'minioadmin');
-    const secretKey = this.configService.get<string>('MINIO_SECRET_KEY', 'minioadmin');
+    const accessKey = this.configService.get<string>(
+      'MINIO_ACCESS_KEY',
+      'minioadmin',
+    );
+    const secretKey = this.configService.get<string>(
+      'MINIO_SECRET_KEY',
+      'minioadmin',
+    );
 
     this.minioClient = new Minio.Client({
       endPoint,
@@ -37,7 +49,7 @@ export class MinioService implements OnModuleInit {
       const bucketExists = await this.minioClient.bucketExists(this.bucketName);
       if (!bucketExists) {
         await this.minioClient.makeBucket(this.bucketName, 'us-east-1');
-        
+
         // Set public read policy
         const policy = {
           Version: '2012-10-17',
@@ -50,16 +62,27 @@ export class MinioService implements OnModuleInit {
             },
           ],
         };
-        await this.minioClient.setBucketPolicy(this.bucketName, JSON.stringify(policy));
-        
-        this.logger.log(`Bucket ${this.bucketName} created successfully with public read policy.`);
+        await this.minioClient.setBucketPolicy(
+          this.bucketName,
+          JSON.stringify(policy),
+        );
+
+        this.logger.log(
+          `Bucket ${this.bucketName} created successfully with public read policy.`,
+        );
       }
     } catch (err) {
-      this.logger.error(`Error checking/creating bucket: ${err.message}`, err.stack);
+      this.logger.error(
+        `Error checking/creating bucket: ${err.message}`,
+        err.stack,
+      );
     }
   }
 
-  async uploadFile(file: Express.Multer.File, folder: string = 'products'): Promise<string> {
+  async uploadFile(
+    file: Express.Multer.File,
+    folder: string = 'products',
+  ): Promise<string> {
     const fileExt = path.extname(file.originalname);
     const fileName = `${folder}/${uuidv4()}${fileExt}`;
     const metaData = {
@@ -74,7 +97,7 @@ export class MinioService implements OnModuleInit {
         file.size,
         metaData,
       );
-      
+
       return fileName;
     } catch (err) {
       this.logger.error(`Error uploading file: ${err.message}`, err.stack);
@@ -92,7 +115,10 @@ export class MinioService implements OnModuleInit {
   }
 
   getPublicUrl(fileName: string): string {
-    const publicUrl = this.configService.get<string>('MINIO_PUBLIC_URL', 'http://localhost:9000');
+    const publicUrl = this.configService.get<string>(
+      'MINIO_PUBLIC_URL',
+      'http://localhost:9000',
+    );
     return `${publicUrl}/${this.bucketName}/${fileName}`;
   }
 }

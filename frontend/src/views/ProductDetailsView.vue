@@ -470,17 +470,25 @@
             <p v-if="selectedLog.ipAddress"><strong>IP адрес:</strong> {{ selectedLog.ipAddress }}</p>
             <p v-if="selectedLog.userAgent"><strong>User Agent:</strong> {{ selectedLog.userAgent }}</p>
           </div>
-          <div v-if="selectedLog.oldValues || selectedLog.newValues" class="detail-section">
+          <div v-if="selectedLogChanges.length" class="detail-section">
             <h4>Изменения</h4>
-            <div class="changes">
-              <div v-if="selectedLog.oldValues" class="change-item">
-                <strong>Было:</strong>
-                <pre>{{ JSON.stringify(selectedLog.oldValues, null, 2) }}</pre>
-              </div>
-              <div v-if="selectedLog.newValues" class="change-item">
-                <strong>Стало:</strong>
-                <pre>{{ JSON.stringify(selectedLog.newValues, null, 2) }}</pre>
-              </div>
+            <div class="changes-table-wrapper">
+              <table class="changes-table">
+                <thead>
+                  <tr>
+                    <th>Поле</th>
+                    <th>Было</th>
+                    <th>Стало</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="change in selectedLogChanges" :key="change.key">
+                    <td class="change-key">{{ change.key }}</td>
+                    <td class="change-old">{{ change.old }}</td>
+                    <td class="change-new">{{ change.new }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -540,6 +548,7 @@ const productLogs = ref<AuditLog[]>([]);
 const logsLoading = ref(false);
 const detailsDialogVisible = ref(false);
 const selectedLog = ref<AuditLog | null>(null);
+const selectedLogChanges = ref<Array<{ key: string; old: string; new: string }>>([]);
 
 // Form State
 const form = reactive({
@@ -806,9 +815,16 @@ const saveImageOrder = async () => {
 const fetchProductLogs = async () => {
   logsLoading.value = true;
   try {
-    const logs = await apiService.getProductHistory(productId, 1, 100);
-    productLogs.value = logs;
-  } catch (e) {
+    const response = await apiService.getProductHistory(productId, 1, 100);
+    productLogs.value = response.data;
+  } catch (e: any) {
+    console.error('Ошибка загрузки истории:', e);
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Ошибка', 
+      detail: `Не удалось загрузить историю: ${e.message}`, 
+      life: 3000 
+    });
   } finally {
     logsLoading.value = false;
   }
@@ -839,8 +855,46 @@ const getActionLabel = (action: string): string => {
   return map[action] || action;
 };
 
+const buildChanges = (log: AuditLog | null) => {
+  const result: Array<{ key: string; old: string; new: string }> = [];
+  if (!log) {
+    return result;
+  }
+  const oldValues = (log.oldValues || {}) as Record<string, any>;
+  const newValues = (log.newValues || {}) as Record<string, any>;
+  const keys = new Set<string>([
+    ...Object.keys(oldValues || {}),
+    ...Object.keys(newValues || {}),
+  ]);
+  const formatValue = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return String(value);
+  };
+  keys.forEach((key) => {
+    const oldVal = oldValues ? oldValues[key] : undefined;
+    const newVal = newValues ? newValues[key] : undefined;
+    if (oldVal === undefined && newVal === undefined) {
+      return;
+    }
+    result.push({
+      key,
+      old: formatValue(oldVal),
+      new: formatValue(newVal),
+    });
+  });
+  return result;
+};
+
 const showDetails = (log: AuditLog) => {
   selectedLog.value = log;
+  selectedLogChanges.value = buildChanges(log);
   detailsDialogVisible.value = true;
 };
 </script>

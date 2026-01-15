@@ -17,18 +17,53 @@ export interface CreateAuditLogDto {
 export class AuditLogService {
   constructor(private prisma: PrismaService) {}
 
+  private sanitizeValues(value: any): any {
+    if (value === null || value === undefined) {
+      return value;
+    }
+    if (typeof value !== 'object') {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => this.sanitizeValues(item));
+    }
+    const result: any = {};
+    for (const [key, val] of Object.entries(value)) {
+      const lowerKey = key.toLowerCase();
+      if (
+        lowerKey === 'password' ||
+        lowerKey.includes('password') ||
+        lowerKey.includes('token') ||
+        lowerKey.includes('secret')
+      ) {
+        continue;
+      }
+      result[key] = this.sanitizeValues(val);
+    }
+    return result;
+  }
+
   async create(dto: CreateAuditLogDto) {
+    const rawOld = dto.oldValues
+      ? JSON.parse(JSON.stringify(dto.oldValues))
+      : null;
+    const rawNew = dto.newValues
+      ? JSON.parse(JSON.stringify(dto.newValues))
+      : null;
+    const oldValues = rawOld ? this.sanitizeValues(rawOld) : null;
+    const newValues = rawNew ? this.sanitizeValues(rawNew) : null;
+
     return this.prisma.auditLog.create({
       data: {
         userId: dto.userId,
         action: dto.action,
         entityType: dto.entityType,
         entityId: dto.entityId,
-        oldValues: dto.oldValues ? JSON.parse(JSON.stringify(dto.oldValues)) : null,
-        newValues: dto.newValues ? JSON.parse(JSON.stringify(dto.newValues)) : null,
+        oldValues,
+        newValues,
         ipAddress: dto.ipAddress,
         userAgent: dto.userAgent,
-        success: dto.success,
+        success: dto.success ?? true,
       },
       include: {
         user: {
@@ -53,7 +88,16 @@ export class AuditLogService {
     page?: number;
     limit?: number;
   }) {
-    const { userId, action, entityType, entityId, startDate, endDate, page = 1, limit = 20 } = params || {};
+    const {
+      userId,
+      action,
+      entityType,
+      entityId,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 20,
+    } = params || {};
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -117,4 +161,3 @@ export class AuditLogService {
     };
   }
 }
-

@@ -6,4 +6,3 @@ export class UpdateTransactionTypeDto {
   @MaxLength(255)
   name?: string;
 }
-

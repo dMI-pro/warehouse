@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { UpdateSaleDto } from './dto/update-sale.dto';
@@ -19,13 +25,15 @@ export class SalesService {
     // Транзакция: проверка товара с блокировкой строки, создание продажи и уменьшение остатка
     const result = await this.prisma.$transaction(async (tx) => {
       // Используем raw query с SELECT FOR UPDATE для блокировки строки и предотвращения race condition
-      const productResult = await tx.$queryRaw<Array<{
-        id: number;
-        name: string;
-        sku: string;
-        salePrice: number;
-        quantity: number;
-      }>>`
+      const productResult = await tx.$queryRaw<
+        Array<{
+          id: number;
+          name: string;
+          sku: string;
+          salePrice: number;
+          quantity: number;
+        }>
+      >`
         SELECT id, name, sku, "salePrice", quantity
         FROM products
         WHERE id = ${createSaleDto.productId}
@@ -33,7 +41,9 @@ export class SalesService {
       `;
 
       if (!productResult || productResult.length === 0) {
-        throw new NotFoundException(`Product with ID ${createSaleDto.productId} not found`);
+        throw new NotFoundException(
+          `Product with ID ${createSaleDto.productId} not found`,
+        );
       }
 
       const product = productResult[0];
@@ -84,36 +94,43 @@ export class SalesService {
       });
 
       // Log action
-      // Note: We can't use this.auditLogService inside transaction if it uses PrismaService. 
-      // AuditLogService uses PrismaService. 
+      // Note: We can't use this.auditLogService inside transaction if it uses PrismaService.
+      // AuditLogService uses PrismaService.
       // But we can call it after transaction or inside if we don't care about transactional integrity of the log (usually fine).
       // Or we can manually create audit log inside transaction.
       // To keep it simple and consistent, we'll log AFTER transaction.
       // But we need to return sale first.
-      
+
       return sale;
     });
 
     if (userId) {
-        await this.auditLogService.create({
-            userId,
-            action: 'sale.create',
-            entityType: 'Sale',
-            entityId: result.id,
-            newValues: {
-                productId: result.productId,
-                quantity: result.quantity,
-                salePrice: result.salePrice,
-            },
-            success: true
-        });
+      await this.auditLogService.create({
+        userId,
+        action: 'sale.create',
+        entityType: 'Sale',
+        entityId: result.id,
+        newValues: {
+          productId: result.productId,
+          quantity: result.quantity,
+          salePrice: result.salePrice,
+        },
+        success: true,
+      });
     }
 
     return result;
   }
 
   async findAll(query: QuerySalesDto) {
-    const { productId, soldBy, startDate, endDate, page = 1, limit = 10 } = query;
+    const {
+      productId,
+      soldBy,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 10,
+    } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.SaleWhereInput = {};
@@ -245,14 +262,22 @@ export class SalesService {
         throw new NotFoundException(`Sale with ID ${id} not found`);
       }
 
-      if (updateSaleDto.productId !== undefined && updateSaleDto.productId !== existingSale.productId) {
+      if (
+        updateSaleDto.productId !== undefined &&
+        updateSaleDto.productId !== existingSale.productId
+      ) {
         throw new BadRequestException('Changing product ID is not allowed');
       }
 
-      if (updateSaleDto.quantity !== undefined && updateSaleDto.quantity !== existingSale.quantity) {
+      if (
+        updateSaleDto.quantity !== undefined &&
+        updateSaleDto.quantity !== existingSale.quantity
+      ) {
         const diff = updateSaleDto.quantity - existingSale.quantity;
 
-        const productResult = await tx.$queryRaw<Array<{ id: number; quantity: number }>>`
+        const productResult = await tx.$queryRaw<
+          Array<{ id: number; quantity: number }>
+        >`
           SELECT id, quantity
           FROM products
           WHERE id = ${existingSale.productId}
@@ -260,7 +285,9 @@ export class SalesService {
         `;
 
         if (!productResult || productResult.length === 0) {
-          throw new NotFoundException(`Product with ID ${existingSale.productId} not found`);
+          throw new NotFoundException(
+            `Product with ID ${existingSale.productId} not found`,
+          );
         }
         const product = productResult[0];
 
@@ -307,41 +334,42 @@ export class SalesService {
     });
 
     if (userId) {
-        const oldValues: any = {};
-        const newValues: any = {};
-        const { existingSale, updatedSale } = result;
+      const oldValues: any = {};
+      const newValues: any = {};
+      const { existingSale, updatedSale } = result;
 
-        Object.keys(updateSaleDto).forEach(key => {
-            const k = key as keyof UpdateSaleDto;
-            if ((existingSale as any)[k] !== (updatedSale as any)[k]) { // Wait, updateSaleDto might not have all fields. updatedSale has.
-                 // Correct logic: Compare existing vs updated
-                 const val1 = (existingSale as any)[k];
-                 const val2 = (updatedSale as any)[k];
-                 // Note: dates might need better comparison
-                 if (JSON.stringify(val1) !== JSON.stringify(val2)) {
-                     oldValues[k] = val1;
-                     newValues[k] = val2;
-                 }
-            }
-        });
-        
-        // Also check if quantity changed, it affects stock, maybe log that too? 
-        // But product update log is separate (handled by ProductsService if called directly, but here we use prisma transaction which bypasses ProductsService logic unless we call it).
-        // Since we modify product table directly, ProductsService logging is NOT triggered.
-        // We should log product quantity change here too or as a side effect?
-        // Let's just log sale update.
-        
-        if (Object.keys(newValues).length > 0) {
-            await this.auditLogService.create({
-                userId,
-                action: 'sale.update',
-                entityType: 'Sale',
-                entityId: id,
-                oldValues,
-                newValues,
-                success: true
-            });
+      Object.keys(updateSaleDto).forEach((key) => {
+        const k = key as keyof UpdateSaleDto;
+        if ((existingSale as any)[k] !== (updatedSale as any)[k]) {
+          // Wait, updateSaleDto might not have all fields. updatedSale has.
+          // Correct logic: Compare existing vs updated
+          const val1 = (existingSale as any)[k];
+          const val2 = (updatedSale as any)[k];
+          // Note: dates might need better comparison
+          if (JSON.stringify(val1) !== JSON.stringify(val2)) {
+            oldValues[k] = val1;
+            newValues[k] = val2;
+          }
         }
+      });
+
+      // Also check if quantity changed, it affects stock, maybe log that too?
+      // But product update log is separate (handled by ProductsService if called directly, but here we use prisma transaction which bypasses ProductsService logic unless we call it).
+      // Since we modify product table directly, ProductsService logging is NOT triggered.
+      // We should log product quantity change here too or as a side effect?
+      // Let's just log sale update.
+
+      if (Object.keys(newValues).length > 0) {
+        await this.auditLogService.create({
+          userId,
+          action: 'sale.update',
+          entityType: 'Sale',
+          entityId: id,
+          oldValues,
+          newValues,
+          success: true,
+        });
+      }
     }
 
     return result.updatedSale;
@@ -378,17 +406,16 @@ export class SalesService {
     });
 
     if (userId) {
-        await this.auditLogService.create({
-            userId,
-            action: 'sale.delete',
-            entityType: 'Sale',
-            entityId: id,
-            oldValues: result,
-            success: true
-        });
+      await this.auditLogService.create({
+        userId,
+        action: 'sale.delete',
+        entityType: 'Sale',
+        entityId: id,
+        oldValues: result,
+        success: true,
+      });
     }
 
     return result;
   }
 }
-

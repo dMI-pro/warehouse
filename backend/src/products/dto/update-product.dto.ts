@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsNumber, IsArray, Min, IsInt, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsArray,
+  Min,
+  IsInt,
+  MaxLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateProductDto {
@@ -70,4 +78,3 @@ export class UpdateProductDto {
   @IsOptional()
   images?: string[];
 }
-
