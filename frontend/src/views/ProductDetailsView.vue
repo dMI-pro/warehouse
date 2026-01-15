@@ -806,36 +806,8 @@ const saveImageOrder = async () => {
 const fetchProductLogs = async () => {
   logsLoading.value = true;
   try {
-    const [productResp, saleResp, returnResp] = await Promise.all([
-      apiService.getAuditLogs({
-        entityType: 'Product',
-        entityId: productId,
-        page: 1,
-        limit: 50,
-      }),
-      apiService.getAuditLogs({
-        entityType: 'Sale',
-        page: 1,
-        limit: 100,
-      }),
-      apiService.getAuditLogs({
-        entityType: 'Return',
-        page: 1,
-        limit: 100,
-      }),
-    ]);
-
-    const productLogsPart = (productResp as PaginatedResponse<AuditLog>).data;
-    const saleLogsPart = (saleResp as PaginatedResponse<AuditLog>).data.filter(
-      (log) => (log.newValues?.productId ?? log.oldValues?.productId) === productId
-    );
-    const returnLogsPart = (returnResp as PaginatedResponse<AuditLog>).data.filter(
-      (log) => (log.newValues?.productId ?? log.oldValues?.productId) === productId
-    );
-
-    const merged = [...productLogsPart, ...saleLogsPart, ...returnLogsPart];
-    merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    productLogs.value = merged;
+    const logs = await apiService.getProductHistory(productId, 1, 100);
+    productLogs.value = logs;
   } catch (e) {
   } finally {
     logsLoading.value = false;

@@ -380,6 +380,69 @@ export class ProductsService {
     return products.map(p => this.mapProduct(p));
   }
 
+  async getHistory(productId: number, page: number = 1, limit: number = 50) {
+    const skip = (page - 1) * limit;
+    const rows: any[] = await this.prisma.$queryRawUnsafe<any[]>(
+      `
+      SELECT 
+        a."id",
+        a."userId",
+        a."action",
+        a."entityType",
+        a."entityId",
+        a."oldValues",
+        a."newValues",
+        a."ipAddress",
+        a."userAgent",
+        a."success",
+        a."createdAt",
+        u."id" as "user_id",
+        u."username" as "user_username",
+        u."fullName" as "user_fullName",
+        u."role" as "user_role"
+      FROM "audit_logs" a
+      LEFT JOIN "users" u ON u."id" = a."userId"
+      WHERE 
+        (a."entityType" = 'Product' AND a."entityId" = $1)
+        OR (
+          a."entityType" IN ('Sale','Return') AND (
+            (a."oldValues"->>'productId')::int = $1
+            OR (a."newValues"->>'productId')::int = $1
+          )
+        )
+      ORDER BY a."createdAt" DESC
+      LIMIT $2 OFFSET $3
+      `,
+      productId,
+      limit,
+      skip,
+    );
+
+    const data = rows.map((r) => ({
+      id: r.id,
+      userId: r.userId ?? undefined,
+      user: r.user_id
+        ? {
+            id: r.user_id,
+            username: r.user_username,
+            fullName: r.user_fullName,
+            role: r.user_role,
+          }
+        : undefined,
+      action: r.action,
+      entityType: r.entityType ?? undefined,
+      entityId: r.entityId ?? undefined,
+      oldValues: r.oldValues ?? undefined,
+      newValues: r.newValues ?? undefined,
+      ipAddress: r.ipAddress ?? undefined,
+      userAgent: r.userAgent ?? undefined,
+      success: r.success ?? undefined,
+      createdAt: r.createdAt,
+    }));
+
+    return data;
+  }
+
   async remove(id: number, userId: number) {
     const product = await this.prisma.product.findUnique({
       where: { id },

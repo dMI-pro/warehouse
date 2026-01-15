@@ -280,6 +280,13 @@ class ApiService {
     return response.data;
   }
 
+  async getProductHistory(id: number, page?: number, limit?: number): Promise<AuditLog[]> {
+    const response = await this.api.get<AuditLog[]>(`/products/${id}/history`, {
+      params: { page, limit },
+    });
+    return response.data;
+  }
+
   async getCommitteeStatistics(id: number, startDate?: string, endDate?: string): Promise<any> {
     const response = await this.api.get<any>(`/committees/${id}/stats`, {
       params: { startDate, endDate },
