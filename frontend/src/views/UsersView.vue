@@ -51,8 +51,8 @@
             <Column field="isActive" header="Статус" :sortable="false">
               <template #body="{ data }">
                 <Tag
-                  :value="data.status.name"
-                  :severity="getUserStatusColor(data.status.code)"
+                  :value="data.status?.name"
+                  :severity="getUserStatusColor(data.status?.code)"
                 />
               </template>
             </Column>
@@ -145,9 +145,25 @@
                 Нет данных о действиях
               </div>
               <div v-else class="history-list">
-                <div v-for="(action, index) in userHistory" :key="index" class="history-item">
+                <div
+                  v-for="(action, index) in userHistory"
+                  :key="index"
+                  class="history-item"
+                >
                   <div class="history-time">{{ formatDateTime(action.createdAt) }}</div>
-                  <div class="history-action">{{ action.action }}</div>
+                  <div class="history-action-row">
+                    <div class="history-action-text">
+                      {{ getUserActionLabel(action.action) }}
+                    </div>
+                    <Button
+                      v-if="action.oldValues || action.newValues"
+                      label="Подробно"
+                      icon="pi pi-eye"
+                      text
+                      size="small"
+                      @click="showHistoryDetails(action)"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -237,6 +253,50 @@
 
     <!-- Диалог подтверждения сброса пароля -->
     <ConfirmDialog />
+
+    <Dialog
+      v-model:visible="historyDetailsVisible"
+      header="Подробности действия пользователя"
+      :modal="true"
+      :style="{ width: '600px' }"
+    >
+      <div v-if="selectedHistoryLog" class="details-content">
+        <div class="detail-section">
+          <h4>Действие</h4>
+          <p>{{ getUserActionLabel(selectedHistoryLog.action) }}</p>
+        </div>
+        <div class="detail-section">
+          <h4>Время</h4>
+          <p>{{ formatDateTime(selectedHistoryLog.createdAt) }}</p>
+        </div>
+        <div v-if="selectedHistoryLog.ipAddress || selectedHistoryLog.userAgent" class="detail-section">
+          <h4>Информация о подключении</h4>
+          <p v-if="selectedHistoryLog.ipAddress"><strong>IP адрес:</strong> {{ selectedHistoryLog.ipAddress }}</p>
+          <p v-if="selectedHistoryLog.userAgent"><strong>User Agent:</strong> {{ selectedHistoryLog.userAgent }}</p>
+        </div>
+        <div v-if="selectedHistoryChanges.length" class="detail-section">
+          <h4>Изменения</h4>
+          <div class="changes-table-wrapper">
+            <table class="changes-table">
+              <thead>
+                <tr>
+                  <th>Поле</th>
+                  <th>Было</th>
+                  <th>Стало</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="change in selectedHistoryChanges" :key="change.key">
+                  <td class="change-key">{{ change.key }}</td>
+                  <td class="change-old">{{ change.old }}</td>
+                  <td class="change-new">{{ change.new }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 
@@ -304,6 +364,9 @@ const statusOptions = computed(() => {
 });
 
 const userHistory = ref<AuditLog[]>([]);
+const historyDetailsVisible = ref(false);
+const selectedHistoryLog = ref<AuditLog | null>(null);
+const selectedHistoryChanges = ref<Array<{ key: string; old: string; new: string }>>([]);
 
 const getRoleName = (role: Role): string => {
   const roleNames: Record<Role, string> = {
@@ -390,6 +453,49 @@ const loadUserHistory = async (userId: number) => {
   } catch (e) {
     userHistory.value = [];
   }
+};
+
+const buildHistoryChanges = (log: AuditLog | null) => {
+  const result: Array<{ key: string; old: string; new: string }> = [];
+  if (!log) {
+    return result;
+  }
+  const oldValues = (log.oldValues || {}) as Record<string, any>;
+  const newValues = (log.newValues || {}) as Record<string, any>;
+  const keys = new Set<string>([
+    ...Object.keys(oldValues || {}),
+    ...Object.keys(newValues || {}),
+  ]);
+  const formatValue = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return String(value);
+  };
+  keys.forEach((key) => {
+    const oldVal = oldValues ? oldValues[key] : undefined;
+    const newVal = newValues ? newValues[key] : undefined;
+    if (oldVal === undefined && newVal === undefined) {
+      return;
+    }
+    result.push({
+      key,
+      old: formatValue(oldVal),
+      new: formatValue(newVal),
+    });
+  });
+  return result;
+};
+
+const showHistoryDetails = (log: AuditLog) => {
+  selectedHistoryLog.value = log;
+  selectedHistoryChanges.value = buildHistoryChanges(log);
+  historyDetailsVisible.value = true;
 };
 
 const openAddUserDialog = () => {
@@ -677,6 +783,53 @@ const getUserActionLabel = (action: string): string => {
 .history-action {
   font-size: 0.875rem;
   color: var(--text-color);
+}
+
+.history-action-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.history-action-text {
+  flex: 1;
+}
+
+.changes-table-wrapper {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.changes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.changes-table th,
+.changes-table td {
+  border: 1px solid var(--surface-border);
+  padding: 0.5rem;
+  vertical-align: top;
+}
+
+.changes-table th {
+  background: var(--surface-50);
+  font-weight: 600;
+}
+
+.change-key {
+  width: 25%;
+  font-weight: 500;
+}
+
+.change-old {
+  width: 37.5%;
+}
+
+.change-new {
+  width: 37.5%;
 }
 
 .user-form {

@@ -34,7 +34,8 @@ export async function compressImage(
     const metadata = await image.metadata();
 
     // Определяем формат, если не указан
-    const outputFormat = opts.format || (metadata.format === 'png' ? 'png' : 'jpeg');
+    const outputFormat =
+      opts.format || (metadata.format === 'png' ? 'png' : 'jpeg');
 
     // Изменяем размер, если нужно
     if (metadata.width && metadata.height) {
@@ -78,7 +79,9 @@ export async function compressImage(
       if (outputFormat === 'webp') {
         compressedBuffer = await image.webp({ quality, effort: 6 }).toBuffer();
       } else if (outputFormat === 'jpeg') {
-        compressedBuffer = await image.jpeg({ quality, mozjpeg: true }).toBuffer();
+        compressedBuffer = await image
+          .jpeg({ quality, mozjpeg: true })
+          .toBuffer();
       } else {
         break; // PNG не сжимается с потерей качества
       }
@@ -86,7 +89,9 @@ export async function compressImage(
 
     return compressedBuffer;
   } catch (error) {
-    throw new BadRequestException(`Ошибка обработки изображения: ${error.message}`);
+    throw new BadRequestException(
+      `Ошибка обработки изображения: ${error.message}`,
+    );
   }
 }
 
@@ -126,4 +131,3 @@ export async function createThumbnail(
     .webp({ quality: 80 })
     .toBuffer();
 }
-

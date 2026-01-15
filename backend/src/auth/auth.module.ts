@@ -12,7 +12,9 @@ if (!jwtSecret && process.env.NODE_ENV === 'production') {
   throw new Error('JWT_SECRET environment variable is required in production');
 }
 if (jwtSecret && jwtSecret.length < 32) {
-  console.warn('WARNING: JWT_SECRET should be at least 32 characters long for security');
+  console.warn(
+    'WARNING: JWT_SECRET should be at least 32 characters long for security',
+  );
 }
 
 const jwtExpiresIn: string = process.env.JWT_EXPIRES_IN || '1h';
@@ -31,4 +33,3 @@ const jwtExpiresIn: string = process.env.JWT_EXPIRES_IN || '1h';
   exports: [AuthService],
 })
 export class AuthModule {}
-

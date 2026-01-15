@@ -14,17 +14,19 @@ async function bootstrap() {
   app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   // Security headers
-  app.use(helmet({
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+        },
       },
-    },
-  }));
+    }),
+  );
 
   // Настройка статической раздачи файлов для загрузки изображений
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
@@ -44,15 +46,18 @@ async function bootstrap() {
   );
 
   // Включение CORS для фронтенда и API клиентов
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? (process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : ['http://localhost:5173'])
-    : [
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://127.0.0.1:5173',
-        'http://127.0.0.1:3000',
-      ];
+  const allowedOrigins =
+    process.env.NODE_ENV === 'production'
+      ? process.env.FRONTEND_URL
+        ? [process.env.FRONTEND_URL]
+        : ['http://localhost:5173']
+      : [
+          'http://localhost:5173',
+          'http://localhost:3000',
+          'http://localhost:3001',
+          'http://127.0.0.1:5173',
+          'http://127.0.0.1:3000',
+        ];
 
   app.enableCors({
     origin: (origin, callback) => {

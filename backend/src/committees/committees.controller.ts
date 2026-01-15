@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { CommitteesService } from './committees.service';
 import { CreateCommitteeDto } from './dto/create-committee.dto';
 import { UpdateCommitteeDto } from './dto/update-committee.dto';
@@ -16,7 +27,10 @@ export class CommitteesController {
 
   @Post()
   @Roles(Role.MANAGER, Role.ADMIN)
-  async create(@Body() createCommitteeDto: CreateCommitteeDto, @CurrentUser() user: any) {
+  async create(
+    @Body() createCommitteeDto: CreateCommitteeDto,
+    @CurrentUser() user: any,
+  ) {
     return this.committeesService.create(createCommitteeDto, user.id);
   }
 
@@ -44,14 +58,20 @@ export class CommitteesController {
 
   @Patch(':id')
   @Roles(Role.MANAGER, Role.ADMIN)
-  async update(@Param('id', ParseIntPipe) id: number, @Body() updateCommitteeDto: UpdateCommitteeDto, @CurrentUser() user: any) {
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateCommitteeDto: UpdateCommitteeDto,
+    @CurrentUser() user: any,
+  ) {
     return this.committeesService.update(id, updateCommitteeDto, user.id);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN)
-  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
     return this.committeesService.remove(id, user.id);
   }
 }
-

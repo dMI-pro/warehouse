@@ -17,7 +17,8 @@ export class CreateUserStatusDto {
   @IsNotEmpty()
   @MaxLength(50)
   @Matches(/^[a-z][a-z0-9_]*$/, {
-    message: 'Code must contain only lowercase letters, numbers, and underscores, and start with a letter',
+    message:
+      'Code must contain only lowercase letters, numbers, and underscores, and start with a letter',
   })
   code: string;
 

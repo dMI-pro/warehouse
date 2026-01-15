@@ -20,7 +20,10 @@ export class AuthController {
   @Public()
   @Post('login')
   async login(@Body() loginDto: LoginDto, @Req() req: Request) {
-    const ipAddress = req.ip || (req.headers['x-forwarded-for'] as string) || req.connection.remoteAddress;
+    const ipAddress =
+      req.ip ||
+      (req.headers['x-forwarded-for'] as string) ||
+      req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'];
     return this.authService.login(loginDto, ipAddress, userAgent);
   }
@@ -31,4 +34,3 @@ export class AuthController {
     return user;
   }
 }
-

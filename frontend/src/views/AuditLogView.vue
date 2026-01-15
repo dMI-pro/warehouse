@@ -141,38 +141,46 @@
       :modal="true"
       :style="{ width: '600px' }"
     >
-      <div v-if="selectedLog" class="details-content">
-        <div class="detail-section">
-          <h4>Действие</h4>
-          <p>{{ getActionLabel(selectedLog.action) }}</p>
-        </div>
-        <div class="detail-section">
-          <h4>Пользователь</h4>
-          <p>{{ selectedLog.user.fullName || selectedLog.user.username }}</p>
-        </div>
-        <div class="detail-section">
-          <h4>Время</h4>
-          <p>{{ formatDateTime(selectedLog.createdAt) }}</p>
-        </div>
-        <div v-if="selectedLog.ipAddress || selectedLog.userAgent" class="detail-section">
-          <h4>Информация о подключении</h4>
-          <p v-if="selectedLog.ipAddress"><strong>IP адрес:</strong> {{ selectedLog.ipAddress }}</p>
-          <p v-if="selectedLog.userAgent"><strong>User Agent:</strong> {{ selectedLog.userAgent }}</p>
-        </div>
-        <div v-if="selectedLog.oldValues || selectedLog.newValues" class="detail-section">
-          <h4>Изменения</h4>
-          <div class="changes">
-            <div v-if="selectedLog.oldValues" class="change-item">
-              <strong>Было:</strong>
-              <pre>{{ JSON.stringify(selectedLog.oldValues, null, 2) }}</pre>
-            </div>
-            <div v-if="selectedLog.newValues" class="change-item">
-              <strong>Стало:</strong>
-              <pre>{{ JSON.stringify(selectedLog.newValues, null, 2) }}</pre>
+        <div v-if="selectedLog" class="details-content">
+          <div class="detail-section">
+            <h4>Действие</h4>
+            <p>{{ getActionLabel(selectedLog.action) }}</p>
+          </div>
+          <div class="detail-section">
+            <h4>Пользователь</h4>
+            <p>{{ selectedLog.user.fullName || selectedLog.user.username }}</p>
+          </div>
+          <div class="detail-section">
+            <h4>Время</h4>
+            <p>{{ formatDateTime(selectedLog.createdAt) }}</p>
+          </div>
+          <div v-if="selectedLog.ipAddress || selectedLog.userAgent" class="detail-section">
+            <h4>Информация о подключении</h4>
+            <p v-if="selectedLog.ipAddress"><strong>IP адрес:</strong> {{ selectedLog.ipAddress }}</p>
+            <p v-if="selectedLog.userAgent"><strong>User Agent:</strong> {{ selectedLog.userAgent }}</p>
+          </div>
+          <div v-if="selectedLogChanges.length" class="detail-section">
+            <h4>Изменения</h4>
+            <div class="changes-table-wrapper">
+              <table class="changes-table">
+                <thead>
+                  <tr>
+                    <th>Поле</th>
+                    <th>Было</th>
+                    <th>Стало</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="change in selectedLogChanges" :key="change.key">
+                    <td class="change-key">{{ change.key }}</td>
+                    <td class="change-old">{{ change.old }}</td>
+                    <td class="change-new">{{ change.new }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
-      </div>
     </Dialog>
   </div>
   <div v-else class="audit-log">
@@ -206,6 +214,7 @@ const selectedUser = ref<User | null>(null);
 const userSuggestions = ref<User[]>([]);
 const detailsDialogVisible = ref(false);
 const selectedLog = ref<AuditLog | null>(null);
+const selectedLogChanges = ref<Array<{ key: string; old: string; new: string }>>([]);
 const auditLogs = ref<AuditLog[]>([]);
 const pagination = ref({
   total: 0,
@@ -363,8 +372,46 @@ const applyFilters = async () => {
   await fetchAuditLogs();
 };
 
+const buildChanges = (log: AuditLog | null) => {
+  const result: Array<{ key: string; old: string; new: string }> = [];
+  if (!log) {
+    return result;
+  }
+  const oldValues = (log.oldValues || {}) as Record<string, any>;
+  const newValues = (log.newValues || {}) as Record<string, any>;
+  const keys = new Set<string>([
+    ...Object.keys(oldValues || {}),
+    ...Object.keys(newValues || {}),
+  ]);
+  const formatValue = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return String(value);
+  };
+  keys.forEach((key) => {
+    const oldVal = oldValues ? oldValues[key] : undefined;
+    const newVal = newValues ? newValues[key] : undefined;
+    if (oldVal === undefined && newVal === undefined) {
+      return;
+    }
+    result.push({
+      key,
+      old: formatValue(oldVal),
+      new: formatValue(newVal),
+    });
+  });
+  return result;
+};
+
 const showDetails = (log: AuditLog) => {
   selectedLog.value = log;
+  selectedLogChanges.value = buildChanges(log);
   detailsDialogVisible.value = true;
 };
 
@@ -483,25 +530,40 @@ onMounted(async () => {
   color: var(--text-color);
 }
 
-.changes {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.changes-table-wrapper {
+  max-height: 300px;
+  overflow-y: auto;
 }
 
-.change-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.change-item pre {
-  background: var(--surface-50);
-  padding: 1rem;
-  border-radius: 4px;
-  overflow-x: auto;
+.changes-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 0.875rem;
-  margin: 0;
+}
+
+.changes-table th,
+.changes-table td {
+  border: 1px solid var(--surface-border);
+  padding: 0.5rem;
+  vertical-align: top;
+}
+
+.changes-table th {
+  background: var(--surface-50);
+  font-weight: 600;
+}
+
+.change-key {
+  width: 25%;
+  font-weight: 500;
+}
+
+.change-old {
+  width: 37.5%;
+}
+
+.change-new {
+  width: 37.5%;
 }
 </style>
 

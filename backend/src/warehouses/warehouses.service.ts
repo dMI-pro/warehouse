@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ConflictException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWarehouseDto } from './dto/create-warehouse.dto';
 import { UpdateWarehouseDto } from './dto/update-warehouse.dto';
@@ -85,7 +91,11 @@ export class WarehousesService {
     return warehouse;
   }
 
-  async update(id: number, updateWarehouseDto: UpdateWarehouseDto, userId: number) {
+  async update(
+    id: number,
+    updateWarehouseDto: UpdateWarehouseDto,
+    userId: number,
+  ) {
     const warehouse = await this.prisma.warehouse.findUnique({
       where: { id },
     });
@@ -109,8 +119,8 @@ export class WarehousesService {
     if (userId) {
       const oldValues: any = {};
       const newValues: any = {};
-      
-      Object.keys(updateWarehouseDto).forEach(key => {
+
+      Object.keys(updateWarehouseDto).forEach((key) => {
         const k = key as keyof UpdateWarehouseDto;
         if ((warehouse as any)[k] !== updateWarehouseDto[k]) {
           oldValues[k] = (warehouse as any)[k];
@@ -148,7 +158,9 @@ export class WarehousesService {
 
     // Проверка наличия товаров на складе
     if (warehouse.products.length > 0) {
-      throw new ConflictException('Cannot delete warehouse with associated products');
+      throw new ConflictException(
+        'Cannot delete warehouse with associated products',
+      );
     }
 
     await this.prisma.warehouse.delete({
@@ -169,4 +181,3 @@ export class WarehousesService {
     return { message: 'Warehouse deleted successfully' };
   }
 }
-

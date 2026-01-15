@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ConflictException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserStatusDto } from './dto/create-user-status.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
@@ -18,7 +24,9 @@ export class UserStatusesService {
     });
 
     if (existing) {
-      throw new ConflictException(`Status with code ${createUserStatusDto.code} already exists`);
+      throw new ConflictException(
+        `Status with code ${createUserStatusDto.code} already exists`,
+      );
     }
 
     const status = await this.prisma.userStatus.create({
@@ -57,7 +65,11 @@ export class UserStatusesService {
     return status;
   }
 
-  async update(id: number, updateUserStatusDto: UpdateUserStatusDto, userId: number) {
+  async update(
+    id: number,
+    updateUserStatusDto: UpdateUserStatusDto,
+    userId: number,
+  ) {
     const status = await this.prisma.userStatus.findUnique({
       where: { id },
     });
@@ -71,7 +83,9 @@ export class UserStatusesService {
         where: { code: updateUserStatusDto.code },
       });
       if (existing) {
-        throw new ConflictException(`Status with code ${updateUserStatusDto.code} already exists`);
+        throw new ConflictException(
+          `Status with code ${updateUserStatusDto.code} already exists`,
+        );
       }
     }
 
@@ -85,7 +99,10 @@ export class UserStatusesService {
       const newValues: any = {};
       Object.keys(updateUserStatusDto).forEach((key) => {
         const k = key as keyof UpdateUserStatusDto;
-        if (JSON.stringify((status as any)[k]) !== JSON.stringify(updateUserStatusDto[k])) {
+        if (
+          JSON.stringify((status as any)[k]) !==
+          JSON.stringify(updateUserStatusDto[k])
+        ) {
           oldValues[k] = (status as any)[k];
           newValues[k] = updateUserStatusDto[k];
         }
@@ -122,7 +139,9 @@ export class UserStatusesService {
     });
 
     if (usersCount > 0) {
-      throw new ConflictException('Cannot delete status that is assigned to users');
+      throw new ConflictException(
+        'Cannot delete status that is assigned to users',
+      );
     }
 
     await this.prisma.userStatus.delete({

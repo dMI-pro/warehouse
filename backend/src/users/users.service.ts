@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, ForbiddenException, ConflictException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -24,7 +31,9 @@ export class UsersService {
     });
 
     if (existingUser) {
-      throw new ConflictException('User with this email or username already exists');
+      throw new ConflictException(
+        'User with this email or username already exists',
+      );
     }
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
@@ -34,7 +43,8 @@ export class UsersService {
         ...createUserDto,
         password: hashedPassword,
         // Если статус не передан, ставим ACTIVE по умолчанию
-        userStatusId: createUserDto.userStatusId || (await this.getDefaultStatusId()),
+        userStatusId:
+          createUserDto.userStatusId || (await this.getDefaultStatusId()),
       },
       include: {
         status: true,
@@ -49,10 +59,10 @@ export class UsersService {
         entityType: 'User',
         entityId: user.id,
         newValues: {
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            status: user.status?.code
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          status: user.status?.code,
         },
         success: true,
       });
@@ -123,7 +133,11 @@ export class UsersService {
     }
 
     // Ограничение: админы не могут редактировать других админов (кроме superadmin)
-    if (user.role === 'ADMIN' && currentUser.id !== id && !currentUser.isSuperAdmin) {
+    if (
+      user.role === 'ADMIN' &&
+      currentUser.id !== id &&
+      !currentUser.isSuperAdmin
+    ) {
       throw new ForbiddenException('Admins cannot edit other admins');
     }
 
@@ -136,7 +150,9 @@ export class UsersService {
             {
               OR: [
                 updateUserDto.email ? { email: updateUserDto.email } : {},
-                updateUserDto.username ? { username: updateUserDto.username } : {},
+                updateUserDto.username
+                  ? { username: updateUserDto.username }
+                  : {},
               ],
             },
           ],
@@ -144,13 +160,15 @@ export class UsersService {
       });
 
       if (existingUser) {
-        throw new ConflictException('User with this email or username already exists');
+        throw new ConflictException(
+          'User with this email or username already exists',
+        );
       }
     }
 
-    let dataToUpdate: any = { ...updateUserDto };
+    const dataToUpdate: any = { ...updateUserDto };
     if (updateUserDto.password) {
-        dataToUpdate.password = await bcrypt.hash(updateUserDto.password, 10);
+      dataToUpdate.password = await bcrypt.hash(updateUserDto.password, 10);
     }
 
     // Обновление пользователя
@@ -172,51 +190,56 @@ export class UsersService {
 
     // Log action
     if (currentUser) {
-        const oldValues: any = {};
-        const newValues: any = {};
-        
-        Object.keys(updateUserDto).forEach(key => {
-            const k = key as keyof UpdateUserDto;
-            if (JSON.stringify((user as any)[key]) !== JSON.stringify(updateUserDto[k])) {
-                oldValues[key] = (user as any)[key];
-                newValues[key] = updateUserDto[k];
-            }
-        });
+      const oldValues: any = {};
+      const newValues: any = {};
 
-        if (Object.keys(newValues).length > 0) {
-            await this.auditLogService.create({
-                userId: currentUser.id,
-                action: 'user.update',
-                entityType: 'User',
-                entityId: id,
-                oldValues,
-                newValues,
-                success: true
-            });
+      Object.keys(updateUserDto).forEach((key) => {
+        const k = key as keyof UpdateUserDto;
+        if (
+          JSON.stringify((user as any)[key]) !==
+          JSON.stringify(updateUserDto[k])
+        ) {
+          oldValues[key] = (user as any)[key];
+          newValues[key] = updateUserDto[k];
         }
+      });
+
+      if (Object.keys(newValues).length > 0) {
+        await this.auditLogService.create({
+          userId: currentUser.id,
+          action: 'user.update',
+          entityType: 'User',
+          entityId: id,
+          oldValues,
+          newValues,
+          success: true,
+        });
+      }
     }
 
     return updatedUser;
   }
 
   async remove(id: number, currentUser: any) {
-      const user = await this.prisma.user.findUnique({ where: { id } });
-      if (!user) throw new NotFoundException(`User ${id} not found`);
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException(`User ${id} not found`);
 
-      if (user.isSuperAdmin) throw new ForbiddenException('Cannot delete super admin');
-      if (user.id === currentUser.id) throw new ForbiddenException('Cannot delete yourself');
+    if (user.isSuperAdmin)
+      throw new ForbiddenException('Cannot delete super admin');
+    if (user.id === currentUser.id)
+      throw new ForbiddenException('Cannot delete yourself');
 
-      await this.prisma.user.delete({ where: { id } });
+    await this.prisma.user.delete({ where: { id } });
 
-      await this.auditLogService.create({
-          userId: currentUser.id,
-          action: 'user.delete',
-          entityType: 'User',
-          entityId: id,
-          oldValues: { username: user.username, email: user.email },
-          success: true
-      });
+    await this.auditLogService.create({
+      userId: currentUser.id,
+      action: 'user.delete',
+      entityType: 'User',
+      entityId: id,
+      oldValues: { username: user.username, email: user.email },
+      success: true,
+    });
 
-      return { message: 'User deleted successfully' };
+    return { message: 'User deleted successfully' };
   }
 }

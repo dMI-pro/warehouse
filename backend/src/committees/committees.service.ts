@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ConflictException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommitteeDto } from './dto/create-committee.dto';
 import { UpdateCommitteeDto } from './dto/update-committee.dto';
@@ -111,7 +117,9 @@ export class CommitteesService {
           where: Object.keys(dateFilter).length ? { soldAt: dateFilter } : {},
         },
         returns: {
-          where: Object.keys(dateFilter).length ? { returnedAt: dateFilter } : {},
+          where: Object.keys(dateFilter).length
+            ? { returnedAt: dateFilter }
+            : {},
         },
       },
     });
@@ -132,11 +140,11 @@ export class CommitteesService {
     // Обрабатываем каждый продукт
     for (const product of products) {
       const quantity = product.quantity || 0;
-      
+
       // Основные метрики товаров
       totalPositions++;
       totalItemsQuantity += quantity;
-      
+
       if (quantity > 0) {
         activePositions++;
         activeItemsCount += quantity;
@@ -145,13 +153,13 @@ export class CommitteesService {
       // Продажи
       for (const sale of product.sales) {
         soldItemsCount += sale.quantity;
-        
+
         const salePrice = Number(sale.salePrice) || 0;
         const purchasePrice = Number(product.purchasePrice) || 0;
         const revenue = salePrice * sale.quantity;
         const payout = purchasePrice * sale.quantity;
         const profit = revenue - payout;
-        
+
         totalRevenue += revenue;
         totalPayout += payout;
         totalProfit += profit;
@@ -159,7 +167,13 @@ export class CommitteesService {
         // Daily stats
         const dateKey = sale.soldAt.toISOString().split('T')[0];
         if (!dailyStats[dateKey]) {
-          dailyStats[dateKey] = { sold: 0, returned: 0, revenue: 0, profit: 0, payout: 0 };
+          dailyStats[dateKey] = {
+            sold: 0,
+            returned: 0,
+            revenue: 0,
+            profit: 0,
+            payout: 0,
+          };
         }
         dailyStats[dateKey].sold += sale.quantity;
         dailyStats[dateKey].revenue += revenue;
@@ -170,10 +184,16 @@ export class CommitteesService {
       // Возвраты
       for (const ret of product.returns) {
         returnedItemsCount += ret.quantity;
-        
+
         const dateKey = ret.returnedAt.toISOString().split('T')[0];
         if (!dailyStats[dateKey]) {
-          dailyStats[dateKey] = { sold: 0, returned: 0, revenue: 0, profit: 0, payout: 0 };
+          dailyStats[dateKey] = {
+            sold: 0,
+            returned: 0,
+            revenue: 0,
+            profit: 0,
+            payout: 0,
+          };
         }
         dailyStats[dateKey].returned += ret.quantity;
       }
@@ -185,21 +205,25 @@ export class CommitteesService {
     return {
       committee,
       metrics: {
-        totalPositions,         // Кол-во позиций (записей товаров)
-        totalItemsQuantity,     // Всего товара (сумма quantity)
-        activePositions,        // Активные позиции (с quantity > 0)
-        activeItemsCount,       // Активные товары (сумма quantity > 0)
-        soldItemsCount,         // Продано
-        returnedItemsCount,     // Возвращено
-        totalRevenue,           // Выручка
-        totalProfit,            // Прибыль
-        totalPayout,            // Выплачено комитету
+        totalPositions, // Кол-во позиций (записей товаров)
+        totalItemsQuantity, // Всего товара (сумма quantity)
+        activePositions, // Активные позиции (с quantity > 0)
+        activeItemsCount, // Активные товары (сумма quantity > 0)
+        soldItemsCount, // Продано
+        returnedItemsCount, // Возвращено
+        totalRevenue, // Выручка
+        totalProfit, // Прибыль
+        totalPayout, // Выплачено комитету
       },
-      dailyStats
+      dailyStats,
     };
   }
 
-  async update(id: number, updateCommitteeDto: UpdateCommitteeDto, userId: number) {
+  async update(
+    id: number,
+    updateCommitteeDto: UpdateCommitteeDto,
+    userId: number,
+  ) {
     const committee = await this.prisma.committee.findUnique({
       where: { id },
     });
@@ -223,8 +247,8 @@ export class CommitteesService {
     if (userId) {
       const oldValues: any = {};
       const newValues: any = {};
-      
-      Object.keys(updateCommitteeDto).forEach(key => {
+
+      Object.keys(updateCommitteeDto).forEach((key) => {
         const k = key as keyof UpdateCommitteeDto;
         if ((committee as any)[k] !== updateCommitteeDto[k]) {
           oldValues[k] = (committee as any)[k];
@@ -262,7 +286,9 @@ export class CommitteesService {
 
     // Проверка наличия товаров у коммитета
     if (committee.products.length > 0) {
-      throw new ConflictException('Cannot delete committee with associated products');
+      throw new ConflictException(
+        'Cannot delete committee with associated products',
+      );
     }
 
     await this.prisma.committee.delete({

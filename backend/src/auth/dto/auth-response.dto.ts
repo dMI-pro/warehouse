@@ -9,4 +9,3 @@ export class AuthResponseDto {
     isSuperAdmin: boolean;
   };
 }
-

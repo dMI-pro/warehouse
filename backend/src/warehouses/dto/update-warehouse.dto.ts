@@ -16,4 +16,3 @@ export class UpdateWarehouseDto {
   @MaxLength(500)
   address?: string;
 }
-

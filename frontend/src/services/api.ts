@@ -280,8 +280,8 @@ class ApiService {
     return response.data;
   }
 
-  async getProductHistory(id: number, page?: number, limit?: number): Promise<AuditLog[]> {
-    const response = await this.api.get<AuditLog[]>(`/products/${id}/history`, {
+  async getProductHistory(id: number, page?: number, limit?: number): Promise<PaginatedResponse<AuditLog>> {
+    const response = await this.api.get<PaginatedResponse<AuditLog>>(`/products/${id}/history`, {
       params: { page, limit },
     });
     return response.data;

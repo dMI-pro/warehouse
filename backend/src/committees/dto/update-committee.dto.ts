@@ -16,4 +16,3 @@ export class UpdateCommitteeDto {
   @MaxLength(500)
   contactInfo?: string;
 }
-

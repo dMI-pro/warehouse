@@ -1,4 +1,10 @@
-import { Injectable, ConflictException, UnauthorizedException, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
@@ -27,7 +33,9 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException('User with this email or username already exists');
+      throw new ConflictException(
+        'User with this email or username already exists',
+      );
     }
 
     // Хеширование пароля
@@ -140,4 +148,3 @@ export class AuthService {
     return user;
   }
 }
-

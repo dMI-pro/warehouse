@@ -6,4 +6,3 @@ export class CreateTransactionTypeDto {
   @MaxLength(255)
   name: string;
 }
-

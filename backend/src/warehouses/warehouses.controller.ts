@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { WarehousesService } from './warehouses.service';
 import { CreateWarehouseDto } from './dto/create-warehouse.dto';
 import { UpdateWarehouseDto } from './dto/update-warehouse.dto';
@@ -16,7 +26,10 @@ export class WarehousesController {
 
   @Post()
   @Roles(Role.MANAGER, Role.ADMIN)
-  async create(@Body() createWarehouseDto: CreateWarehouseDto, @CurrentUser() user: any) {
+  async create(
+    @Body() createWarehouseDto: CreateWarehouseDto,
+    @CurrentUser() user: any,
+  ) {
     return this.warehousesService.create(createWarehouseDto, user.id);
   }
 
@@ -34,14 +47,20 @@ export class WarehousesController {
 
   @Patch(':id')
   @Roles(Role.MANAGER, Role.ADMIN)
-  async update(@Param('id', ParseIntPipe) id: number, @Body() updateWarehouseDto: UpdateWarehouseDto, @CurrentUser() user: any) {
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateWarehouseDto: UpdateWarehouseDto,
+    @CurrentUser() user: any,
+  ) {
     return this.warehousesService.update(id, updateWarehouseDto, user.id);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN)
-  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
     return this.warehousesService.remove(id, user.id);
   }
 }
-

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -15,7 +20,9 @@ export class CategoriesService {
       });
 
       if (!parent) {
-        throw new NotFoundException(`Parent category with ID ${createCategoryDto.parentId} not found`);
+        throw new NotFoundException(
+          `Parent category with ID ${createCategoryDto.parentId} not found`,
+        );
       }
     }
 
@@ -110,13 +117,20 @@ export class CategoriesService {
         });
 
         if (!parent) {
-          throw new NotFoundException(`Parent category with ID ${updateCategoryDto.parentId} not found`);
+          throw new NotFoundException(
+            `Parent category with ID ${updateCategoryDto.parentId} not found`,
+          );
         }
 
         // Проверка на циклические зависимости
-        const isDescendant = await this.isDescendant(id, updateCategoryDto.parentId);
+        const isDescendant = await this.isDescendant(
+          id,
+          updateCategoryDto.parentId,
+        );
         if (isDescendant) {
-          throw new BadRequestException('Cannot set category as parent: would create circular dependency');
+          throw new BadRequestException(
+            'Cannot set category as parent: would create circular dependency',
+          );
         }
       }
     }
@@ -151,12 +165,16 @@ export class CategoriesService {
 
     // Проверка наличия дочерних категорий
     if (category.children.length > 0) {
-      throw new ConflictException('Cannot delete category with child categories');
+      throw new ConflictException(
+        'Cannot delete category with child categories',
+      );
     }
 
     // Проверка наличия товаров в категории
     if (category.products.length > 0) {
-      throw new ConflictException('Cannot delete category with associated products');
+      throw new ConflictException(
+        'Cannot delete category with associated products',
+      );
     }
 
     return this.prisma.category.delete({
@@ -191,7 +209,10 @@ export class CategoriesService {
   }
 
   // Проверка, является ли одна категория потомком другой
-  private async isDescendant(categoryId: number, potentialAncestorId: number): Promise<boolean> {
+  private async isDescendant(
+    categoryId: number,
+    potentialAncestorId: number,
+  ): Promise<boolean> {
     if (categoryId === potentialAncestorId) {
       return false;
     }
@@ -224,4 +245,3 @@ export class CategoriesService {
     return false;
   }
 }
-
