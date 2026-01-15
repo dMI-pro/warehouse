@@ -74,6 +74,16 @@ export class ProductsController {
     return this.productsService.remove(id, user.id);
   }
 
+  @Get(':id/history')
+  @Roles(Role.MANAGER, Role.ADMIN)
+  async getHistory(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.productsService.getHistory(id, page ?? 1, limit ?? 50);
+  }
+
   @Post(':id/images')
   @Roles(Role.MANAGER, Role.ADMIN)
   @UseInterceptors(FileInterceptor('image'))
