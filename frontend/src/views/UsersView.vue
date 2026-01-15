@@ -258,49 +258,141 @@
 
     <!-- Диалог подтверждения сброса пароля -->
     <ConfirmDialog />
-
+    <!-- Диалог подробная информация об изменения  -->
     <Dialog
       v-model:visible="historyDetailsVisible"
       header="Подробности действия пользователя"
       :modal="true"
       :style="{ width: '600px' }"
+      @hide="handleDialogClose"
     >
-      <div v-if="selectedHistoryLog" class="details-content">
-        <div class="detail-section">
-          <h4>Действие</h4>
-          <p>{{ getUserActionLabel(selectedHistoryLog.action) }}</p>
-        </div>
-        <div class="detail-section">
-          <h4>Время</h4>
-          <p>{{ formatDateTime(selectedHistoryLog.createdAt) }}</p>
-        </div>
-        <div v-if="selectedHistoryLog.ipAddress || selectedHistoryLog.userAgent" class="detail-section">
-          <h4>Информация о подключении</h4>
-          <p v-if="selectedHistoryLog.ipAddress"><strong>IP адрес:</strong> {{ selectedHistoryLog.ipAddress }}</p>
-          <p v-if="selectedHistoryLog.userAgent"><strong>User Agent:</strong> {{ selectedHistoryLog.userAgent }}</p>
-        </div>
-        <div v-if="selectedHistoryChanges.length" class="detail-section">
-          <h4>Изменения</h4>
-          <div class="changes-table-wrapper">
-            <table class="changes-table">
-              <thead>
-                <tr>
-                  <th>Поле</th>
-                  <th>Было</th>
-                  <th>Стало</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="change in selectedHistoryChanges" :key="change.key">
-                  <td class="change-key">{{ change.key }}</td>
-                  <td class="change-old">{{ change.old }}</td>
-                  <td class="change-new">{{ change.new }}</td>
-                </tr>
-              </tbody>
-            </table>
+      <div v-if="selectedHistoryLog" class="details-content p-fluid">
+        <!-- Действие -->
+        <div class="detail-section mb-4">
+          <h4 class="text-lg font-semibold mb-2 text-surface-700">Действие</h4>
+          <div class="flex align-items-center gap-2">
+            <Tag 
+              :value="getUserActionLabel(selectedHistoryLog.action)"
+              severity="info"
+              class="font-medium"
+            />
           </div>
         </div>
+
+        <!-- Время -->
+        <div class="detail-section mb-4">
+          <h4 class="text-lg font-semibold mb-2 text-surface-700">Время</h4>
+          <div class="flex align-items-center gap-2">
+            <i class="pi pi-clock text-primary"></i>
+            <span class="text-surface-600">{{ formatDateTime(selectedHistoryLog.createdAt) }}</span>
+          </div>
+        </div>
+
+        <!-- Информация о подключении -->
+        <div v-if="selectedHistoryLog.ipAddress || selectedHistoryLog.userAgent" class="detail-section mb-4">
+          <h4 class="text-lg font-semibold mb-2 text-surface-700">Информация о подключении</h4>
+          <div class="grid">
+            <div v-if="selectedHistoryLog.ipAddress" class="col-12 md:col-6">
+              <div class="flex flex-column gap-1">
+                <label class="text-sm text-surface-500">IP адрес</label>
+                <div class="p-inputgroup">
+                  <span class="p-inputgroup-addon">
+                    <i class="pi pi-globe"></i>
+                  </span>
+                  <InputText :value="selectedHistoryLog.ipAddress" readonly class="bg-surface-50" />
+                </div>
+              </div>
+            </div>
+            <div v-if="selectedHistoryLog.userAgent" class="col-12 md:col-6">
+              <div class="flex flex-column gap-1">
+                <label class="text-sm text-surface-500">User Agent</label>
+                <div class="p-inputgroup">
+                  <span class="p-inputgroup-addon">
+                    <i class="pi pi-desktop"></i>
+                  </span>
+                  <InputText :value="selectedHistoryLog.userAgent" readonly class="bg-surface-50" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Изменения -->
+        <div v-if="selectedHistoryChanges.length" class="detail-section">
+          <h4 class="text-lg font-semibold mb-3 text-surface-700">Изменения</h4>
+          <div class="card">
+            <div class="overflow-x-auto">
+              <table class="w-full border-spacing-0 border-separate" style="border-spacing: 0;">
+                <thead>
+                  <tr class="bg-surface-50">
+                    <th class="text-left p-3 text-sm font-semibold text-surface-700 border-b border-surface-200">Поле</th>
+                    <th class="text-left p-3 text-sm font-semibold text-surface-700 border-b border-surface-200">Было</th>
+                    <th class="text-left p-3 text-sm font-semibold text-surface-700 border-b border-surface-200">Стало</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr 
+                    v-for="(change, index) in selectedHistoryChanges" 
+                    :key="change.key"
+                    :class="[
+                      'transition-colors duration-150',
+                      index % 2 === 0 ? 'bg-surface-0' : 'bg-surface-50'
+                    ]"
+                  >
+                    <td class="p-3 text-sm border-b border-surface-100">
+                      <span class="font-medium text-surface-800">{{ change.key }}</span>
+                    </td>
+                    <td class="p-3 text-sm border-b border-surface-100">
+                      <div class="flex align-items-center gap-2">
+                        <div 
+                          v-if="change.old" 
+                          class="change-old bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-medium"
+                        >
+                          {{ change.old }}
+                        </div>
+                        <Tag v-else value="—" severity="secondary" class="text-xs" />
+                      </div>
+                    </td>
+                    <td class="p-3 text-sm border-b border-surface-100">
+                      <div class="flex align-items-center gap-2">
+                        <div 
+                          v-if="change.new" 
+                          class="change-new bg-green-50 text-green-700 px-2 py-1 rounded text-xs font-medium"
+                        >
+                          {{ change.new }}
+                        </div>
+                        <Tag v-else value="—" severity="secondary" class="text-xs" />
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Нет изменений -->
+        <div v-else class="text-center py-6">
+          <i class="pi pi-info-circle text-4xl text-surface-300 mb-3"></i>
+          <p class="text-surface-500">Нет детальной информации об изменениях</p>
+        </div>
       </div>
+
+      <!-- Loading State -->
+      <div v-else class="flex justify-content-center align-items-center py-6">
+        <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="4" />
+      </div>
+
+      <!-- Footer -->
+      <template #footer>
+        <Button 
+          label="Закрыть" 
+          icon="pi pi-times" 
+          @click="handleDialogClose" 
+          severity="secondary"
+          outlined
+        />
+      </template>
     </Dialog>
   </div>
 </template>
@@ -320,6 +412,7 @@ import InputText from 'primevue/inputtext';
 import Dropdown from 'primevue/dropdown';
 import Divider from 'primevue/divider';
 import ConfirmDialog from 'primevue/confirmdialog';
+import ProgressSpinner from 'primevue/progressspinner';
 import { useUsersStore } from '@/stores/usersStore';
 import { useUserStatusesStore } from '@/stores/userStatusesStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -623,17 +716,15 @@ const handleResetPassword = () => {
   });
 };
 
+// Обработчик закрытия диалога
+const handleDialogClose = () => {
+  historyDetailsVisible.value = false;
+};
+
 onMounted(async () => {
   await usersStore.fetchUsers();
   await userStatusesStore.fetchUserStatuses();
 });
-
-// const getStatusSeverity = (code?: string) => {
-//   if (!code) return 'secondary';
-//   if (code === 'ACTIVE') return 'success';
-//   if (code === 'BLOCKED') return 'danger';
-//   return 'secondary';
-// };
 
 const getUserActionLabel = (action: string): string => {
   const map: Record<string, string> = {
@@ -801,7 +892,7 @@ const getUserActionLabel = (action: string): string => {
   flex: 1;
 }
 
-.changes-table-wrapper {
+/* .changes-table-wrapper {
   max-height: 300px;
   overflow-y: auto;
 }
@@ -841,7 +932,7 @@ const getUserActionLabel = (action: string): string => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
+} */
 
 .field {
   display: flex;
@@ -867,6 +958,126 @@ const getUserActionLabel = (action: string): string => {
 
   .user-details-card {
     position: static;
+  }
+}
+
+/* стили для диалогового окна подробности изменения пользователя*/
+.details-content {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.details-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.details-content::-webkit-scrollbar-track {
+  background: var(--surface-100);
+  border-radius: 3px;
+}
+
+.details-content::-webkit-scrollbar-thumb {
+  background: var(--surface-300);
+  border-radius: 3px;
+}
+
+.details-content::-webkit-scrollbar-thumb:hover {
+  background: var(--surface-400);
+}
+
+.changes-table {
+  min-width: 100%;
+}
+
+.changes-table th {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.changes-table td {
+  vertical-align: top;
+}
+
+.change-old {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.change-new {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+/* Анимация появления строк таблицы */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.changes-table tbody tr {
+  animation: fadeIn 0.3s ease-out;
+  animation-fill-mode: both;
+}
+
+.changes-table tbody tr:nth-child(1) { animation-delay: 0.05s; }
+.changes-table tbody tr:nth-child(2) { animation-delay: 0.1s; }
+.changes-table tbody tr:nth-child(3) { animation-delay: 0.15s; }
+.changes-table tbody tr:nth-child(4) { animation-delay: 0.2s; }
+.changes-table tbody tr:nth-child(5) { animation-delay: 0.25s; }
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 640px) {
+  .changes-table th,
+  .changes-table td {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .change-old,
+  .change-new {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .p-dialog {
+    width: 95vw !important;
+    margin: 0.5rem;
+  }
+}
+
+/* Темная тема поддержка */
+:deep(.p-dialog) {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  .change-old {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .change-new {
+    background-color: rgba(34, 197, 94, 0.2);
+    color: #86efac;
+    border-color: rgba(34, 197, 94, 0.3);
+  }
+
+  .details-content::-webkit-scrollbar-track {
+    background: var(--surface-700);
+  }
+
+  .details-content::-webkit-scrollbar-thumb {
+    background: var(--surface-600);
   }
 }
 </style>
