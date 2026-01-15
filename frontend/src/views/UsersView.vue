@@ -42,7 +42,7 @@
             </Column>
             <Column field="fullName" header="Имя" :sortable="true" />
             <Column field="username" header="Логин" :sortable="true" />
-            <Column field="email" header="Email" :sortable="true" />
+            <!-- <Column field="email" header="Email" :sortable="true" /> -->
             <Column field="role" header="Роль" :sortable="true">
               <template #body="{ data }">
                 <Tag :value="getRoleName(data.role)" :severity="getRoleSeverity(data.role)" />
@@ -59,6 +59,11 @@
             <Column field="createdAt" header="Дата регистрации" :sortable="true">
               <template #body="{ data }">
                 {{ formatDate(data.createdAt) }}
+              </template>
+            </Column>
+            <Column field="updatedAt" header="Дата изменения" :sortable="true">
+              <template #body="{ data }">
+                {{ formatDate(data.updatedAt) }}
               </template>
             </Column>
             <Column header="Действия" style="width: 120px">
