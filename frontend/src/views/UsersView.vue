@@ -159,6 +159,9 @@
                   <div class="history-action-row">
                     <div class="history-action-text">
                       {{ getUserActionLabel(action.action) }}
+                      <span v-if="action.user" class="history-actor">
+                        ({{ action.user.fullName || action.user.username }})
+                      </span>
                     </div>
                     <Button
                       v-if="action.oldValues || action.newValues"
@@ -261,7 +264,7 @@
     <!-- Диалог подробная информация об изменения  -->
     <Dialog
       v-model:visible="historyDetailsVisible"
-      header="Подробности действия пользователя"
+      header="Подробности действия"
       :modal="true"
       :style="{ width: '600px' }"
       @hide="handleDialogClose"
@@ -496,7 +499,7 @@ const getAvatarColor = (role: Role): string => {
   return colorMap[role] || '#8c8c8c';
 };
 
-const getUserStatusColor = (code: UserStatusColor): 'success' | 'info' | 'warn' | 'danger' | 'secondary' => {
+const getUserStatusColor = (code?: UserStatusColor): 'success' | 'info' | 'warn' | 'danger' | 'secondary' => {
   const severityMap: Record<string, 'success' | 'warn' | 'danger' | 'secondary' > = {
     'active': 'success',
     'blocked': 'danger',
@@ -543,7 +546,8 @@ const onUserSelect = (event: any) => {
 const loadUserHistory = async (userId: number) => {
   try {
     const resp = await apiService.getAuditLogs({
-      userId,
+      entityType: 'User',
+      entityId: userId,
       page: 1,
       limit: 50,
     });
