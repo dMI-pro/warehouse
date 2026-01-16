@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import Menubar from 'primevue/menubar';
 import Button from 'primevue/button';
 import ThemeToggle from '@/components/ThemeToggle.vue';
@@ -36,19 +36,29 @@ import { useAuthStore } from '@/stores/authStore';
 import { Role } from '@/types/api';
 
 const router = useRouter();
+const route = useRoute();
 const authStore = useAuthStore();
 
 const menuItems = computed(() => {
-  const items = [
+  const items: any[] = [
     {
       label: 'Главная',
       icon: 'pi pi-home',
-      command: () => router.push({ name: 'dashboard' }),
+      to: { name: 'dashboard' },
+      exact: false,
+      class: route.name === 'dashboard' ? 'menu-active' : '',
     },
     {
       label: 'Товары',
       icon: 'pi pi-box',
-      command: () => router.push({ name: 'products' }),
+      to: { name: 'products' },
+      exact: false,
+      class:
+        route.name === 'products' ||
+        route.name === 'product-details' ||
+        String(route.path || '').startsWith('/products')
+          ? 'menu-active'
+          : '',
     },
   ];
 
@@ -56,12 +66,29 @@ const menuItems = computed(() => {
     items.push({
       label: 'Отчеты',
       icon: 'pi pi-chart-bar',
-      command: () => router.push({ name: 'reports' }),
+      to: { name: 'reports' },
+      exact: false,
+      class: route.name === 'reports' ? 'menu-active' : '',
     });
     items.push({
       label: 'Настройки',
       icon: 'pi pi-cog',
-      command: () => router.push({ name: 'settings' }),
+      to: { name: 'settings' },
+      exact: false,
+      class:
+        route.name === 'settings' ? 'menu-active' : '',
+    });
+    items.push({
+      label: 'Коммитеты',
+      icon: 'pi pi-users',
+      command: () => router.push({ name: 'settings', query: { tab: 'committees' } }),
+      exact: false,
+      class:
+        route.name === 'committee-details' ||
+        (route.name === 'settings' && route.query?.tab === 'committees') ||
+        String(route.path || '').startsWith('/committees')
+          ? 'menu-active'
+          : '',
     });
   }
 
@@ -69,12 +96,16 @@ const menuItems = computed(() => {
     items.push({
       label: 'Журнал действий',
       icon: 'pi pi-history',
-      command: () => router.push({ name: 'audit-log' }),
+      to: { name: 'audit-log' },
+      exact: false,
+      class: route.name === 'audit-log' ? 'menu-active' : '',
     });
     items.push({
       label: 'Пользователи',
       icon: 'pi pi-users',
-      command: () => router.push({ name: 'users' }),
+      to: { name: 'users' },
+      exact: false,
+      class: route.name === 'users' ? 'menu-active' : '',
     });
   }
 
@@ -101,6 +132,9 @@ const handleLogout = () => {
   border-top: none;
   background: var(--surface-card);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .logo {
@@ -126,6 +160,17 @@ const handleLogout = () => {
   padding: 2rem;
   background-color: var(--surface-ground);
   min-height: calc(100vh - 60px);
+}
+
+.main-menu :deep(.router-link-active),
+.main-menu :deep(.router-link-exact-active) {
+  background-color: var(--primary-50);
+  border-radius: 6px;
+}
+
+.main-menu :deep(.menu-active) {
+  background-color: var(--primary-50);
+  border-radius: 6px;
 }
 
 @media (max-width: 768px) {

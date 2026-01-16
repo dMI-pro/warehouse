@@ -668,7 +668,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 import Card from 'primevue/card';
@@ -704,6 +704,7 @@ const authStore = useAuthStore();
 const confirm = useConfirm();
 const toast = useToast();
 const router = useRouter();
+const currentRoute = useRoute();
 
 const activeTab = ref<'categories' | 'warehouses' | 'committees' | 'transactionTypes' | 'userStatuses' | 'fields' | 'templates' | 'system'>('categories');
 const expandedKeys = ref<Record<string, boolean>>({});
@@ -1285,6 +1286,11 @@ onMounted(async () => {
   await committeesStore.fetchCommittees();
   await transactionTypesStore.fetchTransactionTypes();
   await userStatusesStore.fetchUserStatuses();
+  const tab = (currentRoute.query?.tab as string) || '';
+  const allowed = ['categories','warehouses','committees','transactionTypes','userStatuses','fields','templates','system'];
+  if (allowed.includes(tab)) {
+    activeTab.value = tab as typeof activeTab.value;
+  }
 });
 </script>
 

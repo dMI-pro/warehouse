@@ -148,7 +148,7 @@
           </div>
           <div class="detail-section">
             <h4>Пользователь</h4>
-            <p>{{ selectedLog.user.fullName || selectedLog.user.username }}</p>
+            <p>{{ selectedLog.user?.fullName || selectedLog.user?.username || 'Система' }}</p>
           </div>
           <div class="detail-section">
             <h4>Время</h4>
