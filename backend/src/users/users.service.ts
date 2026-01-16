@@ -20,7 +20,12 @@ export class UsersService {
     private auditLogService: AuditLogService,
   ) {}
 
-  async create(createUserDto: CreateUserDto, currentUserId?: number, ipAddress?: string, userAgent?: string) {
+  async create(
+    createUserDto: CreateUserDto,
+    currentUserId?: number,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
     const existingUser = await this.prisma.user.findFirst({
       where: {
         OR: [
@@ -123,7 +128,13 @@ export class UsersService {
     return user;
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto, currentUser: any, ipAddress?: string, userAgent?: string) {
+  async update(
+    id: number,
+    updateUserDto: UpdateUserDto,
+    currentUser: any,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
     // Проверка существования пользователя
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -224,7 +235,12 @@ export class UsersService {
     return updatedUser;
   }
 
-  async remove(id: number, currentUser: any, ipAddress?: string, userAgent?: string) {
+  async remove(
+    id: number,
+    currentUser: any,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException(`User ${id} not found`);
 
