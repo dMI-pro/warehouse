@@ -8,7 +8,9 @@ import {
   Body,
   UseGuards,
   ParseIntPipe,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -28,8 +30,14 @@ export class UsersController {
   async create(
     @Body() createUserDto: CreateUserDto,
     @CurrentUser() currentUser: any,
+    @Req() req: Request,
   ) {
-    return this.usersService.create(createUserDto, currentUser.id);
+    const ipAddress =
+      req.ip ||
+      (req.headers['x-forwarded-for'] as string) ||
+      req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    return this.usersService.create(createUserDto, currentUser.id, ipAddress, userAgent);
   }
 
   @Get()
@@ -49,8 +57,14 @@ export class UsersController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
     @CurrentUser() currentUser: any,
+    @Req() req: Request,
   ) {
-    return this.usersService.update(id, updateUserDto, currentUser);
+    const ipAddress =
+      req.ip ||
+      (req.headers['x-forwarded-for'] as string) ||
+      req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    return this.usersService.update(id, updateUserDto, currentUser, ipAddress, userAgent);
   }
 
   @Delete(':id')
@@ -58,7 +72,13 @@ export class UsersController {
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() currentUser: any,
+    @Req() req: Request,
   ) {
-    return this.usersService.remove(id, currentUser);
+    const ipAddress =
+      req.ip ||
+      (req.headers['x-forwarded-for'] as string) ||
+      req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    return this.usersService.remove(id, currentUser, ipAddress, userAgent);
   }
 }
