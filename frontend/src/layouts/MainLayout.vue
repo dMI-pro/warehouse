@@ -39,26 +39,44 @@ const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 
+// Функция для проверки активного маршрута
+const isActive = (path: string | { name: string } | Array<string | { name: string }>) => {
+  if (Array.isArray(path)) {
+    return path.some(p => isActive(p));
+  }
+  
+  if (typeof path === 'string') {
+    return route.path === path || route.path.startsWith(path);
+  }
+  
+  if (path.name) {
+    if (path.name === 'dashboard' && route.name === 'dashboard') return true;
+    if (path.name === 'products' && (route.name === 'products' || route.name === 'product-details')) return true;
+    if (path.name === 'settings' && route.name === 'settings') return true;
+    if (path.name === 'reports' && route.name === 'reports') return true;
+    if (path.name === 'audit-log' && route.name === 'audit-log') return true;
+    if (path.name === 'users' && route.name === 'users') return true;
+    
+    // Проверка для коммитетов
+    if (path.name === 'settings' && route.query?.tab === 'committees') return true;
+  }
+  
+  return false;
+};
+
 const menuItems = computed(() => {
   const items: any[] = [
     {
       label: 'Главная',
       icon: 'pi pi-home',
-      to: { name: 'dashboard' },
-      exact: false,
-      class: route.name === 'dashboard' ? 'menu-active' : '',
+      command: () => router.push({ name: 'dashboard' }),
+      class: isActive({ name: 'dashboard' }) ? 'p-highlight' : '',
     },
     {
       label: 'Товары',
       icon: 'pi pi-box',
-      to: { name: 'products' },
-      exact: false,
-      class:
-        route.name === 'products' ||
-        route.name === 'product-details' ||
-        String(route.path || '').startsWith('/products')
-          ? 'menu-active'
-          : '',
+      command: () => router.push({ name: 'products' }),
+      class: isActive([{ name: 'products' }, { name: 'product-details' }]) ? 'p-highlight' : '',
     },
   ];
 
@@ -66,46 +84,36 @@ const menuItems = computed(() => {
     items.push({
       label: 'Отчеты',
       icon: 'pi pi-chart-bar',
-      to: { name: 'reports' },
-      exact: false,
-      class: route.name === 'reports' ? 'menu-active' : '',
+      command: () => router.push({ name: 'reports' }),
+      class: isActive({ name: 'reports' }) ? 'p-highlight' : '',
     });
     items.push({
       label: 'Настройки',
       icon: 'pi pi-cog',
-      to: { name: 'settings' },
-      exact: false,
-      class:
-        route.name === 'settings' ? 'menu-active' : '',
+      command: () => router.push({ name: 'settings', query: { tab: 'categories' } }),
+      class: isActive({ name: 'settings' }) ? 'p-highlight' : '',
     });
-    items.push({
-      label: 'Коммитеты',
-      icon: 'pi pi-users',
-      command: () => router.push({ name: 'settings', query: { tab: 'committees' } }),
-      exact: false,
-      class:
-        route.name === 'committee-details' ||
-        (route.name === 'settings' && route.query?.tab === 'committees') ||
-        String(route.path || '').startsWith('/committees')
-          ? 'menu-active'
-          : '',
-    });
+    // Не удалять дальше вкладка будет нужна!!
+    // items.push({
+    //   label: 'Коммитеты',
+    //   icon: 'pi pi-users',
+    //   command: () => router.push({ name: 'settings', query: { tab: 'committees' } }),
+    //   class: isActive({ name: 'settings' }) && route.query?.tab === 'committees' ? 'p-highlight' : '',
+    // });
   }
 
   if (authStore.isAdmin) {
     items.push({
       label: 'Журнал действий',
       icon: 'pi pi-history',
-      to: { name: 'audit-log' },
-      exact: false,
-      class: route.name === 'audit-log' ? 'menu-active' : '',
+      command: () => router.push({ name: 'audit-log' }),
+      class: isActive({ name: 'audit-log' }) ? 'p-highlight' : '',
     });
     items.push({
       label: 'Пользователи',
       icon: 'pi pi-users',
-      to: { name: 'users' },
-      exact: false,
-      class: route.name === 'users' ? 'menu-active' : '',
+      command: () => router.push({ name: 'users' }),
+      class: isActive({ name: 'users' }) ? 'p-highlight' : '',
     });
   }
 
@@ -162,15 +170,13 @@ const handleLogout = () => {
   min-height: calc(100vh - 60px);
 }
 
-.main-menu :deep(.router-link-active),
-.main-menu :deep(.router-link-exact-active) {
-  background-color: var(--primary-50);
-  border-radius: 6px;
+/* Удалите все предыдущие стили для .p-highlight и добавьте только это: */
+:deep(.p-highlight) {
+  background-color: var(--p-menubar-item-focus-background);
 }
 
-.main-menu :deep(.menu-active) {
-  background-color: var(--primary-50);
-  border-radius: 6px;
+:deep(.p-highlight *) {
+  /* color: white !important; */
 }
 
 @media (max-width: 768px) {
@@ -189,12 +195,9 @@ const handleLogout = () => {
     padding: 1rem;
   }
 
-  .main-menu :deep(.p-menubar-root-list) {
+  :deep(.p-menubar-root-list) {
     flex-direction: column;
     width: 100%;
   }
 }
 </style>
-
-
-
