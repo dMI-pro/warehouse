@@ -82,7 +82,7 @@ export class AuditLogService {
     userId?: number;
     action?: string;
     entityType?: string;
-    entityId?: number;
+    entityId?: number | string;
     startDate?: Date;
     endDate?: Date;
     page?: number;
@@ -114,8 +114,13 @@ export class AuditLogService {
       where.entityType = entityType;
     }
 
-    if (entityId) {
-      where.entityId = entityId;
+    if (entityId !== undefined && entityId !== null) {
+      const n = typeof entityId === 'string'
+        ? parseInt(entityId, 10)
+        : entityId;
+      if (!Number.isNaN(n)) {
+        where.entityId = n;
+      }
     }
 
     if (startDate || endDate) {
