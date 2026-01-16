@@ -14,7 +14,7 @@
               :icon="tab.icon"
               :class="{ active: activeTab === tab.key }"
               class="nav-button"
-              @click="activeTab = tab.key"
+              @click="changeTab(tab.key)"
             />
           </div>
         </template>
@@ -667,7 +667,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
@@ -704,7 +704,7 @@ const authStore = useAuthStore();
 const confirm = useConfirm();
 const toast = useToast();
 const router = useRouter();
-const currentRoute = useRoute();
+const route = useRoute();
 
 const activeTab = ref<'categories' | 'warehouses' | 'committees' | 'transactionTypes' | 'userStatuses' | 'fields' | 'templates' | 'system'>('categories');
 const expandedKeys = ref<Record<string, boolean>>({});
@@ -823,6 +823,39 @@ const parentCategoryOptions = computed(() => {
     }
   });
   return options;
+});
+
+// Функция для смены вкладки
+const changeTab = (tabKey: typeof activeTab.value) => {
+  activeTab.value = tabKey;
+};
+
+// Watch для синхронизации activeTab с URL
+watch(activeTab, (newTab) => {
+  router.push({
+    name: 'settings',
+    query: { tab: newTab }
+  });
+});
+
+// Watch для синхронизации URL с activeTab
+watch(() => route.query.tab, (newTab) => {
+  if (newTab) {
+    const allowedTabs = [
+      'categories',
+      'warehouses', 
+      'committees',
+      'transactionTypes',
+      'userStatuses',
+      'fields',
+      'templates',
+      'system'
+    ];
+    
+    if (allowedTabs.includes(newTab as string) && newTab !== activeTab.value) {
+      activeTab.value = newTab as typeof activeTab.value;
+    }
+  }
 });
 
 const onNodeExpand = (event: any) => {
@@ -1286,10 +1319,23 @@ onMounted(async () => {
   await committeesStore.fetchCommittees();
   await transactionTypesStore.fetchTransactionTypes();
   await userStatusesStore.fetchUserStatuses();
-  const tab = (currentRoute.query?.tab as string) || '';
-  const allowed = ['categories','warehouses','committees','transactionTypes','userStatuses','fields','templates','system'];
-  if (allowed.includes(tab)) {
-    activeTab.value = tab as typeof activeTab.value;
+  
+  // Инициализация вкладки из URL
+  const tabFromUrl = route.query?.tab as string;
+  
+  const allowedTabs = [
+    'categories',
+    'warehouses', 
+    'committees',
+    'transactionTypes',
+    'userStatuses',
+    'fields',
+    'templates',
+    'system'
+  ];
+  
+  if (tabFromUrl && allowedTabs.includes(tabFromUrl)) {
+    activeTab.value = tabFromUrl as typeof activeTab.value;
   }
 });
 </script>
@@ -1443,7 +1489,6 @@ onMounted(async () => {
 .committee-name {
   color: var(--primary-color);
   font-weight: 500;
-  /* text-decoration: underline; */
   cursor: pointer;
 }
 
