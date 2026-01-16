@@ -430,22 +430,45 @@
             <div v-else-if="productLogs.length === 0" class="text-center py-4 text-600">
               Нет записей истории для этого товара
             </div>
-            <div v-else class="history-list">
-              <div v-for="log in productLogs" :key="log.id" class="history-item">
-                <div class="history-time">{{ formatDateTime(log.createdAt as any) }}</div>
-                <div class="history-action">{{ getActionLabel(log.action) }}</div>
-                <div class="history-details">
-                  <Button
-                    v-if="log.oldValues || log.newValues"
-                    label="Подробности"
-                    icon="pi pi-eye"
-                    severity="info"
-                    text
-                    size="small"
-                    @click="showDetails(log)"
-                  />
-                </div>
-              </div>
+            <div v-else>
+              <DataTable
+                :value="productLogs"
+                :paginator="false"
+                class="audit-table"
+                :rows="10"
+                :scrollable="true"
+                scrollHeight="300px"
+              >
+                <Column header="Время" style="width: 160px">
+                  <template #body="{ data }">
+                    {{ formatDateTime((data as any).createdAt) }}
+                  </template>
+                </Column>
+                <Column header="Пользователь" style="width: 220px">
+                  <template #body="{ data }">
+                    <span v-if="data.user">{{ data.user.fullName || data.user.username }}</span>
+                    <span v-else>Система</span>
+                  </template>
+                </Column>
+                <Column header="Действие">
+                  <template #body="{ data }">
+                    {{ getActionLabel(data.action) }}
+                  </template>
+                </Column>
+                <Column header="Подробности" style="width: 140px">
+                  <template #body="{ data }">
+                    <Button
+                      v-if="data.oldValues || data.newValues"
+                      label="Показать"
+                      icon="pi pi-eye"
+                      severity="info"
+                      text
+                      size="small"
+                      @click="showDetails(data)"
+                    />
+                  </template>
+                </Column>
+              </DataTable>
             </div>
           </template>
         </Card>
@@ -527,6 +550,8 @@ import { useCategoriesStore } from '@/stores/categoriesStore';
 import { Role, type AuditLog, type PaginatedResponse } from '@/types/api';
 import { apiService } from '@/services/api';
 import type { UpdateProductDto } from '@/types/api';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
 
 const route = useRoute();
 const router = useRouter();
@@ -847,6 +872,9 @@ const getActionLabel = (action: string): string => {
     'product.delete': 'Удаление товара',
     'product.price_change': 'Изменение цены',
     'product.quantity_change': 'Изменение количества',
+    'product.image_add': 'Добавление изображения',
+    'product.image_delete': 'Удаление изображения',
+    'product.image_reorder': 'Изменение порядка изображений',
     'sale.create': 'Продажа',
     'sale.delete': 'Удаление продажи',
     'return.create': 'Возврат',

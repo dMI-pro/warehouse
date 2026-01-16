@@ -919,7 +919,7 @@ const deleteItem = async (item: NormalizedItem) => {
     return;
   }
   
-  const itemName = item.productName || `ID: ${item.id}`;
+  const itemName = getItemName(item);
   if (!confirm(`Вы уверены, что хотите удалить запись "${itemName}"?`)) return;
   
   try {
@@ -1088,14 +1088,15 @@ const updateChart = async () => {
         const date = new Date(saleItem.date);
         if (isNaN(date.getTime())) return;
         
-        const dateKey = date.toISOString().split('T')[0];
+        const dateKey = (date.toISOString().split('T')[0] || '');
+        if (!dateKey) return;
         
         if (!salesByDate[dateKey]) {
           salesByDate[dateKey] = { revenue: 0, profit: 0 };
         }
         
-        salesByDate[dateKey].revenue += saleItem.totalAmount;
-        salesByDate[dateKey].profit += saleItem.totalProfit;
+        salesByDate[dateKey]!.revenue += saleItem.totalAmount;
+        salesByDate[dateKey]!.profit += saleItem.totalProfit;
       } catch (e) {
         console.error('Error processing sale date:', e);
       }

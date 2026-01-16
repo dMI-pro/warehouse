@@ -143,6 +143,47 @@
           </div>
         </template>
       </Card>
+      <!-- Последние возвраты (2 колонки) -->
+      <Card class="widget-card recent-returns-widget" style="grid-column: span 2">
+        <template #content>
+          <div class="widget-header">
+            <div class="widget-icon">↩️</div>
+            <div class="widget-title">Последние возвраты</div>
+          </div>
+          <div class="recent-returns-content">
+            <DataTable
+              :value="lastReturns"
+              :loading="loading"
+              :paginator="false"
+              class="recent-returns-table"
+              :rows="5"
+              :scrollable="true"
+              scrollHeight="200px"
+            >
+              <Column field="productName" header="Товар">
+                <template #body="{ data }">
+                  <div class="truncate-text" style="max-width: 120px">{{ data.productName }}</div>
+                </template>
+              </Column>
+              <Column field="quantity" header="Кол-во" style="width: 80px" />
+              <Column field="time" header="Дата" style="width: 140px">
+                <template #body="{ data }">
+                  {{ formatTime(data.time) }}
+                </template>
+              </Column>
+            </DataTable>
+            <div class="text-center mt-2">
+              <Button 
+                label="Все возвраты" 
+                icon="pi pi-list" 
+                text 
+                size="small" 
+                @click="router.push('/reports')"
+              />
+            </div>
+          </div>
+        </template>
+      </Card>
 
       <!-- Новые поступления (2 колонки) -->
       <Card class="widget-card new-arrivals-widget" style="grid-column: span 2">
@@ -240,19 +281,29 @@
             class="actions-table"
             :rows="5"
             :scrollable="true"
-            scrollHeight="200px"
+            scrollHeight="220px"
           >
-            <Column field="user" header="Пользователь">
+            <Column header="Тип" style="width: 140px">
+              <template #body="{ data }">
+                {{ data.type }}
+              </template>
+            </Column>
+            <Column header="Сущность">
+              <template #body="{ data }">
+                <div class="truncate-text" style="max-width: 220px">{{ data.entity }}</div>
+              </template>
+            </Column>
+            <Column header="Детали">
+              <template #body="{ data }">
+                <div class="truncate-text" style="max-width: 260px">{{ data.details }}</div>
+              </template>
+            </Column>
+            <Column header="Пользователь" style="width: 200px">
               <template #body="{ data }">
                 {{ data.user || 'Система' }}
               </template>
             </Column>
-            <Column field="action" header="Действие">
-              <template #body="{ data }">
-                <div class="truncate-text" style="max-width: 200px">{{ data.action }}</div>
-              </template>
-            </Column>
-            <Column field="time" header="Время" style="width: 150px">
+            <Column header="Время" style="width: 150px">
               <template #body="{ data }">
                 {{ formatTime(data.time) }}
               </template>
@@ -325,9 +376,10 @@ const stats = ref({
 });
 const lowStockProducts = ref<Product[]>([]);
 const longStorageProducts = ref<Product[]>([]);
-const recentActions = ref<Array<{ user: string; action: string; time: string }>>([]);
+const recentActions = ref<Array<{ type: string; entity: string; details: string; user: string; time: string }>>([]);
 const recentSales = ref<Array<{ productName: string; quantity: number; amount: number }>>([]);
 const newArrivals = ref<Array<{ name: string; quantity: number; arrivalDate: string }>>([]);
+const lastReturns = ref<Array<{ productName: string; quantity: number; time: string }>>([]);
 const salesData = ref<Sale[]>([]);
 
 const chartOption = computed(() => {
@@ -562,19 +614,37 @@ const loadStats = async () => {
       return arrivalDate < ninetyDaysAgo && product.quantity > 0;
     });
 
-    // Формируем список последних действий из продаж и аудит логов
+    lastReturns.value = returnsResponse.slice(0, 5).map((ret: ApiReturn) => ({
+      productName: ret.product?.name || 'Товар',
+      quantity: ret.quantity,
+      time: ret.returnedAt || new Date().toISOString(),
+    }));
+
     recentActions.value = [
       ...salesResponse.data.slice(0, 5).map((sale: Sale) => ({
+        type: 'Продажа',
+        entity: sale.product?.name || 'Товар',
+        details: `${sale.quantity} шт. на ${formatPrice(Number(sale.salePrice) * sale.quantity)}`,
         user: sale.user?.fullName || sale.user?.username || 'Неизвестно',
-        action: `Продажа: ${sale.product?.name || 'Товар'} (${sale.quantity} шт.)`,
         time: sale.soldAt || sale.createdAt || new Date().toISOString(),
       })),
-      ...returnsResponse.slice(0, 3).map((ret: ApiReturn) => ({
+      ...returnsResponse.slice(0, 5).map((ret: ApiReturn) => ({
+        type: 'Возврат',
+        entity: ret.product?.name || 'Товар',
+        details: `${ret.quantity} шт.`,
         user: ret.user?.fullName || ret.user?.username || 'Неизвестно',
-        action: `Возврат: ${ret.product?.name || 'Товар'} (${ret.quantity} шт.)`,
         time: ret.returnedAt || new Date().toISOString(),
-      }))
-    ].slice(0, 5);
+      })),
+      ...newArrivals.value.map((p) => ({
+        type: 'Добавление товара',
+        entity: p.name,
+        details: `${p.quantity} шт.`,
+        user: 'Система',
+        time: p.arrivalDate,
+      })),
+    ]
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 5);
 
     // Сохраняем данные для графика
     salesData.value = salesResponse.data;

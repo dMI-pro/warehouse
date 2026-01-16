@@ -499,13 +499,14 @@ const getAvatarColor = (role: Role): string => {
   return colorMap[role] || '#8c8c8c';
 };
 
-const getUserStatusColor = (code?: UserStatusColor): 'success' | 'info' | 'warn' | 'danger' | 'secondary' => {
-  const severityMap: Record<string, 'success' | 'warn' | 'danger' | 'secondary' > = {
+const getUserStatusColor = (code?: string | UserStatusColor): 'success' | 'info' | 'warning' | 'danger' | 'secondary' => {
+  const severityMap: Record<string, 'success' | 'warning' | 'danger' | 'secondary' > = {
     'active': 'success',
     'blocked': 'danger',
     'disabled': 'secondary',
   };
-  return severityMap[code?.toLowerCase()] || 'secondary';
+  const key = (code ? String(code) : '').toLowerCase();
+  return severityMap[key] || 'secondary';
 };
 
 const getInitials = (name: string): string => {
