@@ -115,9 +115,8 @@ export class AuditLogService {
     }
 
     if (entityId !== undefined && entityId !== null) {
-      const n = typeof entityId === 'string'
-        ? parseInt(entityId, 10)
-        : entityId;
+      const n =
+        typeof entityId === 'string' ? parseInt(entityId, 10) : entityId;
       if (!Number.isNaN(n)) {
         where.entityId = n;
       }
