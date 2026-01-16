@@ -592,7 +592,7 @@ export class ProductsService {
     return { message: 'Product deleted successfully' };
   }
 
-  async uploadImage(id: number, file: Express.Multer.File) {
+  async uploadImage(id: number, file: Express.Multer.File, userId?: number) {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
@@ -629,10 +629,23 @@ export class ProductsService {
       },
     });
 
+    if (this.auditLogService) {
+      await this.auditLogService.create({
+        userId,
+        action: 'product.image_add',
+        entityType: 'Product',
+        entityId: id,
+        newValues: {
+          image: this.minioService.getPublicUrl(fileName),
+        },
+        success: true,
+      });
+    }
+
     return this.mapProduct(updatedProduct);
   }
 
-  async deleteImage(id: number, imageUrl: string) {
+  async deleteImage(id: number, imageUrl: string, userId?: number) {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
@@ -666,10 +679,23 @@ export class ProductsService {
       },
     });
 
+    if (this.auditLogService) {
+      await this.auditLogService.create({
+        userId,
+        action: 'product.image_delete',
+        entityType: 'Product',
+        entityId: id,
+        oldValues: {
+          image: this.minioService.getPublicUrl(imageToDelete),
+        },
+        success: true,
+      });
+    }
+
     return this.mapProduct(updatedProduct);
   }
 
-  async reorderImages(id: number, imageUrls: string[]) {
+  async reorderImages(id: number, imageUrls: string[], userId?: number) {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundException(`Product ${id} not found`);
 
@@ -698,6 +724,22 @@ export class ProductsService {
         transactionType: true,
       },
     });
+
+    if (this.auditLogService) {
+      await this.auditLogService.create({
+        userId,
+        action: 'product.image_reorder',
+        entityType: 'Product',
+        entityId: id,
+        oldValues: {
+          order: currentKeys.map((k) => this.minioService.getPublicUrl(k)),
+        },
+        newValues: {
+          order: newKeys.map((k) => this.minioService.getPublicUrl(k)),
+        },
+        success: true,
+      });
+    }
 
     return this.mapProduct(updatedProduct);
   }

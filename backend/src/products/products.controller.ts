@@ -100,6 +100,7 @@ export class ProductsController {
   async uploadImage(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user?: User,
   ) {
     if (!file) {
       throw new BadRequestException('File is required');
@@ -113,7 +114,7 @@ export class ProductsController {
       throw new BadRequestException('Invalid file extension');
     }
 
-    return this.productsService.uploadImage(id, file);
+    return this.productsService.uploadImage(id, file, user?.id);
   }
 
   @Delete(':id/images')
@@ -121,11 +122,12 @@ export class ProductsController {
   async deleteImage(
     @Param('id', ParseIntPipe) id: number,
     @Body('imageUrl') imageUrl: string,
+    @CurrentUser() user?: User,
   ) {
     if (!imageUrl) {
       throw new BadRequestException('Image URL is required');
     }
-    return this.productsService.deleteImage(id, imageUrl);
+    return this.productsService.deleteImage(id, imageUrl, user?.id);
   }
 
   @Patch(':id/images/reorder')
@@ -133,10 +135,11 @@ export class ProductsController {
   async reorderImages(
     @Param('id', ParseIntPipe) id: number,
     @Body('images') images: string[],
+    @CurrentUser() user?: User,
   ) {
     if (!images || !Array.isArray(images)) {
       throw new BadRequestException('Images array is required');
     }
-    return this.productsService.reorderImages(id, images);
+    return this.productsService.reorderImages(id, images, user?.id);
   }
 }
