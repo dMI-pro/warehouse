@@ -33,9 +33,10 @@ class QueryAuditLogDto {
   @IsOptional()
   entityType?: string;
 
+  @IsInt()
   @IsOptional()
-  @IsString()
-  entityId?: string;
+  @Type(() => Number)
+  entityId?: number;
 
   @IsDateString()
   @IsOptional()
