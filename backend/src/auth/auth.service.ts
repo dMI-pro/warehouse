@@ -91,7 +91,8 @@ export class AuthService {
       await this.auditLogService.create({
         userId: user?.id,
         action: 'login_attempt',
-        entityType: 'Auth',
+        entityType: 'User',
+        entityId: user?.id,
         success: !!(user && isPasswordValid),
         ipAddress,
         userAgent,
@@ -108,7 +109,8 @@ export class AuthService {
       await this.auditLogService.create({
         userId: user.id,
         action: 'login',
-        entityType: 'Auth',
+        entityType: 'User',
+        entityId: user.id,
         success: true,
         ipAddress,
         userAgent,

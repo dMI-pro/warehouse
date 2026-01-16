@@ -37,7 +37,12 @@ export class UsersController {
       (req.headers['x-forwarded-for'] as string) ||
       req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'];
-    return this.usersService.create(createUserDto, currentUser.id, ipAddress, userAgent);
+    return this.usersService.create(
+      createUserDto,
+      currentUser.id,
+      ipAddress,
+      userAgent,
+    );
   }
 
   @Get()
@@ -64,7 +69,13 @@ export class UsersController {
       (req.headers['x-forwarded-for'] as string) ||
       req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'];
-    return this.usersService.update(id, updateUserDto, currentUser, ipAddress, userAgent);
+    return this.usersService.update(
+      id,
+      updateUserDto,
+      currentUser,
+      ipAddress,
+      userAgent,
+    );
   }
 
   @Delete(':id')
