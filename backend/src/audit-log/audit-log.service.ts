@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Scope, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { Request } from 'express';
+import { REQUEST } from '@nestjs/core';
 
 export interface CreateAuditLogDto {
   userId?: number;
@@ -13,9 +15,12 @@ export interface CreateAuditLogDto {
   success?: boolean;
 }
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class AuditLogService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(REQUEST) private readonly req?: Request,
+  ) {}
 
   private sanitizeValues(value: any): any {
     if (value === null || value === undefined) {
@@ -53,6 +58,13 @@ export class AuditLogService {
     const oldValues = rawOld ? this.sanitizeValues(rawOld) : null;
     const newValues = rawNew ? this.sanitizeValues(rawNew) : null;
 
+    const derivedIp =
+      this.req?.ip ||
+      (this.req?.headers?.['x-forwarded-for'] as string) ||
+      (this.req as any)?.connection?.remoteAddress ||
+      undefined;
+    const derivedUA = this.req?.headers?.['user-agent'] as string | undefined;
+
     return this.prisma.auditLog.create({
       data: {
         userId: dto.userId,
@@ -61,8 +73,8 @@ export class AuditLogService {
         entityId: dto.entityId,
         oldValues,
         newValues,
-        ipAddress: dto.ipAddress,
-        userAgent: dto.userAgent,
+        ipAddress: dto.ipAddress ?? derivedIp,
+        userAgent: dto.userAgent ?? derivedUA,
         success: dto.success ?? true,
       },
       include: {
