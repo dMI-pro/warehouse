@@ -217,23 +217,6 @@
           </div>
         </div>
 
-        <!-- График -->
-        <div v-if="(reportType === 'sales' || reportType === 'returns') && normalizedReportData.length" class="grid mb-4">
-          <div class="col-12">
-            <Card>
-              <template #title>
-                <div class="flex align-items-center gap-2">
-                  <i class="pi pi-chart-bar" :class="reportType === 'sales' ? 'text-primary' : 'text-orange-500'"></i>
-                  <span>{{ reportType === 'sales' ? 'Динамика продаж' : 'Динамика возвратов' }}</span>
-                </div>
-              </template>
-              <template #content>
-                <div ref="mainChartRef" class="chart-container"></div>
-              </template>
-            </Card>
-          </div>
-        </div>
-
         <!-- Таблица данных -->
         <div class="grid">
           <div class="col-12">
@@ -339,6 +322,24 @@
             </Card>
           </div>
         </div>
+
+        <!-- График -->
+        <div v-if="(reportType === 'sales' || reportType === 'returns') && normalizedReportData.length" class="grid mb-4">
+          <div class="col-12">
+            <Card>
+              <template #title>
+                <div class="flex align-items-center gap-2">
+                  <i class="pi pi-chart-bar" :class="reportType === 'sales' ? 'text-primary' : 'text-orange-500'"></i>
+                  <span>{{ reportType === 'sales' ? 'Динамика продаж' : 'Динамика возвратов' }}</span>
+                </div>
+              </template>
+              <template #content>
+                <div ref="mainChartRef" class="chart-container"></div>
+              </template>
+            </Card>
+          </div>
+        </div>
+
       </div>
     </div>
 
