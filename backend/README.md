@@ -21,9 +21,48 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Description
+## Описание Backend
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Backend реализован на NestJS (TypeScript) с использованием Prisma ORM и MinIO для хранения изображений. Сервис обеспечивает API для управления товарами, продажами, возвратами, категориями, складами, комитетами, типами транзакций, статусами пользователей, пользователями и журналом действий.
+
+### Основные модули
+- Auth: аутентификация JWT, глобальный JwtAuthGuard.
+- Users: управление пользователями и ролями.
+- Products: CRUD + загрузка/удаление/перестановка изображений (с компрессией).
+- Sales: операции продаж.
+- Returns: операции возвратов.
+- Categories, Warehouses, Committees, Transaction Types, User Statuses: справочники.
+- Audit Log: журнал действий с фильтрами.
+
+### Безопасность
+- Helmet (CSP, CORP), глобальная ValidationPipe (whitelist, forbidNonWhitelisted).
+- RolesGuard для ролевых ограничений; JwtAuthGuard глобально.
+- CORS ограничен списком доверенных origins (см. main.ts).
+- Проверка расширения изображений и конвертация в webp перед загрузкой.
+
+### Переменные окружения (.env)
+```
+DATABASE_URL=postgresql://user:password@localhost:5432/warehouse_db
+JWT_SECRET=your-secret-key-min-32-characters
+JWT_EXPIRES_IN=1h
+PORT=3000
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+MINIO_ENDPOINT=localhost
+MINIO_PORT=9000
+MINIO_ACCESS_KEY=your-access-key
+MINIO_SECRET_KEY=your-secret-key
+MINIO_BUCKET=warehouse
+```
+
+### Ключевые эндпоинты (высокоуровневый обзор)
+- /auth — аутентификация (JWT).
+- /products — CRUD товаров; /products/:id/images (POST/DELETE/reorder).
+- /sales — операции продаж.
+- /returns — операции возвратов.
+- /categories, /warehouses, /committees, /transaction-types, /user-statuses — справочники.
+- /audit-log — выборка журнала действий с фильтрами.
+- /users — управление пользователями (ADMIN).
 
 ## Project setup
 
@@ -35,9 +74,6 @@ $ npm install
 
 ```bash
 # development
-$ npm run start
-
-# watch mode
 $ npm run start:dev
 
 # production mode
@@ -57,18 +93,15 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+## Деплой
+Соберите проект:
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run build
 ```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Запустите production сборку:
+```bash
+npm run start:prod
+```
 
 ## Resources
 
@@ -95,4 +128,4 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+MIT
