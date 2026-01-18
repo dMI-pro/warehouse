@@ -40,7 +40,7 @@ const route = useRoute();
 const authStore = useAuthStore();
 
 // Функция для проверки активного маршрута
-const isActive = (path: string | { name: string } | Array<string | { name: string }>) => {
+const isActive = (path: string | { name: string } | Array<string | { name: string }>): boolean => {
   if (Array.isArray(path)) {
     return path.some(p => isActive(p));
   }
