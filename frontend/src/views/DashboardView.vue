@@ -11,31 +11,31 @@
             <div class="widget-title">Общая статистика</div>
           </div>
           <div class="stats-content">
-            <div class="stat-item">
+            <div class="stats-item">
               <div class="stat-label">Кол-во позиций:</div>
               <div class="stat-value">{{ formatNumber(stats.totalPositions) }}</div>
             </div>
-            <div class="stat-item">
+            <div class="stats-item">
               <div class="stat-label">Всего товара:</div>
               <div class="stat-value">{{ formatNumber(stats.totalItemsQuantity) }}</div>
             </div>
-            <div class="stat-item">
+            <div class="stats-item">
               <div class="stat-label">Активные позиции:</div>
               <div class="stat-value">{{ formatNumber(stats.activePositions) }}</div>
             </div>
-            <div class="stat-item">
+            <div class="stats-item">
               <div class="stat-label">Активные товары:</div>
               <div class="stat-value">{{ formatNumber(stats.activeItemsCount) }}</div>
             </div>
-            <div class="stat-item">
+            <div class="stats-item">
               <div class="stat-label">Продано:</div>
               <div class="stat-value">{{ formatNumber(stats.soldItemsCount) }}</div>
             </div>
-            <div class="stat-item">
+            <div class="stats-item">
               <div class="stat-label">Возвращено:</div>
               <div class="stat-value">{{ formatNumber(stats.returnedItemsCount) }}</div>
             </div>
-            <div class="stat-item">
+            <div class="stats-item">
               <div class="stat-label">На сумму:</div>
               <div class="stat-value">{{ formatPrice(stats.totalValue) }}</div>
             </div>
@@ -51,17 +51,17 @@
             <div class="widget-title">Низкий запас</div>
           </div>
           <div class="low-stock-content">
-            <div class="stat-item">
-              <div class="stat-label">
+            <div class="low-stock-item">
+              <div class="low-stock-label">
                 Товаров с низким запасом:
-                <span class="stat-value warning">{{ lowStockProducts.length }}</span>
+                <span class="low-stock-value warning">{{ lowStockProducts.length }}</span>
               </div>
               <div class="stats__container" v-if="lowStockProducts.length > 0">
                 <Tag 
                   v-for="(product, index) of lowStockProducts.slice(0, 3)" 
                   :key="index"
-                  :value="product.name" 
-                  severity="warning"
+                  :value="getNameProductWithQuantity(product)"
+                  severity="warn"
                   class="mb-1"
                 />
                 <div v-if="lowStockProducts.length > 3" class="text-sm text-500 mt-1">
@@ -107,7 +107,10 @@
         <template #content>
           <div class="widget-header">
             <div class="widget-icon">💰</div>
-            <div class="widget-title">Последние продажи</div>
+            <div class="widget-title">
+              Последние продажи
+              <small class="text-sm text-500">(последние 5 продаж)</small>
+            </div>
           </div>
           <div class="recent-sales-content">
             <DataTable
@@ -121,7 +124,7 @@
             >
               <Column field="productName" header="Товар">
                 <template #body="{ data }">
-                  <div class="truncate-text" style="max-width: 120px">{{ data.productName }}</div>
+                  <div class="truncate-text" style="max-width: 280px">{{ data.productName }}</div>
                 </template>
               </Column>
               <Column field="quantity" header="Кол-во" style="width: 80px" />
@@ -148,7 +151,10 @@
         <template #content>
           <div class="widget-header">
             <div class="widget-icon">↩️</div>
-            <div class="widget-title">Последние возвраты</div>
+            <div class="widget-title">
+              Последние возвраты
+              <small class="text-sm text-500">(последние 5 возвратов)</small>
+            </div>
           </div>
           <div class="recent-returns-content">
             <DataTable
@@ -162,7 +168,7 @@
             >
               <Column field="productName" header="Товар">
                 <template #body="{ data }">
-                  <div class="truncate-text" style="max-width: 120px">{{ data.productName }}</div>
+                  <div class="truncate-text" style="max-width: 280px">{{ data.productName }}</div>
                 </template>
               </Column>
               <Column field="quantity" header="Кол-во" style="width: 80px" />
@@ -190,7 +196,10 @@
         <template #content>
           <div class="widget-header">
             <div class="widget-icon">📥</div>
-            <div class="widget-title">Новые поступления</div>
+            <div class="widget-title">
+              Новые поступления
+              <small class="text-sm text-500">(новые 5 поступлений)</small>
+            </div>
           </div>
           <div class="new-arrivals-content">
             <DataTable
@@ -204,7 +213,7 @@
             >
               <Column field="name" header="Товар">
                 <template #body="{ data }">
-                  <div class="truncate-text" style="max-width: 120px">{{ data.name }}</div>
+                  <div class="truncate-text" style="max-width: 280px">{{ data.name }}</div>
                 </template>
               </Column>
               <Column field="quantity" header="Кол-во" style="width: 80px" />
@@ -230,21 +239,21 @@
       <!-- Долгохранящиеся товары (2 колонки) -->
       <Card class="widget-card long-storage-widget" style="grid-column: span 2">
         <template #content>
-          <div class="widget-header">
+          <div class="widget-header" title="Товары которые не продаются больше 90 дней">
             <div class="widget-icon">📦</div>
             <div class="widget-title">Долгохранящиеся товары</div>
           </div>
           <div class="long-storage-content">
-            <div class="stat-item">
-              <div class="stat-label">
+            <div class="long-storage-item">
+              <div class="long-storage-label">
                 Товаров на складе более 90 дней:
-                <span class="stat-value warning">{{ longStorageProducts.length }}</span>
+                <span class="long-storage-value warning">{{ longStorageProducts.length }}</span>
               </div>
               <div class="stats__container" v-if="longStorageProducts.length > 0">
                 <Tag 
                   v-for="(product, index) of longStorageProducts.slice(0, 3)" 
                   :key="index"
-                  :value="product.name" 
+                  :value="getNameProductWithQuantity(product)" 
                   severity="info"
                   class="mb-1"
                 />
@@ -315,7 +324,7 @@
               icon="pi pi-list" 
               text 
               size="small" 
-              @click="router.push('/audit-logs')"
+              @click="router.push('/audit-log')"
             />
           </div>
         </template>
@@ -412,10 +421,14 @@ const chartOption = computed(() => {
   const dates = last30Days.map((d) => {
     if (d) {
       const date = new Date(d);
-      return `${date.getDate()}.${date.getMonth() + 1}`;
+      // Используем padStart для добавления ведущих нулей
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      return `${day}.${month}`;
     }
     return '';
   }).filter(Boolean);
+
   const values = Array.from(salesByDate.values());
 
   return {
@@ -504,6 +517,10 @@ const formatDate = (dateString: string) => {
   }).format(date);
 };
 
+const getNameProductWithQuantity = (product: Product) => {
+  return `${product.name} — ${product.quantity} шт.`
+}
+
 const loadStats = async () => {
   loading.value = true;
   try {
@@ -587,13 +604,14 @@ const loadStats = async () => {
 
     // Формируем список новых поступлений (товары, добавленные за последние 7 дней)
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // оставить датой или переделать на последнии 5 поступлейний, чтобы  
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 30);
     newArrivals.value = allProducts
-      .filter((product: Product) => {
-        if (!product.arrivalDate && !product.createdAt) return false;
-        const productDate = product.arrivalDate ? new Date(product.arrivalDate) : new Date(product.createdAt);
-        return productDate >= sevenDaysAgo;
-      })
+      // .filter((product: Product) => {
+      //   if (!product.arrivalDate && !product.createdAt) return false;
+      //   const productDate = product.arrivalDate ? new Date(product.arrivalDate) : new Date(product.createdAt);
+      //   return productDate >= sevenDaysAgo;
+      // })
       .sort((a: Product, b: Product) => {
         const dateA = new Date(a.arrivalDate || a.createdAt);
         const dateB = new Date(b.arrivalDate || b.createdAt);
@@ -732,7 +750,20 @@ onMounted(() => {
   gap: 0.75rem;
 }
 
-.stat-item {
+.long-storage-item,
+.low-stock-item {
+  /* display: flex;
+  flex-flow: column; */
+}
+
+.stats__container {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 4px;
+  margin: 0.5rem 0;
+}
+
+.stats-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -740,7 +771,7 @@ onMounted(() => {
   border-bottom: 1px solid var(--surface-border);
 }
 
-.stat-item:last-child {
+.stats-item:last-child {
   border-bottom: none;
 }
 
@@ -757,13 +788,6 @@ onMounted(() => {
 
 .stat-value.warning {
   color: var(--orange-500);
-}
-
-.stats__container {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0.5rem 0;
 }
 
 .low-stock-content,
@@ -834,7 +858,7 @@ onMounted(() => {
     grid-column: span 1 !important;
   }
   
-  .stat-item {
+  .stats-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.25rem;
