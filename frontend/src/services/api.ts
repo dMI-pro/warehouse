@@ -109,6 +109,16 @@ class ApiService {
     return response.data;
   }
 
+  async revokeUserSessions(id: number): Promise<{ message: string }> {
+    const response = await this.api.post<{ message: string }>(`/users/${id}/sessions/revoke`, {});
+    return response.data;
+  }
+
+  async blockUser(id: number): Promise<{ message: string }> {
+    const response = await this.api.post<{ message: string }>(`/users/${id}/block`, {});
+    return response.data;
+  }
+
   async createUser(createUserDto: CreateUserDto): Promise<User> {
     const response = await this.api.post<User>('/users', createUserDto);
     return response.data;

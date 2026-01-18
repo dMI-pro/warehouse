@@ -17,6 +17,7 @@ model User {
   role         String    @default("GUEST") // GUEST, SELLER, MANAGER, ADMIN
   isSuperAdmin Boolean   @default(false)
   userStatusId Int?
+  sessionsRevokeAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

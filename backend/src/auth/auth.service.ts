@@ -76,6 +76,7 @@ export class AuthService {
     // Поиск пользователя
     const user = await this.prisma.user.findUnique({
       where: { username },
+      include: { status: true },
     });
 
     // Защита от timing attacks: всегда выполняем хеширование,
@@ -102,6 +103,10 @@ export class AuthService {
     // Проверяем существование пользователя и валидность пароля одновременно
     if (!user || !isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.status?.code?.toLowerCase() === 'blocked') {
+      throw new UnauthorizedException('User is blocked');
     }
 
     // Логирование успешного входа
@@ -148,5 +153,12 @@ export class AuthService {
     });
 
     return user;
+  }
+
+  async revokeUserSessions(userId: number) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { sessionsRevokeAt: new Date() },
+    });
   }
 }

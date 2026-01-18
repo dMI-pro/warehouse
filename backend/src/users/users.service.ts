@@ -11,6 +11,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as bcrypt from 'bcryptjs';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class UsersService {
@@ -18,6 +19,8 @@ export class UsersService {
     private prisma: PrismaService,
     @Inject(forwardRef(() => AuditLogService))
     private auditLogService: AuditLogService,
+    @Inject(forwardRef(() => AuthService))
+    private authService: AuthService,
   ) {}
 
   async create(
@@ -81,7 +84,7 @@ export class UsersService {
 
   private async getDefaultStatusId() {
     const status = await this.prisma.userStatus.findUnique({
-      where: { code: 'ACTIVE' },
+      where: { code: 'active' },
     });
     return status?.id;
   }
@@ -263,5 +266,70 @@ export class UsersService {
     });
 
     return { message: 'User deleted successfully' };
+  }
+
+  async revokeSessions(
+    id: number,
+    currentUser: any,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException(`User ${id} not found`);
+    if (user.isSuperAdmin)
+      throw new ForbiddenException('Cannot revoke sessions for super admin');
+    await this.authService.revokeUserSessions(id);
+    if (currentUser) {
+      await this.auditLogService.create({
+        userId: currentUser.id,
+        action: 'user.sessions.revoke',
+        entityType: 'User',
+        entityId: id,
+        success: true,
+        ipAddress,
+        userAgent,
+      });
+    }
+    return { message: 'All sessions revoked' };
+  }
+
+  async blockUser(
+    id: number,
+    currentUser: any,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: { status: true },
+    });
+    if (!user) throw new NotFoundException(`User ${id} not found`);
+    if (user.isSuperAdmin)
+      throw new ForbiddenException('Cannot block super admin');
+    const blocked = await this.prisma.userStatus.findUnique({
+      where: { code: 'blocked' },
+    });
+    if (!blocked) {
+      throw new NotFoundException('Blocked status not found');
+    }
+    await this.prisma.user.update({
+      where: { id },
+      data: { userStatusId: blocked.id },
+    });
+    await this.authService.revokeUserSessions(id);
+    if (currentUser) {
+      await this.auditLogService.create({
+        userId: currentUser.id,
+        action: 'user.block',
+        entityType: 'User',
+        entityId: id,
+        oldValues: { status: user.status?.code },
+        newValues: { status: 'blocked' },
+        success: true,
+        ipAddress,
+        userAgent,
+      });
+    }
+    return { message: 'User blocked and all sessions revoked' };
   }
 }

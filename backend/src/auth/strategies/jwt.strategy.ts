@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../prisma/prisma.service';
+import type { User } from '@prisma/client';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -22,20 +23,33 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: any) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        fullName: true,
-        role: true,
-        isSuperAdmin: true,
-      },
-    });
+      include: { status: true },
+    }) as (User & { status: { code: string } | null }) | null;
 
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    return user;
+    if (user.status?.code?.toLowerCase() === 'blocked') {
+      throw new UnauthorizedException('User is blocked');
+    }
+
+    const iatMs =
+      typeof payload.iat === 'number' ? payload.iat * 1000 : Date.now();
+    const revokedAt = user.sessionsRevokeAt
+      ? new Date(user.sessionsRevokeAt).getTime()
+      : undefined;
+    if (revokedAt && iatMs <= revokedAt) {
+      throw new UnauthorizedException('Session revoked');
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      fullName: user.fullName,
+      role: user.role,
+      isSuperAdmin: user.isSuperAdmin,
+    };
   }
 }

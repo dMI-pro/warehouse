@@ -92,4 +92,34 @@ export class UsersController {
     const userAgent = req.headers['user-agent'];
     return this.usersService.remove(id, currentUser, ipAddress, userAgent);
   }
+
+  @Post(':id/sessions/revoke')
+  @Roles(Role.ADMIN)
+  async revokeSessions(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    const ipAddress =
+      req.ip ||
+      (req.headers['x-forwarded-for'] as string) ||
+      req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    return this.usersService.revokeSessions(id, currentUser, ipAddress, userAgent);
+  }
+
+  @Post(':id/block')
+  @Roles(Role.ADMIN)
+  async blockUser(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() currentUser: any,
+    @Req() req: Request,
+  ) {
+    const ipAddress =
+      req.ip ||
+      (req.headers['x-forwarded-for'] as string) ||
+      req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    return this.usersService.blockUser(id, currentUser, ipAddress, userAgent);
+  }
 }
