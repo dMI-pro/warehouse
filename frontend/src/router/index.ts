@@ -52,25 +52,25 @@ const router = createRouter({
           path: 'reports',
           name: 'reports',
           component: () => import('@/views/ReportsView.vue'),
-          meta: { requiredRole: Role.MANAGER },
+          meta: { requiredRoles: [Role.MANAGER, Role.ADMIN] },
         },
         {
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/SettingsView.vue'),
-          meta: { requiredRole: Role.MANAGER },
+          meta: { requiredRoles: [Role.MANAGER, Role.ADMIN] },
         },
         {
           path: 'audit-log',
           name: 'audit-log',
           component: () => import('@/views/AuditLogView.vue'),
-          meta: { requiredRole: Role.ADMIN },
+          meta: { requiredRoles: [Role.ADMIN] },
         },
         {
           path: 'users',
           name: 'users',
           component: () => import('@/views/UsersView.vue'),
-          meta: { requiredRole: Role.ADMIN },
+          meta: { requiredRoles: [Role.ADMIN] },
         },
       ],
     },
@@ -98,10 +98,13 @@ router.beforeEach(
         }
       }
 
-      // Проверяем роль, если требуется
-      if (to.meta.requiredRole) {
-        const requiredRole = to.meta.requiredRole as Role;
-        if (!authStore.hasRole(requiredRole)) {
+      // Проверяем роли, если требуется (поддержка requiredRoles массива и старого requiredRole)
+      const requiredRoles = (to.meta.requiredRoles as Role[]) ||
+        (to.meta.requiredRole ? [to.meta.requiredRole as Role] : []);
+      if (requiredRoles && requiredRoles.length > 0) {
+        const user = authStore.user;
+        const isAllowed = !!user && (user.isSuperAdmin || requiredRoles.includes(user.role as Role));
+        if (!isAllowed) {
           next({ name: 'dashboard' });
           return;
         }
