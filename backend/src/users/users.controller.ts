@@ -105,7 +105,12 @@ export class UsersController {
       (req.headers['x-forwarded-for'] as string) ||
       req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'];
-    return this.usersService.revokeSessions(id, currentUser, ipAddress, userAgent);
+    return this.usersService.revokeSessions(
+      id,
+      currentUser,
+      ipAddress,
+      userAgent,
+    );
   }
 
   @Post(':id/block')

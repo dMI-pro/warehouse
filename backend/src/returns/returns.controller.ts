@@ -32,7 +32,7 @@ export class ReturnsController {
   }
 
   @Get()
-  @Roles(Role.MANAGER, Role.ADMIN)
+  @Roles(Role.SELLER, Role.MANAGER, Role.ADMIN)
   findAll(@Query() query: any) {
     return this.returnsService.findAll(query);
   }

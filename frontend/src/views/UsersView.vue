@@ -602,17 +602,26 @@ const canBlockUser = (user: User) => {
 };
 const canEditUser = (user: User) => {
   if (isSuperAdmin.value) return true;
-  if (isAdmin.value) return !user.isSuperAdmin && !isAdminTarget(user);
+  if (isAdmin.value) {
+    if (isSelf(user)) return true;
+    return !user.isSuperAdmin && !isAdminTarget(user);
+  }
   return isSelf(user);
 };
 const canRevokeSessions = (user: User) => {
   if (isSuperAdmin.value) return true;
-  if (isAdmin.value) return !user.isSuperAdmin && !isAdminTarget(user);
+  if (isAdmin.value) {
+    if (isSelf(user)) return true;
+    return !user.isSuperAdmin && !isAdminTarget(user);
+  }
   return isSelf(user);
 };
 const canResetPassword = (user: User) => {
   if (isSuperAdmin.value) return true;
-  if (isAdmin.value) return !user.isSuperAdmin && !isAdminTarget(user);
+  if (isAdmin.value) {
+    if (isSelf(user)) return true;
+    return !user.isSuperAdmin && !isAdminTarget(user);
+  }
   return isSelf(user);
 };
 
