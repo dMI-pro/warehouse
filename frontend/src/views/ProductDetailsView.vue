@@ -446,7 +446,12 @@
                 </Column>
                 <Column header="Пользователь" style="width: 220px">
                   <template #body="{ data }">
-                    <span v-if="data.user">{{ data.user.fullName || data.user.username }}</span>
+                    <span
+                      v-if="data.user"
+                      :class="['history-actor', { 'self-actor': isCurrentUserActor(data.user) }]"
+                    >
+                      {{ getActorDisplayName(data.user) }}
+                    </span>
                     <span v-else>Система</span>
                   </template>
                 </Column>
@@ -552,6 +557,7 @@ import { apiService } from '@/services/api';
 import type { UpdateProductDto } from '@/types/api';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
+import { isCurrentUserActor, getActorDisplayName } from '@/utils/user-utils';
 
 const route = useRoute();
 const router = useRouter();
@@ -615,6 +621,8 @@ const isFormChanged = computed(() => {
     form.committeeId !== product.value.committeeId ||
     form.transactionTypeId !== product.value.transactionTypeId;
 });
+
+ 
 
 // Options for dropdowns
 const categoryOptions = computed(() => [
@@ -1134,6 +1142,11 @@ const showDetails = (log: AuditLog) => {
 
 .form-label .required {
   color: #ef4444;
+}
+
+.history-actor.self-actor {
+  font-weight: 600;
+  color: var(--primary-color);
 }
 
 .character-counter {

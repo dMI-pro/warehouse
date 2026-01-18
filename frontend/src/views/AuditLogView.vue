@@ -88,9 +88,11 @@
             <template #body="{ data }">
               <div v-if="data.user" class="user-cell">
                 <div class="avatar-small" :style="{ backgroundColor: getAvatarColor(data.user.role) }">
-                  {{ getInitials(data.user.fullName || data.user.username) }}
+                  {{ getInitials(getActorDisplayName(data.user)) }}
                 </div>
-                <span>{{ data.user.fullName || data.user.username }}</span>
+                <span :class="['audit-user-label', { 'self-actor': isCurrentUserActor(data.user) }]">
+                  {{ getActorDisplayName(data.user) }}
+                </span>
               </div>
               <span v-else>Система</span>
             </template>
@@ -148,7 +150,9 @@
           </div>
           <div class="detail-section">
             <h4>Пользователь</h4>
-            <p>{{ selectedLog.user?.fullName || selectedLog.user?.username || 'Система' }}</p>
+            <p>
+              {{ selectedLog.user ? getActorDisplayName(selectedLog.user) : 'Система' }}
+            </p>
           </div>
           <div class="detail-section">
             <h4>Время</h4>
@@ -206,6 +210,7 @@ import { useUsersStore } from '@/stores/usersStore';
 import { useAuthStore } from '@/stores/authStore';
 import { apiService } from '@/services/api';
 import type { User, Role, AuditLog, PaginatedResponse } from '@/types/api';
+import { isCurrentUserActor, getActorDisplayName, getInitials, getAvatarColor } from '@/utils/user-utils';
 
 const usersStore = useUsersStore();
 const authStore = useAuthStore();
@@ -336,26 +341,7 @@ const getActionLabel = (action: string): string => {
   return labelMap[action] || action;
 };
 
-const getAvatarColor = (role: Role): string => {
-  const colorMap: Record<Role, string> = {
-    GUEST: '#8c8c8c',
-    SELLER: '#faad14',
-    MANAGER: '#52c41a',
-    ADMIN: '#1890ff',
-  };
-  return colorMap[role] || '#8c8c8c';
-};
-
-const getInitials = (name: string): string => {
-  if (!name) return '?';
-  const parts = name.split(' ');
-  if (parts.length >= 2) {
-    const first = parts[0]?.[0] ?? '';
-    const second = parts[1]?.[0] ?? '';
-    return (first + second || '?').toUpperCase();
-  }
-  return name.substring(0, 2).toUpperCase();
-};
+ 
 
 const searchUsers = (event: any) => {
   const query = event.query.toLowerCase();
@@ -495,6 +481,11 @@ onMounted(async () => {
   color: white;
   font-weight: 600;
   font-size: 0.75rem;
+}
+
+.audit-user-label.self-actor {
+  font-weight: 600;
+  color: var(--primary-color);
 }
 
 .action-cell {
