@@ -32,7 +32,7 @@ export class SalesController {
   }
 
   @Get()
-  @Roles(Role.MANAGER, Role.ADMIN)
+  @Roles(Role.SELLER, Role.MANAGER, Role.ADMIN)
   async findAll(@Query() query: QuerySalesDto) {
     return this.salesService.findAll(query);
   }
