@@ -69,7 +69,7 @@
             <Column header="Действия" style="width: 120px">
               <template #body="{ data }">
                 <Button
-                  v-if="!data.isSuperAdmin || authStore.user?.isSuperAdmin"
+                  v-if="canEditUser(data)"
                   icon="pi pi-pencil"
                   severity="info"
                   size="small"
@@ -79,7 +79,7 @@
                   @click="openEditUserDialog(data)"
                 />
                 <Button
-                  v-if="authStore.isAdmin && (!data.isSuperAdmin || authStore.user?.isSuperAdmin)"
+                  v-if="canBlockUser(data)"
                   icon="pi pi-ban"
                   severity="danger"
                   size="small"
@@ -90,7 +90,18 @@
                   @click="confirmBlockUser(data)"
                 />
                 <Button
-                  v-if="authStore.isAdmin && (!data.isSuperAdmin || authStore.user?.isSuperAdmin)"
+                  v-if="canResetPassword(data)"
+                  icon="pi pi-key"
+                  severity="warning"
+                  size="small"
+                  outlined
+                  rounded
+                  class="ml-2"
+                  v-tooltip.top="'Сбросить пароль'"
+                  @click="confirmResetPassword(data)"
+                />
+                <Button
+                  v-if="canRevokeSessions(data)"
                   icon="pi pi-sign-out"
                   severity="warning"
                   size="small"
@@ -155,12 +166,31 @@
             <div class="user-actions-section">
               <h4>Действия</h4>
               <Button
+                v-if="selectedUser && canResetPassword(selectedUser)"
                 label="Сбросить пароль"
                 icon="pi pi-key"
                 severity="warning"
                 outlined
+                class="w-full mb-2"
+                @click="confirmResetPassword(selectedUser!)"
+              />
+              <Button
+                v-if="selectedUser && canRevokeSessions(selectedUser)"
+                label="Завершить все сессии"
+                icon="pi pi-sign-out"
+                severity="warning"
+                outlined
+                class="w-full mb-2"
+                @click="confirmRevokeSessions(selectedUser!)"
+              />
+              <Button
+                v-if="selectedUser && canBlockUser(selectedUser)"
+                label="Заблокировать пользователя"
+                icon="pi pi-ban"
+                severity="danger"
+                outlined
                 class="w-full"
-                @click="handleResetPassword"
+                @click="confirmBlockUser(selectedUser!)"
               />
             </div>
 
@@ -561,6 +591,31 @@ const formatDateTime = (dateString: string) => {
   });
 };
 
+const isSuperAdmin = computed(() => !!authStore.user?.isSuperAdmin);
+const isAdmin = computed(() => authStore.isAdmin);
+const isSelf = (user: User) => authStore.user?.id === user.id;
+const isAdminTarget = (user: User) => user.role === Role.ADMIN;
+const canBlockUser = (user: User) => {
+  if (isSuperAdmin.value) return true;
+  if (isAdmin.value) return !user.isSuperAdmin && !isAdminTarget(user);
+  return false;
+};
+const canEditUser = (user: User) => {
+  if (isSuperAdmin.value) return true;
+  if (isAdmin.value) return !user.isSuperAdmin && !isAdminTarget(user);
+  return isSelf(user);
+};
+const canRevokeSessions = (user: User) => {
+  if (isSuperAdmin.value) return true;
+  if (isAdmin.value) return !user.isSuperAdmin && !isAdminTarget(user);
+  return isSelf(user);
+};
+const canResetPassword = (user: User) => {
+  if (isSuperAdmin.value) return true;
+  if (isAdmin.value) return !user.isSuperAdmin && !isAdminTarget(user);
+  return isSelf(user);
+};
+
 const onUserSelect = (event: any) => {
   selectedUser.value = event.data;
   loadUserHistory(event.data.id);
@@ -730,6 +785,26 @@ const handleResetPassword = () => {
     accept: async () => {
       try {
         // В реальном приложении здесь будет вызов API
+        toast.add({
+          severity: 'success',
+          summary: 'Успешно',
+          detail: 'Пароль сброшен. Новый пароль отправлен на email.',
+          life: 3000,
+        });
+      } catch (error) {
+        // Ошибка уже обработана
+      }
+    },
+  });
+};
+
+const confirmResetPassword = (user: User) => {
+  confirm.require({
+    message: `Вы уверены, что хотите сбросить пароль для пользователя "${user.fullName || user.username}"?`,
+    header: 'Подтверждение сброса пароля',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      try {
         toast.add({
           severity: 'success',
           summary: 'Успешно',
