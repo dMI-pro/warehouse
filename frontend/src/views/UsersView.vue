@@ -78,6 +78,28 @@
                   v-tooltip.top="'Редактировать'"
                   @click="openEditUserDialog(data)"
                 />
+                <Button
+                  v-if="authStore.isAdmin && (!data.isSuperAdmin || authStore.user?.isSuperAdmin)"
+                  icon="pi pi-ban"
+                  severity="danger"
+                  size="small"
+                  outlined
+                  rounded
+                  class="ml-2"
+                  v-tooltip.top="'Заблокировать пользователя'"
+                  @click="confirmBlockUser(data)"
+                />
+                <Button
+                  v-if="authStore.isAdmin && (!data.isSuperAdmin || authStore.user?.isSuperAdmin)"
+                  icon="pi pi-sign-out"
+                  severity="warning"
+                  size="small"
+                  outlined
+                  rounded
+                  class="ml-2"
+                  v-tooltip.top="'Завершить все сессии'"
+                  @click="confirmRevokeSessions(data)"
+                />
               </template>
             </Column>
           </DataTable>
@@ -716,6 +738,56 @@ const handleResetPassword = () => {
         });
       } catch (error) {
         // Ошибка уже обработана
+      }
+    },
+  });
+};
+
+const confirmRevokeSessions = (user: User) => {
+  confirm.require({
+    message: `Завершить все сессии пользователя "${user.fullName || user.username}"?`,
+    header: 'Подтверждение',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      try {
+        await apiService.revokeUserSessions(user.id);
+        toast.add({
+          severity: 'success',
+          summary: 'Успешно',
+          detail: 'Все сессии завершены',
+          life: 3000,
+        });
+        await usersStore.fetchUsers();
+      } catch (err: any) {
+        const msg = err.response?.data?.message || 'Ошибка завершения сессий';
+        toast.add({ severity: 'error', summary: 'Ошибка', detail: msg, life: 5000 });
+      }
+    },
+  });
+};
+
+const confirmBlockUser = (user: User) => {
+  confirm.require({
+    message: `Заблокировать пользователя "${user.fullName || user.username}" и завершить все его сессии?`,
+    header: 'Подтверждение блокировки',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        await apiService.blockUser(user.id);
+        toast.add({
+          severity: 'success',
+          summary: 'Успешно',
+          detail: 'Пользователь заблокирован и все сессии завершены',
+          life: 3000,
+        });
+        if (selectedUser.value?.id === user.id) {
+          selectedUser.value = { ...selectedUser.value, status: { ...(selectedUser.value.status || {}), code: 'blocked', name: 'Заблокированный' } } as any;
+        }
+        await usersStore.fetchUsers();
+      } catch (err: any) {
+        const msg = err.response?.data?.message || 'Ошибка блокировки пользователя';
+        toast.add({ severity: 'error', summary: 'Ошибка', detail: msg, life: 5000 });
       }
     },
   });

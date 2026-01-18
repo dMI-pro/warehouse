@@ -37,7 +37,7 @@ async function main() {
       fullName: 'Super Admin',
       isSuperAdmin: true,
       status: {
-        connect: { code: 'ACTIVE' },
+        connect: { code: 'active' },
       },
     },
   });
