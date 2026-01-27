@@ -442,6 +442,7 @@ import { ref, reactive, onMounted, computed, watch, nextTick, onBeforeMount, onB
 import { useRoute, useRouter } from 'vue-router';
 import * as echarts from 'echarts';
 import { saveAs } from 'file-saver';
+import { exportExcelTable, type ExcelColumn } from '@/utils/excelExport';
 import Card from 'primevue/card';
 import Button from 'primevue/button';
 import Calendar from 'primevue/calendar';
@@ -464,6 +465,7 @@ import type { Sale, Product, Return as ApiReturn, Return } from '@/types/api';
 import { Role } from '@/types/api';
 
 import QuantityInput from '@/components/forms/QuantityInput.vue';
+import { getDefaultTemplate } from '@/utils/exportTemplates';
 
 const route = useRoute();
 const router = useRouter();
@@ -1342,32 +1344,55 @@ const updateChart = async () => {
   }
 };
 
-// Экспорт (без изменений)
 const handleExport = () => {
   if (!normalizedReportData.value.length) {
     toast.add({ severity: 'warn', summary: 'Предупреждение', detail: 'Нет данных для экспорта', life: 3000 });
     return;
   }
 
-  const headers = tableColumns.value.map((col) => col.header);
-  const rows = normalizedReportData.value.map((item: any) =>
-    tableColumns.value.map((col) => {
-      const value = item[col.field];
-      if (col.format === 'price') return formatPrice(value).replace('₽', 'RUB');
-      if (col.format === 'date') return formatDate(value);
-      return value ?? '';
-    })
-  );
+  if (exportFormat.value === 'csv') {
+    const headers = tableColumns.value.map((col) => col.header);
+    const rows = normalizedReportData.value.map((item: any) =>
+      tableColumns.value.map((col) => {
+        const value = item[col.field];
+        if (col.format === 'price') return formatPrice(value).replace('₽', 'RUB');
+        if (col.format === 'date') return formatDate(value);
+        return value ?? '';
+      })
+    );
 
-  const csvContent = [headers, ...rows]
-    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    .join('\n');
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
 
-  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const fileName = `report_${reportType.value}_${new Date().toISOString().split('T')[0]}.csv`;
-  saveAs(blob, fileName);
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const fileName = `report_${reportType.value}_${new Date().toISOString().split('T')[0]}.csv`;
+    saveAs(blob, fileName);
+    toast.add({ severity: 'success', summary: 'Успешно', detail: 'Данные экспортированы', life: 3000 });
+    return;
+  }
 
-  toast.add({ severity: 'success', summary: 'Успешно', detail: 'Данные экспортированы', life: 3000 });
+  const mappedRows = normalizedReportData.value.map((item: any) => ({ ...item }));
+  const excelColumns: ExcelColumn[] = tableColumns.value.map((col) => ({
+    key: col.field,
+    header: col.header,
+    type: col.format === 'price' ? 'number' : col.format === 'date' ? 'date' : 'string',
+  }));
+  const tableKey = reportType.value === 'sales' ? 'sales' : reportType.value === 'returns' ? 'returns' : 'stock';
+  const template = getDefaultTemplate(tableKey as any);
+  const selectedColumns = template?.columns?.length
+    ? excelColumns.filter((c) => template!.columns!.includes(c.key))
+    : excelColumns;
+
+  exportExcelTable(selectedColumns, mappedRows, {
+    totals: true,
+    tableName: reportType.value === 'sales' ? 'Sales' : reportType.value === 'returns' ? 'Returns' : reportType.value === 'stock' ? 'Stock' : 'Report',
+    fileName: `report_${reportType.value}_${new Date().toISOString().split('T')[0]}.xlsx`,
+  }).then(() => {
+    toast.add({ severity: 'success', summary: 'Успешно', detail: 'Данные экспортированы в Excel', life: 3000 });
+  }).catch(() => {
+    toast.add({ severity: 'error', summary: 'Ошибка', detail: 'Не удалось экспортировать в Excel', life: 3000 });
+  });
 };
 
 // Наблюдатели - ИСПРАВЛЕННАЯ ВЕРСИЯ
