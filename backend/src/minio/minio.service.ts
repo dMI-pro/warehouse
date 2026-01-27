@@ -9,6 +9,7 @@ export class MinioService implements OnModuleInit {
   private minioClient: Minio.Client;
   private bucketName: string;
   private readonly logger = new Logger(MinioService.name);
+  private usePresigned: boolean;
 
   constructor(private configService: ConfigService) {
     this.bucketName = this.configService.get<string>(
@@ -30,6 +31,9 @@ export class MinioService implements OnModuleInit {
       'MINIO_SECRET_KEY',
       'minioadmin',
     );
+    this.usePresigned =
+      this.configService.get<string>('MINIO_PRESIGNED', 'false') === 'true' ||
+      this.configService.get<string>('NODE_ENV') === 'production';
 
     this.minioClient = new Minio.Client({
       endPoint,
@@ -50,26 +54,26 @@ export class MinioService implements OnModuleInit {
       if (!bucketExists) {
         await this.minioClient.makeBucket(this.bucketName, 'us-east-1');
 
-        // Set public read policy
-        const policy = {
-          Version: '2012-10-17',
-          Statement: [
-            {
-              Effect: 'Allow',
-              Principal: { AWS: ['*'] },
-              Action: ['s3:GetObject'],
-              Resource: [`arn:aws:s3:::${this.bucketName}/*`],
-            },
-          ],
-        };
-        await this.minioClient.setBucketPolicy(
-          this.bucketName,
-          JSON.stringify(policy),
-        );
+        // In production/private mode do not set public policy
+        if (!this.usePresigned) {
+          const policy = {
+            Version: '2012-10-17',
+            Statement: [
+              {
+                Effect: 'Allow',
+                Principal: { AWS: ['*'] },
+                Action: ['s3:GetObject'],
+                Resource: [`arn:aws:s3:::${this.bucketName}/*`],
+              },
+            ],
+          };
+          await this.minioClient.setBucketPolicy(
+            this.bucketName,
+            JSON.stringify(policy),
+          );
+        }
 
-        this.logger.log(
-          `Bucket ${this.bucketName} created successfully with public read policy.`,
-        );
+        this.logger.log(`Bucket ${this.bucketName} created successfully.`);
       }
     } catch (err) {
       this.logger.error(
@@ -114,11 +118,53 @@ export class MinioService implements OnModuleInit {
     }
   }
 
-  getPublicUrl(fileName: string): string {
+  async getPresignedUrl(
+    fileName: string,
+    expiresSeconds: number = 24 * 60 * 60,
+  ) {
+    return await this.minioClient.presignedGetObject(
+      this.bucketName,
+      fileName,
+      expiresSeconds,
+    );
+  }
+
+  async getFileUrl(fileName: string): Promise<string> {
+    const isUrl = /^https?:\/\//.test(fileName);
+    if (isUrl) {
+      const key = this.getKeyFromUrl(fileName);
+      if (this.usePresigned && key) {
+        return await this.getPresignedUrl(key);
+      }
+      return fileName;
+    }
+    if (this.usePresigned) {
+      return await this.getPresignedUrl(fileName);
+    }
     const publicUrl = this.configService.get<string>(
       'MINIO_PUBLIC_URL',
       'http://localhost:9000',
     );
     return `${publicUrl}/${this.bucketName}/${fileName}`;
+  }
+
+  getKeyFromUrl(url: string): string | null {
+    try {
+      const u = new URL(url);
+      const parts = u.pathname.split('/').filter(Boolean);
+      const bucketIndex = parts.lastIndexOf(this.bucketName);
+      if (bucketIndex >= 0 && bucketIndex < parts.length - 1) {
+        const keyParts = parts.slice(bucketIndex + 1);
+        const joined = keyParts.join('/');
+        if (joined.includes('products/')) {
+          const i = joined.lastIndexOf('products/');
+          return joined.slice(i);
+        }
+        return joined;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 }

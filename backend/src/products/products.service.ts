@@ -24,13 +24,7 @@ export class ProductsService {
   ) {}
 
   private mapProduct(product: any) {
-    if (!product) return product;
-    return {
-      ...product,
-      images: product.images
-        ? product.images.map((img) => this.minioService.getPublicUrl(img))
-        : [],
-    };
+    return product;
   }
 
   async create(createProductDto: CreateProductDto, userId: number) {
@@ -130,7 +124,14 @@ export class ProductsService {
       });
     }
 
-    return this.mapProduct(product);
+    const mapped = this.mapProduct(product);
+    if (mapped.images && mapped.images.length > 0) {
+      const imgs = (product.images || []).filter(Boolean);
+      mapped.images = await Promise.all(
+        imgs.map((img: string) => this.minioService.getFileUrl(img)),
+      );
+    }
+    return mapped;
   }
 
   async findAll(query: QueryProductsDto) {
@@ -194,8 +195,21 @@ export class ProductsService {
       this.prisma.product.count({ where }),
     ]);
 
+    const data = await Promise.all(
+      products.map(async (p) => {
+        const mapped = this.mapProduct(p);
+        if (Array.isArray(mapped.images) && mapped.images.length > 0) {
+          const imgs = (p.images || []).filter(Boolean);
+          mapped.images = await Promise.all(
+            imgs.map((img: string) => this.minioService.getFileUrl(img)),
+          );
+        }
+        return mapped;
+      }),
+    );
+
     return {
-      data: products.map((p) => this.mapProduct(p)),
+      data,
       meta: {
         total,
         page,
@@ -220,7 +234,14 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    return this.mapProduct(product);
+    const mapped = this.mapProduct(product);
+    if (mapped.images && mapped.images.length > 0) {
+      const imgs = (product.images || []).filter(Boolean);
+      mapped.images = await Promise.all(
+        imgs.map((img: string) => this.minioService.getFileUrl(img)),
+      );
+    }
+    return mapped;
   }
 
   async update(
@@ -374,7 +395,14 @@ export class ProductsService {
       }
     }
 
-    return this.mapProduct(updatedProduct);
+    const mapped = this.mapProduct(updatedProduct);
+    if (mapped.images && mapped.images.length > 0) {
+      const imgs = (updatedProduct.images || []).filter(Boolean);
+      mapped.images = await Promise.all(
+        imgs.map((img: string) => this.minioService.getFileUrl(img)),
+      );
+    }
+    return mapped;
   }
 
   async findInStock() {
@@ -388,7 +416,19 @@ export class ProductsService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return products.map((p) => this.mapProduct(p));
+    const data = await Promise.all(
+      products.map(async (p) => {
+        const mapped = this.mapProduct(p);
+        if (Array.isArray(mapped.images) && mapped.images.length > 0) {
+          const imgs = (p.images || []).filter(Boolean);
+          mapped.images = await Promise.all(
+            imgs.map((img: string) => this.minioService.getFileUrl(img)),
+          );
+        }
+        return mapped;
+      }),
+    );
+    return data;
   }
 
   async getHistory(productId: number, page: number = 1, limit: number = 50) {
@@ -636,13 +676,20 @@ export class ProductsService {
         entityType: 'Product',
         entityId: id,
         newValues: {
-          image: this.minioService.getPublicUrl(fileName),
+          image: await this.minioService.getFileUrl(fileName),
         },
         success: true,
       });
     }
 
-    return this.mapProduct(updatedProduct);
+    const mapped = this.mapProduct(updatedProduct);
+    if (mapped.images && mapped.images.length > 0) {
+      const imgs = (updatedProduct.images || []).filter(Boolean);
+      mapped.images = await Promise.all(
+        imgs.map((img: string) => this.minioService.getFileUrl(img)),
+      );
+    }
+    return mapped;
   }
 
   async deleteImage(id: number, imageUrl: string, userId?: number) {
@@ -652,9 +699,10 @@ export class ProductsService {
     }
 
     // Поиск ключа по URL или использование самого URL как ключа
-    const key = product.images.find(
-      (img) => this.minioService.getPublicUrl(img) === imageUrl,
-    );
+    const keyFromUrl = this.minioService.getKeyFromUrl(imageUrl);
+    const key = keyFromUrl
+      ? product.images.find((img) => img === keyFromUrl)
+      : undefined;
 
     const imageToDelete = key || imageUrl;
 
@@ -686,13 +734,20 @@ export class ProductsService {
         entityType: 'Product',
         entityId: id,
         oldValues: {
-          image: this.minioService.getPublicUrl(imageToDelete),
+          image: await this.minioService.getFileUrl(imageToDelete),
         },
         success: true,
       });
     }
 
-    return this.mapProduct(updatedProduct);
+    const mapped = this.mapProduct(updatedProduct);
+    if (mapped.images && mapped.images.length > 0) {
+      const imgs = (updatedProduct.images || []).filter(Boolean);
+      mapped.images = await Promise.all(
+        imgs.map((img: string) => this.minioService.getFileUrl(img)),
+      );
+    }
+    return mapped;
   }
 
   async reorderImages(id: number, imageUrls: string[], userId?: number) {
@@ -703,9 +758,10 @@ export class ProductsService {
     const newKeys: string[] = [];
 
     for (const url of imageUrls) {
-      const key = currentKeys.find(
-        (k) => this.minioService.getPublicUrl(k) === url,
-      );
+      const keyFromUrl = this.minioService.getKeyFromUrl(url);
+      const key = keyFromUrl
+        ? currentKeys.find((k) => k === keyFromUrl)
+        : undefined;
       // Если это не URL, а уже ключ (на случай, если фронт шлет ключи)
       if (key) {
         newKeys.push(key);
@@ -732,15 +788,27 @@ export class ProductsService {
         entityType: 'Product',
         entityId: id,
         oldValues: {
-          order: currentKeys.map((k) => this.minioService.getPublicUrl(k)),
+          order: await Promise.all(
+            currentKeys.map((k) => this.minioService.getFileUrl(k)),
+          ),
         },
         newValues: {
-          order: newKeys.map((k) => this.minioService.getPublicUrl(k)),
+          order: await Promise.all(
+            newKeys.map((k) => this.minioService.getFileUrl(k)),
+          ),
         },
         success: true,
       });
     }
 
-    return this.mapProduct(updatedProduct);
+    const mapped = this.mapProduct(updatedProduct);
+    if (mapped.images && mapped.images.length > 0) {
+      mapped.images = await Promise.all(
+        updatedProduct.images.map((img: string) =>
+          this.minioService.getFileUrl(img),
+        ),
+      );
+    }
+    return mapped;
   }
 }

@@ -4,10 +4,12 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: antiquar-db
+    env_file:
+      - ./.env
     environment:
-      POSTGRES_USER: antiquar
-      POSTGRES_PASSWORD: antiquar123
-      POSTGRES_DB: antiquar_db
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5433:5432"
     volumes:
@@ -19,19 +21,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: antiquar-backend
+    env_file:
+      - ./.env
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgresql://antiquar:antiquar123@postgres:5432/antiquar_db
-      JWT_SECRET: your-secret-key-change-in-production
-      CHOKIDAR_USEPOLLING: "true"  # Для NestJS watch в Docker на Windows
-      MINIO_ENDPOINT: minio
-      MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET: antiquar-products
-      MINIO_USE_SSL: "false"
-      # URL для доступа извне (frontend)
-      MINIO_PUBLIC_URL: http://localhost:9000
+      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "3000:3000"
     depends_on:
@@ -65,8 +59,8 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - HOST=0.0.0.0
-      - CHOKIDAR_USEPOLLING=true  # Для Vite watch в Docker на Windows
+      HOST: 0.0.0.0
+      CHOKIDAR_USEPOLLING: "true"
     depends_on:
       - backend
     restart: unless-stopped
@@ -77,9 +71,11 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    env_file:
+      - ./.env
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
