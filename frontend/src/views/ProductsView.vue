@@ -15,7 +15,6 @@
           icon="pi pi-file-excel"
           severity="secondary"
           outlined
-          disabled
           @click="exportToExcel"
         />
         <Button
@@ -696,6 +695,8 @@ import { Role } from '@/types/api';
 import { apiService } from '@/services/api';
 import { compressImageFile, createImagePreview } from '@/utils/imageCompression';
 import { handleApiError, validateSKU } from '@/utils/errorHandler';
+import { exportExcelTable, type ExcelColumn } from '@/utils/excelExport';
+import { getDefaultTemplate } from '@/utils/exportTemplates';
 
 import QuantityInput from '@/components/forms/QuantityInput.vue';
 
@@ -1431,13 +1432,69 @@ const exportToCSV = () => {
 };
 
 const exportToExcel = () => {
-  // Для полноценного Excel нужна библиотека xlsx, но для простоты используем CSV
-  exportToCSV();
-  toast.add({
-    severity: 'info',
-    summary: 'Информация',
-    detail: 'Excel экспорт использует CSV формат',
-    life: 3000,
+  const products = selectedProducts.value.length > 0 ? selectedProducts.value : productsStore.products;
+  if (products.length === 0) {
+    toast.add({ severity: 'warn', summary: 'Предупреждение', detail: 'Нет данных для экспорта', life: 3000 });
+    return;
+  }
+
+  const template = getDefaultTemplate('products');
+
+  const mappedRows = products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    categoryName: p.category?.name || '',
+    purchasePrice: Number(p.purchasePrice),
+    salePrice: Number(p.salePrice),
+    quantity: p.quantity,
+    minStockLevel: p.minStockLevel || 0,
+    warehouseName: p.warehouse?.name || '',
+    committeeName: p.committee?.name || '',
+    transactionTypeName: p.transactionType?.name || '',
+    arrivalDate: p.arrivalDate || null,
+    images: p.images || [],
+  }));
+
+  const allColumns: ExcelColumn[] = [
+    { key: 'id', header: 'ID', type: 'number' },
+    { key: 'name', header: 'Название', type: 'string' },
+    { key: 'sku', header: 'Артикул', type: 'string' },
+    { key: 'categoryName', header: 'Категория', type: 'string' },
+    { key: 'purchasePrice', header: 'Цена закупки', type: 'number' },
+    { key: 'salePrice', header: 'Цена продажи', type: 'number' },
+    { key: 'quantity', header: 'Количество', type: 'number' },
+    { key: 'minStockLevel', header: 'Мин. запас', type: 'number' },
+    { key: 'warehouseName', header: 'Склад', type: 'string' },
+    { key: 'committeeName', header: 'Комитет', type: 'string' },
+    { key: 'transactionTypeName', header: 'Тип транзакции', type: 'string' },
+    { key: 'arrivalDate', header: 'Дата поступления', type: 'date' },
+    { key: 'images', header: 'Изображение', type: 'url' },
+  ];
+
+  const selectedColumns = template?.columns?.length
+    ? allColumns.filter((c) => template.columns!.includes(c.key))
+    : allColumns;
+
+  exportExcelTable(selectedColumns, mappedRows, {
+    totals: true,
+    tableName: 'Products',
+    imageFields: ['images'],
+    fileName: `products_${new Date().toISOString().split('T')[0]}.xlsx`,
+    linkResolver: (value, key) => {
+      if (key === 'images') {
+        if (!value) return null;
+        if (typeof value === 'string') return value;
+        if (Array.isArray(value) && value[0]) return value[0];
+        return null;
+      }
+      if (typeof value === 'string') return value;
+      return null;
+    },
+  }).then(() => {
+    toast.add({ severity: 'success', summary: 'Успешно', detail: 'Данные экспортированы в Excel', life: 3000 });
+  }).catch(() => {
+    toast.add({ severity: 'error', summary: 'Ошибка', detail: 'Не удалось экспортировать в Excel', life: 3000 });
   });
 };
 

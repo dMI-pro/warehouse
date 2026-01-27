@@ -33,6 +33,13 @@
                 icon="pi pi-plus"
                 @click="openAddCategoryDialog"
               />
+              <Button
+                label="Экспорт Excel"
+                icon="pi pi-file-excel"
+                severity="secondary"
+                outlined
+                @click="exportCategoriesExcel"
+              />
             </div>
           </template>
           <template #content>
@@ -177,6 +184,13 @@
                 icon="pi pi-plus"
                 @click="openAddWarehouseDialog"
               />
+              <Button
+                label="Экспорт Excel"
+                icon="pi pi-file-excel"
+                severity="secondary"
+                outlined
+                @click="exportWarehousesExcel"
+              />
             </div>
           </template>
           <template #content>
@@ -233,6 +247,13 @@
                 label="Добавить коммитет"
                 icon="pi pi-plus"
                 @click="openAddCommitteeDialog"
+              />
+              <Button
+                label="Экспорт Excel"
+                icon="pi pi-file-excel"
+                severity="secondary"
+                outlined
+                @click="exportCommitteesExcel"
               />
             </div>
           </template>
@@ -694,6 +715,8 @@ import { useTransactionTypesStore } from '@/stores/transactionTypesStore';
 import { useUserStatusesStore } from '@/stores/userStatusesStore';
 import type { Category, CreateCategoryDto, UpdateCategoryDto, Warehouse, CreateWarehouseDto, UpdateWarehouseDto, Committee, CreateCommitteeDto, UpdateCommitteeDto, TransactionType, CreateTransactionTypeDto, UpdateTransactionTypeDto, UserStatus, CreateUserStatusDto, UpdateUserStatusDto } from '@/types/api';
 import { Role } from '@/types/api';
+import { exportExcelTable, type ExcelColumn } from '@/utils/excelExport';
+import { loadTemplates, upsertTemplate, deleteTemplate as deleteTemplateStorage } from '@/utils/exportTemplates';
 
 const categoriesStore = useCategoriesStore();
 const warehousesStore = useWarehousesStore();
@@ -798,10 +821,7 @@ const customFields = ref([
   { id: 2, name: 'Гарантия (месяцы)', type: 'number', required: false },
 ]);
 
-const exportTemplates = ref([
-  { id: 1, name: 'Полный отчет', format: 'Excel' },
-  { id: 2, name: 'Продажи', format: 'CSV' },
-]);
+const exportTemplates = ref(loadTemplates());
 
 const systemSettings = reactive({
   systemName: 'Складской учет',
@@ -944,6 +964,26 @@ const confirmDeleteCategory = (category: Category) => {
   });
 };
 
+const exportCategoriesExcel = async () => {
+  const rows = categoriesStore.categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    description: c.description || '',
+    parentId: c.parentId ?? '',
+  }));
+  const columns: ExcelColumn[] = [
+    { key: 'id', header: 'ID', type: 'number' },
+    { key: 'name', header: 'Название', type: 'string' },
+    { key: 'description', header: 'Описание', type: 'string' },
+    { key: 'parentId', header: 'Родитель', type: 'string' },
+  ];
+  await exportExcelTable(columns, rows, {
+    totals: false,
+    tableName: 'Categories',
+    fileName: `categories_${new Date().toISOString().split('T')[0]}.xlsx`,
+  });
+};
+
 const createField = () => {
   if (!fieldForm.name.trim()) {
     toast.add({ severity: 'warn', summary: 'Предупреждение', detail: 'Введите название поля', life: 3000 });
@@ -971,10 +1011,12 @@ const deleteField = (id: number) => {
 };
 
 const editTemplate = (template: any) => {
-  toast.add({ severity: 'info', summary: 'Информация', detail: 'Редактирование шаблона', life: 3000 });
+  upsertTemplate(template);
+  toast.add({ severity: 'success', summary: 'Успешно', detail: 'Шаблон сохранен', life: 3000 });
 };
 
 const deleteTemplate = (id: number) => {
+  deleteTemplateStorage(id);
   exportTemplates.value = exportTemplates.value.filter((t) => t.id !== id);
   toast.add({ severity: 'success', summary: 'Успешно', detail: 'Шаблон удален', life: 3000 });
 };
@@ -1059,6 +1101,26 @@ const confirmDeleteWarehouse = (warehouse: Warehouse) => {
         // Ошибка уже обработана в store
       }
     },
+  });
+};
+
+const exportWarehousesExcel = async () => {
+  const rows = warehousesStore.warehouses.map((w) => ({
+    id: w.id,
+    name: w.name,
+    description: w.description || '',
+    address: w.address || '',
+  }));
+  const columns: ExcelColumn[] = [
+    { key: 'id', header: 'ID', type: 'number' },
+    { key: 'name', header: 'Название', type: 'string' },
+    { key: 'description', header: 'Описание', type: 'string' },
+    { key: 'address', header: 'Адрес', type: 'string' },
+  ];
+  await exportExcelTable(columns, rows, {
+    totals: false,
+    tableName: 'Warehouses',
+    fileName: `warehouses_${new Date().toISOString().split('T')[0]}.xlsx`,
   });
 };
 
@@ -1149,6 +1211,26 @@ const confirmDeleteCommittee = (committee: Committee) => {
 
 const openCommitteeDetails = (id: number) => {
   router.push({ name: 'committee-details', params: { id } });
+};
+
+const exportCommitteesExcel = async () => {
+  const rows = committeesStore.committees.map((c) => ({
+    id: c.id,
+    name: c.name,
+    description: c.description || '',
+    contactInfo: c.contactInfo || '',
+  }));
+  const columns: ExcelColumn[] = [
+    { key: 'id', header: 'ID', type: 'number' },
+    { key: 'name', header: 'Название', type: 'string' },
+    { key: 'description', header: 'Описание', type: 'string' },
+    { key: 'contactInfo', header: 'Контакты', type: 'string' },
+  ];
+  await exportExcelTable(columns, rows, {
+    totals: false,
+    tableName: 'Committees',
+    fileName: `committees_${new Date().toISOString().split('T')[0]}.xlsx`,
+  });
 };
 
 // --- Transaction Types Management ---

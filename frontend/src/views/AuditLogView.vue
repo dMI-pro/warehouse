@@ -1,6 +1,9 @@
 <template>
   <div class="audit-log" v-if="authStore.isAdmin || authStore.user?.isSuperAdmin">
-    <h1 class="page-title">Журнал действий</h1>
+    <div class="flex align-items-center justify-content-between mb-3">
+      <h1 class="page-title">Журнал действий</h1>
+      <Button label="Экспорт Excel" icon="pi pi-file-excel" class="p-button-sm" @click="exportAuditExcel" />
+    </div>
 
     <!-- Фильтры -->
     <Card class="filters-card mb-4">
@@ -211,6 +214,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { apiService } from '@/services/api';
 import type { User, Role, AuditLog, PaginatedResponse } from '@/types/api';
 import { isCurrentUserActor, getActorDisplayName, getInitials, getAvatarColor } from '@/utils/user-utils';
+import { getDefaultTemplate } from '@/utils/exportTemplates';
+import { exportExcelTable, type ExcelColumn } from '@/utils/excelExport';
 
 const usersStore = useUsersStore();
 const authStore = useAuthStore();
@@ -417,6 +422,40 @@ onMounted(async () => {
     await fetchAuditLogs();
   }
 });
+
+const exportAuditExcel = async () => {
+  const logs = filteredLogs.value;
+  if (!logs.length) {
+    return;
+  }
+  const rows = logs.map((l) => ({
+    createdAt: l.createdAt,
+    user: l.user ? getActorDisplayName(l.user) : 'Система',
+    action: getActionLabel(l.action),
+    entity: l.entityType ? `${l.entityType} #${l.entityId ?? ''}` : '—',
+    success: l.success === false ? 'Неудачно' : 'Успешно',
+    ipAddress: l.ipAddress || '',
+    userAgent: l.userAgent || '',
+  }));
+  const allColumns: ExcelColumn[] = [
+    { key: 'createdAt', header: 'Время', type: 'date' },
+    { key: 'user', header: 'Пользователь', type: 'string' },
+    { key: 'action', header: 'Действие', type: 'string' },
+    { key: 'entity', header: 'Сущность', type: 'string' },
+    { key: 'success', header: 'Статус', type: 'string' },
+    { key: 'ipAddress', header: 'IP адрес', type: 'string' },
+    { key: 'userAgent', header: 'User Agent', type: 'string' },
+  ];
+  const template = getDefaultTemplate('audit');
+  const columns = template?.columns?.length
+    ? allColumns.filter((c) => template!.columns!.includes(c.key))
+    : allColumns;
+  await exportExcelTable(columns, rows, {
+    totals: false,
+    tableName: 'AuditLog',
+    fileName: `audit_${new Date().toISOString().split('T')[0]}.xlsx`,
+  });
+};
 </script>
 
 <style scoped>

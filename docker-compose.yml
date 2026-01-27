@@ -63,6 +63,13 @@ services:
       CHOKIDAR_USEPOLLING: "true"
     depends_on:
       - backend
+    command: >
+      sh -c "
+        echo 'Installing dependencies...' &&
+        npm install &&
+        echo 'Starting frontend dev server...' &&
+        npm run dev -- --host 0.0.0.0
+      "
     restart: unless-stopped
 
   minio:
