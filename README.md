@@ -274,30 +274,29 @@ VITE_API_URL=http://localhost:3000
 
 ## 🚀 Production деплой
 
-### Backend
-
-1. Соберите проект:
+### Подготовка окружения (VPS)
+1. Установите Docker и Docker Compose
+2. Склонируйте репозиторий:
    ```bash
-   cd backend
-   npm run build
+   git clone <repository-url>
+   cd warehouse
    ```
-
-2. Запустите production сервер:
+3. Инициализируйте prod.env:
    ```bash
-   npm run start:prod
+   ./init-prod-env.sh
    ```
-
-### Frontend
-
-1. Соберите проект:
+   Заполните prod.env (DB_USER/DB_PASSWORD/DB_NAME, JWT_SECRET, FRONTEND_URL, MINIO_*).
+4. Запустите production инфраструктуру:
    ```bash
-   cd frontend
-   npm run build
+   docker compose -f docker-compose.prod.yml up -d --build
    ```
-
-2. Файлы для деплоя будут в папке `dist/`
-
-3. Настройте веб-сервер (nginx, Apache) для раздачи статических файлов
+5. Проверка:
+   - Frontend: http://<your-domain>/
+   - API: http://<your-domain>/api/health
+6. Обновление (деплой):
+   ```bash
+   ./deploy.sh
+   ```
 
 ## 📄 Лицензия
 

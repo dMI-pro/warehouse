@@ -1,0 +1,21 @@
+# Root ignore
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Environment files
+.env
+prod.env
+
+# Docker volumes
+postgres_data/
+minio_data/
+
+# Build artifacts
+coverage/
+.cache/
+
+# IDE
+.vscode/
+.idea/
