@@ -392,13 +392,27 @@
 
         <!-- Вкладка: Шаблоны экспорта -->
         <Card v-if="activeTab === 'templates'" class="content-card">
-          <template #title>Шаблоны экспорта</template>
+          <template #title>
+            <div class="card-header">
+              <span>Шаблоны экспорта</span>
+              <Button label="Добавить шаблон" icon="pi pi-plus" @click="openAddTemplateDialog" />
+            </div>
+          </template>
           <template #content>
             <div class="templates-section">
-              <p>Настройка шаблонов экспорта данных</p>
               <DataTable :value="exportTemplates" :emptyMessage="'Нет шаблонов'" class="templates-table">
                 <Column field="name" header="Название" />
+                <Column field="tableKey" header="Таблица">
+                  <template #body="{ data }">
+                    {{ tableKeyLabels[data.tableKey] || data.tableKey }}
+                  </template>
+                </Column>
                 <Column field="format" header="Формат" />
+                <Column field="isDefault" header="По умолчанию">
+                  <template #body="{ data }">
+                    <Tag :value="data.isDefault ? 'Да' : 'Нет'" :severity="data.isDefault ? 'success' : 'secondary'" />
+                  </template>
+                </Column>
                 <Column header="Действия" style="width: 100px">
                   <template #body="{ data }">
                     <Button
@@ -407,7 +421,7 @@
                       size="small"
                       outlined
                       rounded
-                      @click="editTemplate(data)" />
+                      @click="openEditTemplateDialog(data)" />
                     <Button
                       icon="pi pi-trash"
                       severity="danger" 
@@ -418,6 +432,72 @@
                   </template>
                 </Column>
               </DataTable>
+
+              <Dialog
+                v-model:visible="templateDialogVisible"
+                :header="editingTemplate ? 'Редактировать шаблон' : 'Добавить шаблон'"
+                :modal="true"
+                :style="{ width: '600px' }"
+              >
+                <form @submit.prevent="saveTemplate" class="form">
+                  <div class="field">
+                    <label class="label">Название *</label>
+                    <InputText v-model="templateForm.name" class="w-full" required />
+                  </div>
+
+                  <div class="field">
+                    <label class="label">Таблица *</label>
+                    <Dropdown
+                      v-model="templateForm.tableKey"
+                      :options="tableKeyOptions"
+                      optionLabel="label"
+                      optionValue="value"
+                      class="w-full"
+                      required
+                      @change="onTemplateTableChange"
+                    />
+                  </div>
+
+                  <div class="field">
+                    <label class="label">Формат *</label>
+                    <Dropdown
+                      v-model="templateForm.format"
+                      :options="formatOptions"
+                      optionLabel="label"
+                      optionValue="value"
+                      class="w-full"
+                      required
+                    />
+                  </div>
+
+                  <div class="field">
+                    <label class="label">Колонки *</label>
+                    <MultiSelect
+                      v-model="templateForm.columns"
+                      :options="availableColumnOptions"
+                      optionLabel="label"
+                      optionValue="value"
+                      display="chip"
+                      class="w-full"
+                      :filter="true"
+                      placeholder="Выберите колонки"
+                      required
+                    />
+                  </div>
+
+                  <div class="field">
+                    <label class="label">
+                      <Checkbox v-model="templateForm.isDefault" :binary="true" />
+                      Сделать шаблоном по умолчанию для выбранной таблицы
+                    </label>
+                  </div>
+
+                  <div class="dialog-footer">
+                    <Button label="Отмена" severity="secondary" outlined @click="closeTemplateDialog" />
+                    <Button type="submit" :label="editingTemplate ? 'Сохранить' : 'Создать'" />
+                  </div>
+                </form>
+              </Dialog>
             </div>
           </template>
         </Card>
@@ -701,6 +781,7 @@ import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import Dropdown from 'primevue/dropdown';
 import Checkbox from 'primevue/checkbox';
+import MultiSelect from 'primevue/multiselect';
 import Dialog from 'primevue/dialog';
 import Tag from 'primevue/tag';
 import Chip from 'primevue/chip';
@@ -717,6 +798,7 @@ import type { Category, CreateCategoryDto, UpdateCategoryDto, Warehouse, CreateW
 import { Role } from '@/types/api';
 import { exportExcelTable, type ExcelColumn } from '@/utils/excelExport';
 import { loadTemplates, upsertTemplate, deleteTemplate as deleteTemplateStorage } from '@/utils/exportTemplates';
+import type { ExportTemplate, TemplateFormat } from '@/utils/exportTemplates';
 
 const categoriesStore = useCategoriesStore();
 const warehousesStore = useWarehousesStore();
@@ -834,6 +916,174 @@ const currencies = [
   { label: 'Доллар США ($)', value: 'USD' },
   { label: 'Евро (€)', value: 'EUR' },
 ];
+
+const templateDialogVisible = ref(false);
+const editingTemplate = ref<ExportTemplate | null>(null);
+const templateForm = reactive({
+  name: '',
+  tableKey: '' as unknown as ExportTemplate['tableKey'],
+  format: 'excel' as TemplateFormat,
+  columns: [] as string[],
+  isDefault: false,
+});
+
+const tableKeyOptions = [
+  { label: 'Товары', value: 'products' },
+  { label: 'Продажи', value: 'sales' },
+  { label: 'Остатки', value: 'stock' },
+  { label: 'Возвраты', value: 'returns' },
+  { label: 'Журнал действий', value: 'audit' },
+  { label: 'Категории', value: 'categories' },
+  { label: 'Коммитеты', value: 'committees' },
+];
+
+const tableKeyLabels: Record<string, string> = {
+  products: 'Товары',
+  sales: 'Продажи',
+  stock: 'Остатки',
+  returns: 'Возвраты',
+  audit: 'Журнал действий',
+  categories: 'Категории',
+  committees: 'Коммитеты',
+};
+
+const formatOptions = [
+  { label: 'Excel', value: 'excel' },
+  { label: 'CSV', value: 'csv' },
+];
+
+const availableColumnOptions = ref<Array<{ label: string; value: string }>>([]);
+
+const columnOptionsMap: Record<string, Array<{ label: string; value: string }>> = {
+  products: [
+    { label: 'ID', value: 'id' },
+    { label: 'Название', value: 'name' },
+    { label: 'Артикул', value: 'sku' },
+    { label: 'Категория', value: 'categoryName' },
+    { label: 'Цена закупки', value: 'purchasePrice' },
+    { label: 'Цена продажи', value: 'salePrice' },
+    { label: 'Количество', value: 'quantity' },
+    { label: 'Мин. запас', value: 'minStockLevel' },
+    { label: 'Склад', value: 'warehouseName' },
+    { label: 'Комитет', value: 'committeeName' },
+    { label: 'Тип транзакции', value: 'transactionTypeName' },
+    { label: 'Дата поступления', value: 'arrivalDate' },
+    { label: 'Изображение', value: 'images' },
+  ],
+  sales: [
+    { label: 'ID чека', value: 'id' },
+    { label: 'Товар', value: 'productName' },
+    { label: 'Кол-во', value: 'quantity' },
+    { label: 'Сумма', value: 'totalAmount' },
+    { label: 'Прибыль', value: 'totalProfit' },
+    { label: 'Продавец', value: 'seller' },
+    { label: 'Дата', value: 'date' },
+  ],
+  stock: [
+    { label: 'ID', value: 'id' },
+    { label: 'Название', value: 'name' },
+    { label: 'Артикул', value: 'sku' },
+    { label: 'Кол-во', value: 'quantity' },
+    { label: 'Мин. запас', value: 'minStockLevel' },
+    { label: 'Цена', value: 'salePrice' },
+  ],
+  returns: [
+    { label: 'ID возврата', value: 'id' },
+    { label: 'Товар', value: 'productName' },
+    { label: 'Кол-во', value: 'quantity' },
+    { label: 'Причина', value: 'reason' },
+    { label: 'Кто вернул', value: 'returnedBy' },
+    { label: 'Дата', value: 'date' },
+  ],
+  audit: [
+    { label: 'Время', value: 'createdAt' },
+    { label: 'Пользователь', value: 'user' },
+    { label: 'Действие', value: 'action' },
+    { label: 'Сущность', value: 'entity' },
+    { label: 'Статус', value: 'success' },
+    { label: 'IP адрес', value: 'ipAddress' },
+    { label: 'User Agent', value: 'userAgent' },
+  ],
+  categories: [
+    { label: 'ID', value: 'id' },
+    { label: 'Название', value: 'name' },
+    { label: 'Описание', value: 'description' },
+    { label: 'Родитель', value: 'parentId' },
+  ],
+  committees: [
+    { label: 'ID', value: 'id' },
+    { label: 'Название', value: 'name' },
+    { label: 'Описание', value: 'description' },
+    { label: 'Контакты', value: 'contactInfo' },
+  ],
+};
+
+const setAvailableColumnsForTable = (key: string) => {
+  availableColumnOptions.value = columnOptionsMap[key] || [];
+};
+
+const onTemplateTableChange = () => {
+  setAvailableColumnsForTable(templateForm.tableKey as string);
+  templateForm.columns = [];
+};
+
+const openAddTemplateDialog = () => {
+  editingTemplate.value = null;
+  templateForm.name = '';
+  templateForm.tableKey = '' as any;
+  templateForm.format = 'excel';
+  templateForm.columns = [];
+  templateForm.isDefault = false;
+  availableColumnOptions.value = [];
+  templateDialogVisible.value = true;
+};
+
+const openEditTemplateDialog = (template: ExportTemplate) => {
+  editingTemplate.value = template;
+  templateForm.name = template.name;
+  templateForm.tableKey = template.tableKey;
+  templateForm.format = template.format || 'excel';
+  templateForm.columns = [...(template.columns || [])];
+  templateForm.isDefault = !!template.isDefault;
+  setAvailableColumnsForTable(template.tableKey);
+  templateDialogVisible.value = true;
+};
+
+const closeTemplateDialog = () => {
+  templateDialogVisible.value = false;
+  editingTemplate.value = null;
+};
+
+const saveTemplate = () => {
+  if (!templateForm.name || !templateForm.tableKey || templateForm.columns.length === 0 || !templateForm.format) {
+    toast.add({ severity: 'warn', summary: 'Предупреждение', detail: 'Заполните все обязательные поля', life: 3000 });
+    return;
+  }
+  const nextId = editingTemplate.value
+    ? editingTemplate.value.id
+    : (exportTemplates.value.reduce((max, t) => Math.max(max, t.id), 0) + 1) || 1;
+
+  if (templateForm.isDefault) {
+    exportTemplates.value = exportTemplates.value.map((t) =>
+      t.tableKey === templateForm.tableKey ? { ...t, isDefault: false } : t
+    );
+  }
+
+  const newTemplate: ExportTemplate = {
+    id: nextId,
+    name: templateForm.name,
+    tableKey: templateForm.tableKey,
+    format: templateForm.format,
+    columns: [...templateForm.columns],
+    isDefault: templateForm.isDefault,
+  };
+
+  upsertTemplate(newTemplate);
+  exportTemplates.value = loadTemplates();
+  templateDialogVisible.value = false;
+  editingTemplate.value = null;
+  toast.add({ severity: 'success', summary: 'Успешно', detail: 'Шаблон сохранен', life: 3000 });
+};
 
 const parentCategoryOptions = computed(() => {
   const options: { label: string; value: number | undefined }[] = [{ label: 'Нет родительской категории', value: undefined }];

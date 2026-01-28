@@ -3,7 +3,7 @@ export type TemplateFormat = 'excel' | 'csv';
 export type ExportTemplate = {
   id: number;
   name: string;
-  tableKey: 'products' | 'sales' | 'returns' | 'committees' | 'categories' | 'audit';
+  tableKey: 'products' | 'sales' | 'stock' | 'returns' | 'committees' | 'categories' | 'audit';
   format: TemplateFormat;
   columns?: string[];
   isDefault?: boolean;
@@ -47,4 +47,3 @@ export function deleteTemplate(id: number) {
   const templates = loadTemplates().filter((t) => t.id !== id);
   saveTemplates(templates);
 }
-
