@@ -907,13 +907,16 @@ const openCommitteeDetails = (id: number) => {
 };
 
 const getImageUrl = (imagePath: string) => {
-  // if (imagePath.startsWith('http')) return imagePath;
-  // return `${API_BASE_URL}${imagePath}`;
-
   if (!imagePath) return '';
   
   // Если это уже полный URL
-  if (imagePath.startsWith('http')) return imagePath;
+  if (imagePath.startsWith('http')) {
+    // Исправление для внутренней сети Docker: заменяем minio:9000 на текущий хост
+    if (imagePath.includes('minio:9000')) {
+      return imagePath.replace('minio:9000', `${window.location.hostname}:9000`);
+    }
+    return imagePath;
+  }
   
   // Если это относительный путь
   if (imagePath.startsWith('/uploads/')) {

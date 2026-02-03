@@ -31,9 +31,13 @@ export class MinioService implements OnModuleInit {
       'MINIO_SECRET_KEY',
       'minioadmin',
     );
-    this.usePresigned =
-      this.configService.get<string>('MINIO_PRESIGNED', 'false') === 'true' ||
-      this.configService.get<string>('NODE_ENV') === 'production';
+    
+    const presignedConfig = this.configService.get<string>('MINIO_PRESIGNED');
+    if (presignedConfig !== undefined) {
+      this.usePresigned = presignedConfig === 'true';
+    } else {
+      this.usePresigned = this.configService.get<string>('NODE_ENV') === 'production';
+    }
 
     this.minioClient = new Minio.Client({
       endPoint,
