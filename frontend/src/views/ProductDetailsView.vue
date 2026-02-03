@@ -701,7 +701,17 @@ const getFileName = (url: string) => {
 
 const getFullImageUrl = (url: string) => {
   if (!url) return '';
-  if (url.startsWith('http') || url.startsWith('blob:')) return url;
+  if (url.startsWith('http') || url.startsWith('blob:')) {
+     // Исправление для внутренней сети Docker: заменяем minio:9000 на текущий хост
+     if (url.includes('minio:9000')) {
+       return url.replace('minio:9000', `${window.location.hostname}:9000`);
+     }
+    return url;
+  }
+  // Исключение для MinIO proxy путей
+  if (url.startsWith('/minio/')) {
+    return url;
+  }
   if (url.startsWith('/')) return `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${url}`;
   return url;
 };
