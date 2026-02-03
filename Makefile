@@ -43,11 +43,11 @@ seed:
 	docker exec antiquar-backend npx prisma db seed
 
 backup:
-	docker exec antiquar-db pg_dump -U antiquar antiquar_db > backup_$(date +%Y%m%d_%H%M%S).sql
-# 	docker exec antiquar-db pg_dump -U antiquar_user antiquar_warehouse > backup_$(date +%Y%m%d_%H%M%S).sql
+	docker exec antiquar-db pg_dump -U antiquar --clean --if-exists antiquar_db | Out-File -FilePath backup_no_bom.sql -Encoding ASCII
 
 psql:
 	docker exec -it antiquar-db psql -U antiquar -d antiquar_db
+	# VPS: docker exec -it antiquar-db psql -U nachalnik_db -d antiquar_db
 
 restore:
 	@if [ -z "$(FILE)" ]; then echo "Usage: make restore FILE=backup.sql"; exit 1; fi
