@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# deploy.sh
 set -euo pipefail
 
 echo "Pulling latest changes..."

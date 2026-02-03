@@ -62,9 +62,11 @@ async function bootstrap() {
   const allowedOrigins =
     process.env.NODE_ENV === 'production'
       ? process.env.FRONTEND_URL
-        ? [process.env.FRONTEND_URL]
+        ? [process.env.FRONTEND_URL.trim(), 'http://smagrarom.ru', 'https://smagrarom.ru']
         : ['http://localhost:5173']
       : [
+          'http://smagrarom.ru',
+          'https://smagrarom.ru',
           'http://localhost:5173',
           'http://localhost:3000',
           'http://localhost:3001',
@@ -72,13 +74,15 @@ async function bootstrap() {
           'http://127.0.0.1:3000',
         ];
 
+  console.log('Allowed Origins:', allowedOrigins);
+
   app.enableCors({
     origin: (origin, callback) => {
       // Разрешаем запросы без origin (например, мобильные приложения, Postman)
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.warn(`CORS blocked origin: ${origin}`);
+        console.warn(`CORS blocked origin: ${origin}. Allowed: ${JSON.stringify(allowedOrigins)}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
