@@ -23,12 +23,11 @@ sleep 10
 echo "🔄 Применяем миграции..."
 docker compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
 
-echo "📦 Устанавливаем инструменты для сидинга (ts-node)..."
-# В продакшн образе нет dev-зависимостей, устанавливаем временно для запуска сида
-docker compose -f docker-compose.prod.yml exec backend npm install --no-save -D ts-node typescript @types/node @types/bcryptjs
-
 echo "🌱 Заполняем базу тестовыми данными (Seed)..."
-docker compose -f docker-compose.prod.yml exec backend npx prisma db seed
+# Используем npx с ts-node.
+# --transpile-only: игнорируем ошибки типов (нет @types/bcryptjs в проде).
+# --compiler-options: принудительно ставим module=commonjs, чтобы избежать конфликтов с настройками tsconfig (NodeNext).
+docker compose -f docker-compose.prod.yml exec backend npx --yes -p ts-node -p typescript ts-node --transpile-only --compiler-options '{"module":"commonjs"}' prisma/seed.ts
 
 echo "✅ Сброс выполнен успешно!"
 echo "⚠️  Внимание: Изображения товаров из сида (например, dell-xps.jpg) будут недоступны (404), пока вы не загрузите реальные файлы в MinIO."
