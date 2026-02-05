@@ -191,6 +191,11 @@ class ApiService {
     return response.data;
   }
 
+  async getLastSku(): Promise<{ sku: string | null }> {
+    const response = await this.api.get<{ sku: string | null }>('/products/last-sku');
+    return response.data;
+  }
+
   // Categories endpoints
   async getCategories(): Promise<Category[]> {
     const response = await this.api.get<Category[]>('/categories');
@@ -371,6 +376,7 @@ class ApiService {
     action?: string;
     entityType?: string;
     entityId?: number;
+    relatedUserId?: number;
     startDate?: string;
     endDate?: string;
     page?: number;

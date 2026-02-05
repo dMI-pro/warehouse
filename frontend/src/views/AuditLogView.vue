@@ -145,6 +145,8 @@
       header="Подробности действия"
       :modal="true"
       :style="{ width: '600px' }"
+      :breakpoints="{ '960px': '75vw', '640px': '90vw' }"
+      maximizable
     >
         <div v-if="selectedLog" class="details-content">
           <div class="detail-section">
