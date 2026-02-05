@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    strictPort: false,
     watch: {
       usePolling: true, // Необходимо для Docker на Windows
       interval: 1000,   // Проверка изменений каждую секунду
