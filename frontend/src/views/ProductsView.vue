@@ -752,7 +752,7 @@ const generateSku = async () => {
     
     // Если артикул смешанный (например ITEM-100), пробуем извлечь число из конца
     const match = lastSku.match(/(\d+)$/);
-    if (match) {
+    if (match && match[1]) {
       const numberPart = match[1];
       const prefix = lastSku.slice(0, -numberPart.length);
       const newNumber = parseInt(numberPart, 10) + 1;
