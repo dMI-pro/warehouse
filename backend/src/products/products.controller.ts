@@ -32,6 +32,12 @@ import { extname } from 'path';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
+  @Get('last-sku')
+  @Roles(Role.MANAGER, Role.ADMIN)
+  async getLastSku() {
+    return this.productsService.getLastSku();
+  }
+
   @Post()
   @Roles(Role.MANAGER, Role.ADMIN)
   async create(@Body() createProductDto: CreateProductDto, userId: number) {

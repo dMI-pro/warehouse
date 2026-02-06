@@ -260,6 +260,8 @@
       :header="editingProduct ? 'Редактировать товар' : 'Добавить товар'"
       :modal="true"
       :style="{ width: '700px' }"
+      :breakpoints="{ '960px': '75vw', '640px': '90vw' }"
+      maximizable
       @hide="closeDialog"
     >
       <form @submit.prevent="saveProduct" class="product-form">
@@ -275,7 +277,10 @@
 
               <div class="field">
                 <label for="sku" class="label">Артикул *</label>
-                <InputText id="sku" v-model="productForm.sku" class="w-full" required />
+                <div class="field__group">
+                  <InputText id="sku" v-model="productForm.sku" class="w-full mb-2" required />
+                  <Button icon="pi pi-sparkles" label='Автоартикул' @click="generateSku" v-tooltip.top="'Сгенерировать артикул автоматически'" severity="secondary" />
+                </div>
                 <small v-if="formErrors.sku" class="p-error">{{ formErrors.sku }}</small>
               </div>
 
@@ -725,6 +730,44 @@ const editingProduct = ref<Product | null>(null);
 const selectedProduct = ref<Product | null>(null);
 const selectedProducts = ref<Product[]>([]);
 const pendingFiles = ref<File[]>([]);
+
+const generateSku = async () => {
+  try {
+    const response = await apiService.getLastSku();
+    const lastSku = response.sku;
+    
+    if (!lastSku) {
+      productForm.sku = '0001';
+      return;
+    }
+    
+    // Если артикул состоит только из цифр
+    if (/^\d+$/.test(lastSku)) {
+      const num = parseInt(lastSku, 10);
+      const nextNum = num + 1;
+      // Форматируем в 4 знака (0001, 0002 и т.д.)
+      productForm.sku = nextNum.toString().padStart(4, '0');
+      return;
+    }
+    
+    // Если артикул смешанный (например ITEM-100), пробуем извлечь число из конца
+    const match = lastSku.match(/(\d+)$/);
+    if (match) {
+      const numberPart = match[1];
+      const prefix = lastSku.slice(0, -numberPart.length);
+      const newNumber = parseInt(numberPart, 10) + 1;
+      // Сохраняем длину числовой части, но не менее длины предыдущего числа
+      const newNumberStr = newNumber.toString().padStart(numberPart.length, '0');
+      productForm.sku = `${prefix}${newNumberStr}`;
+    } else {
+      // Fallback
+      productForm.sku = `${lastSku}-1`;
+    }
+  } catch (error) {
+    console.error('Failed to generate SKU', error);
+    toast.add({ severity: 'error', summary: 'Ошибка', detail: 'Не удалось сгенерировать артикул', life: 3000 });
+  }
+};
 
 // Ref для компонента Доступно и ввода количества QuantityInput.vue
 const availableQuantity = ref<number>(0); // количество на СКЛАДЕ

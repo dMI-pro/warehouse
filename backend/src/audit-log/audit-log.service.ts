@@ -83,6 +83,7 @@ export class AuditLogService {
     action?: string;
     entityType?: string;
     entityId?: number | string;
+    relatedUserId?: number;
     startDate?: Date;
     endDate?: Date;
     page?: number;
@@ -93,6 +94,7 @@ export class AuditLogService {
       action,
       entityType,
       entityId,
+      relatedUserId,
       startDate,
       endDate,
       page = 1,
@@ -102,23 +104,30 @@ export class AuditLogService {
 
     const where: any = {};
 
-    if (userId) {
-      where.userId = userId;
-    }
+    if (relatedUserId) {
+      where.OR = [
+        { userId: relatedUserId },
+        { entityType: 'User', entityId: relatedUserId },
+      ];
+    } else {
+      if (userId) {
+        where.userId = userId;
+      }
 
-    if (action) {
-      where.action = action;
-    }
+      if (action) {
+        where.action = action;
+      }
 
-    if (entityType) {
-      where.entityType = entityType;
-    }
+      if (entityType) {
+        where.entityType = entityType;
+      }
 
-    if (entityId !== undefined && entityId !== null) {
-      const n =
-        typeof entityId === 'string' ? parseInt(entityId, 10) : entityId;
-      if (!Number.isNaN(n)) {
-        where.entityId = n;
+      if (entityId !== undefined && entityId !== null) {
+        const n =
+          typeof entityId === 'string' ? parseInt(entityId, 10) : entityId;
+        if (!Number.isNaN(n)) {
+          where.entityId = n;
+        }
       }
     }
 
