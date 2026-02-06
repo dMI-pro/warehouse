@@ -38,6 +38,11 @@ class QueryAuditLogDto {
   @Type(() => Number)
   entityId?: number;
 
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  relatedUserId?: number;
+
   @IsDateString()
   @IsOptional()
   startDate?: string;
@@ -72,6 +77,7 @@ export class AuditLogController {
       action: query.action,
       entityType: query.entityType,
       entityId: query.entityId,
+      relatedUserId: query.relatedUserId,
       page: query.page,
       limit: query.limit,
     };

@@ -242,6 +242,8 @@
       :header="editingUser ? 'Редактировать пользователя' : 'Добавить пользователя'"
       :modal="true"
       :style="{ width: '500px' }"
+      :breakpoints="{ '960px': '75vw', '640px': '90vw' }"
+      maximizable
       @hide="closeUserDialog"
     >
       <form @submit.prevent="saveUser" class="user-form">

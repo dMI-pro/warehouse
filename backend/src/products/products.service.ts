@@ -27,6 +27,14 @@ export class ProductsService {
     return product;
   }
 
+  async getLastSku() {
+    const lastProduct = await this.prisma.product.findFirst({
+      orderBy: { createdAt: 'desc' },
+      select: { sku: true },
+    });
+    return { sku: lastProduct?.sku || null };
+  }
+
   async create(createProductDto: CreateProductDto, userId: number) {
     // Проверка уникальности SKU
     const existingProduct = await this.prisma.product.findUnique({
