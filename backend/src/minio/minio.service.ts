@@ -145,17 +145,29 @@ export class MinioService implements OnModuleInit {
     if (this.usePresigned) {
       return await this.getPresignedUrl(fileName);
     }
+
+    // Fix: Если fileName уже содержит имя бакета в пути, возвращаем как есть,
+    // чтобы избежать дублирования пути (например, если в БД уже лежит полный путь)
+    if (fileName.includes(`/${this.bucketName}/`)) {
+      return fileName;
+    }
+
     const publicUrl = this.configService.get<string>(
       'MINIO_PUBLIC_URL',
       'http://localhost:9000',
     );
     
-    // Fix: If fileName already starts with publicUrl, return it as is to avoid duplication
-    if (fileName.startsWith(publicUrl)) {
+    // Убираем конечный слеш из publicUrl, если он есть
+    const normalizedPublicUrl = publicUrl.replace(/\/$/, '');
+    // Убираем начальный слеш из fileName, если он есть, чтобы избежать двойных слешей при склеивании
+    const normalizedFileName = fileName.startsWith('/') ? fileName.substring(1) : fileName;
+    
+    // Проверка на случай, если fileName уже начинается с publicUrl
+    if (fileName.startsWith(publicUrl) || fileName.startsWith(normalizedPublicUrl)) {
       return fileName;
     }
 
-    return `${publicUrl}/${this.bucketName}/${fileName}`;
+    return `${normalizedPublicUrl}/${this.bucketName}/${normalizedFileName}`;
   }
 
   getKeyFromUrl(url: string): string | null {
