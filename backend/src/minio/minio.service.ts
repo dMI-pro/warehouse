@@ -149,6 +149,12 @@ export class MinioService implements OnModuleInit {
       'MINIO_PUBLIC_URL',
       'http://localhost:9000',
     );
+    
+    // Fix: If fileName already starts with publicUrl, return it as is to avoid duplication
+    if (fileName.startsWith(publicUrl)) {
+      return fileName;
+    }
+
     return `${publicUrl}/${this.bucketName}/${fileName}`;
   }
 
