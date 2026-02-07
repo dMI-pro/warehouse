@@ -156,7 +156,7 @@
                 <!-- Категория с тегом -->
                 <template v-else-if="column.template === 'category'">
                   <Tag 
-                    :value="data.category ? (data.category.parent ? `${data.category.parent.name} > ${data.category.name}` : data.category.name) : 'Без категории'" 
+                    :value="getCategoryBreadcrumb(data.category)" 
                     severity="info" 
                   />
                 </template>
@@ -1043,6 +1043,40 @@ const resetFilters = () => {
   productsStore.setFilters({ search: '', category: undefined, warehouse: undefined, committee: undefined, inStock: false });
   productsStore.setPage(1);
   productsStore.fetchProducts();
+};
+
+const getCategoryBreadcrumb = (category: any) => {
+  if (!category) return 'Без категории';
+  
+  // Если у нас уже есть загруженные категории в store, используем их для построения полного пути
+  if (categoriesStore.categories.length > 0) {
+    const path: string[] = [];
+    let currentId: number | null = category.id;
+    
+    // Ограничитель цикла на всякий случай
+    let depth = 0; 
+    while (currentId !== null && depth < 10) {
+      // Используем categoriesMap для поиска по всему дереву (включая вложенные категории)
+      const cat = categoriesStore.categoriesMap.get(Number(currentId));
+      if (cat) {
+        path.unshift(cat.name);
+        currentId = cat.parentId ?? null;
+      } else {
+        // Если категорию не нашли в store, но это была исходная категория, добавим ее имя и выйдем
+        if (path.length === 0) path.push(category.name);
+        break;
+      }
+      depth++;
+    }
+    
+    return path.join(' > ');
+  }
+  
+  // Fallback: если store пуст, пытаемся использовать вложенность из самого объекта
+  if (category.parent) {
+      return `${category.parent.name} > ${category.name}`;
+  }
+  return category.name;
 };
 
 const onPageChange = (event: any) => {

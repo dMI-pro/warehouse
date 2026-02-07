@@ -124,8 +124,8 @@ export class CategoriesService {
 
         // Проверка на циклические зависимости
         const isDescendant = await this.isDescendant(
-          id,
           updateCategoryDto.parentId,
+          id,
         );
         if (isDescendant) {
           throw new BadRequestException(
