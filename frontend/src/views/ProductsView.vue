@@ -155,7 +155,10 @@
                 
                 <!-- Категория с тегом -->
                 <template v-else-if="column.template === 'category'">
-                  <Tag :value="data.category?.name || 'Без категории'" severity="info" />
+                  <Tag 
+                    :value="getCategoryBreadcrumb(data.category)" 
+                    severity="info" 
+                  />
                 </template>
                 
                 <!-- Цена с форматированием -->
@@ -752,7 +755,7 @@ const generateSku = async () => {
     
     // Если артикул смешанный (например ITEM-100), пробуем извлечь число из конца
     const match = lastSku.match(/(\d+)$/);
-    if (match) {
+    if (match && match[1]) {
       const numberPart = match[1];
       const prefix = lastSku.slice(0, -numberPart.length);
       const newNumber = parseInt(numberPart, 10) + 1;
@@ -833,10 +836,17 @@ const saleFormErrors = reactive({
 
 const categoryOptions = computed(() => {
   const options: { label: string; value: number | null }[] = [{ label: 'Все категории', value: null }];
-
-  categoriesStore.categories.forEach((cat) => {
-    options.push({ label: cat.name, value: cat.id });
-  });
+  
+  // Используем flatCategoriesLabels из стора для отображения иерархии (С — 84 проба)
+  if (categoriesStore.flatCategoriesLabels) {
+    options.push(...categoriesStore.flatCategoriesLabels);
+  } else {
+    // Fallback если flatCategoriesLabels недоступен
+    categoriesStore.categories.forEach((cat) => {
+      options.push({ label: cat.name, value: cat.id });
+    });
+  }
+  
   return options;
 });
 
@@ -1036,6 +1046,40 @@ const resetFilters = () => {
   productsStore.setFilters({ search: '', category: undefined, warehouse: undefined, committee: undefined, inStock: false });
   productsStore.setPage(1);
   productsStore.fetchProducts();
+};
+
+const getCategoryBreadcrumb = (category: any) => {
+  if (!category) return 'Без категории';
+  
+  // Если у нас уже есть загруженные категории в store, используем их для построения полного пути
+  if (categoriesStore.categories.length > 0) {
+    const path: string[] = [];
+    let currentId: number | null = category.id;
+    
+    // Ограничитель цикла на всякий случай
+    let depth = 0; 
+    while (currentId !== null && depth < 10) {
+      // Используем categoriesMap для поиска по всему дереву (включая вложенные категории)
+      const cat = categoriesStore.categoriesMap.get(Number(currentId));
+      if (cat) {
+        path.unshift(cat.name);
+        currentId = cat.parentId ?? null;
+      } else {
+        // Если категорию не нашли в store, но это была исходная категория, добавим ее имя и выйдем
+        if (path.length === 0) path.push(category.name);
+        break;
+      }
+      depth++;
+    }
+    
+    return path.join(' > ');
+  }
+  
+  // Fallback: если store пуст, пытаемся использовать вложенность из самого объекта
+  if (category.parent) {
+      return `${category.parent.name} > ${category.name}`;
+  }
+  return category.name;
 };
 
 const onPageChange = (event: any) => {
@@ -1549,7 +1593,17 @@ onMounted(async () => {
   await warehousesStore.fetchWarehouses();
   await committeesStore.fetchCommittees();
   await transactionTypesStore.fetchTransactionTypes();
+  
+  // Сначала загружаем товары (используя сохраненные в сторе фильтры)
   await productsStore.fetchProducts();
+
+  // ВОССТАНОВЛЕНИЕ UI ИЗ STORE (Подзадача 1)
+  // Синхронизируем локальные v-model с состоянием в store, чтобы фильтры не сбрасывались визуально
+  if (productsStore.filters.search) searchQuery.value = productsStore.filters.search;
+  if (productsStore.filters.category) selectedCategory.value = productsStore.filters.category;
+  if (productsStore.filters.warehouse) selectedWarehouse.value = productsStore.filters.warehouse;
+  if (productsStore.filters.committee) selectedCommittee.value = productsStore.filters.committee;
+  if (productsStore.filters.inStock) inStockOnly.value = productsStore.filters.inStock;
 });
 
 const toggleInStock = async () => {

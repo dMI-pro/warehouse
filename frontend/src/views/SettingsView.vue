@@ -65,7 +65,7 @@
                       outlined
                       rounded
                       v-tooltip.top="'Редактировать'"
-                      @click.stop="openEditCategoryDialog(node.data)"
+                      @click.stop="openEditCategoryDialog(node)"
                     />
                     <Button
                       v-if="authStore.isAdmin"
@@ -75,7 +75,7 @@
                       outlined
                       rounded
                       v-tooltip.top="'Удалить'"
-                      @click.stop="confirmDeleteCategory(node.data)"
+                      @click.stop="confirmDeleteCategory(node)"
                     />
                   </div>
                 </div>
@@ -1085,13 +1085,45 @@ const saveTemplate = () => {
   toast.add({ severity: 'success', summary: 'Успешно', detail: 'Шаблон сохранен', life: 3000 });
 };
 
-const parentCategoryOptions = computed(() => {
-  const options: { label: string; value: number | undefined }[] = [{ label: 'Нет родительской категории', value: undefined }];
-  categoriesStore.categories.forEach((cat) => {
-    if (!editingCategory.value || cat.id !== editingCategory.value.id) {
-      options.push({ label: cat.name, value: cat.id });
+const getDescendantIds = (categoryId: number, categories: any[]): number[] => {
+  let ids: number[] = [];
+  categories.forEach(cat => {
+    // Используем нестрогое сравнение для надежности
+    if (cat.parentId == categoryId) {
+      ids.push(cat.id);
+      ids.push(...getDescendantIds(cat.id, categories));
     }
   });
+  return ids;
+};
+
+const parentCategoryOptions = computed(() => {
+  const options: { label: string; value: number | undefined }[] = [{ label: 'Нет родительской категории', value: undefined }];
+  
+  let currentId: number | null = null;
+  let descendants: number[] = [];
+
+  if (editingCategory.value) {
+    // Получаем ID из ключа или объекта данных
+    currentId = Number(editingCategory.value.key || editingCategory.value.id || editingCategory.value.data?.id);
+    descendants = getDescendantIds(currentId, categoriesStore.categories);
+  }
+
+  if (categoriesStore.flatCategoriesLabels) {
+    categoriesStore.flatCategoriesLabels.forEach((cat: any) => {
+       // Исключаем саму себя и всех потомков
+       // Используем нестрогое сравнение != для value
+       if (currentId === null || (cat.value != currentId && !descendants.includes(cat.value))) {
+          options.push({ label: cat.label, value: cat.value });
+       }
+    });
+  } else {
+     categoriesStore.categories.forEach((cat) => {
+       if (currentId === null || (cat.id != currentId && !descendants.includes(cat.id))) {
+         options.push({ label: cat.name, value: cat.id });
+       }
+     });
+  }
   return options;
 });
 
@@ -1128,12 +1160,16 @@ watch(() => route.query.tab, (newTab) => {
   }
 });
 
-const onNodeExpand = (event: any) => {
-  expandedKeys.value[event.node.key] = true;
+const onNodeExpand = (node: any) => {
+  if (node.key) {
+    expandedKeys.value[node.key] = true;
+  }
 };
 
-const onNodeCollapse = (event: any) => {
-  delete expandedKeys.value[event.node.key];
+const onNodeCollapse = (node: any) => {
+  if (node.key) {
+    delete expandedKeys.value[node.key];
+  }
 };
 
 const openAddCategoryDialog = () => {
@@ -1142,11 +1178,16 @@ const openAddCategoryDialog = () => {
   categoryDialogVisible.value = true;
 };
 
-const openEditCategoryDialog = (category: Category) => {
+  const openEditCategoryDialog = (category: any) => {
   editingCategory.value = category;
-  categoryForm.name = category.name;
-  categoryForm.description = category.description || '';
-  categoryForm.parentId = category.parentId || undefined;
+  // Извлекаем данные с учетом структуры узла PrimeVue Tree или плоского объекта
+  const data = category.data || category;
+  
+  categoryForm.name = data.name || category.label;
+  categoryForm.description = data.description || '';
+  // Используем nullish coalescing для корректной обработки 0 или null
+  categoryForm.parentId = data.parentId ?? undefined;
+  
   categoryDialogVisible.value = true;
 };
 
@@ -1181,7 +1222,16 @@ const saveCategory = async () => {
         description: categoryForm.description,
         parentId: categoryForm.parentId,
       };
-      await categoriesStore.updateCategory(editingCategory.value.id, updateDto);
+      // Получаем ID категории из объекта редактирования и приводим к числу
+      const categoryId = Number(editingCategory.value.key || editingCategory.value.id);
+      
+      // Проверка на циклическую зависимость (нельзя установить родителя равным самому себе)
+      if (categoryForm.parentId && Number(categoryForm.parentId) === categoryId) {
+          toast.add({ severity: 'error', summary: 'Ошибка', detail: 'Категория не может быть родительской для самой себя', life: 3000 });
+          return;
+      }
+      
+      await categoriesStore.updateCategory(categoryId, updateDto);
       toast.add({ severity: 'success', summary: 'Успешно', detail: 'Категория обновлена', life: 3000 });
     } else {
       const createDto: CreateCategoryDto = {
@@ -1198,14 +1248,17 @@ const saveCategory = async () => {
   }
 };
 
-const confirmDeleteCategory = (category: Category) => {
+const confirmDeleteCategory = (category: any) => {
+  const categoryName = category.label || category.name;
+  const categoryId = category.key || category.id;
+  
   confirm.require({
-    message: `Вы уверены, что хотите удалить категорию "${category.name}"?`,
+    message: `Вы уверены, что хотите удалить категорию "${categoryName}"?`,
     header: 'Подтверждение удаления',
     icon: 'pi pi-exclamation-triangle',
     accept: async () => {
       try {
-        await categoriesStore.deleteCategory(category.id);
+        await categoriesStore.deleteCategory(categoryId);
         toast.add({ severity: 'success', summary: 'Успешно', detail: 'Категория удалена', life: 3000 });
       } catch (error) {
         // Ошибка уже обработана в store
