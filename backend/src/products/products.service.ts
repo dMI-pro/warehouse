@@ -114,7 +114,11 @@ export class ProductsService {
         images: createProductDto.images ?? [],
       },
       include: {
-        category: true,
+        category: {
+          include: {
+            parent: true,
+          },
+        },
         warehouse: true,
         committee: true,
         transactionType: true,
@@ -191,7 +195,11 @@ export class ProductsService {
         skip,
         take: limit,
         include: {
-          category: true,
+          category: {
+            include: {
+              parent: true,
+            },
+          },
           warehouse: true,
           committee: true,
           transactionType: true,
@@ -231,7 +239,11 @@ export class ProductsService {
     const product = await this.prisma.product.findUnique({
       where: { id },
       include: {
-        category: true,
+        category: {
+          include: {
+            parent: true,
+          },
+        },
         warehouse: true,
         committee: true,
         transactionType: true,
@@ -350,7 +362,11 @@ export class ProductsService {
       where: { id },
       data: updateProductDto,
       include: {
-        category: true,
+        category: {
+          include: {
+            parent: true,
+          },
+        },
         warehouse: true,
         committee: true,
         transactionType: true,
@@ -417,7 +433,11 @@ export class ProductsService {
     const products = await this.prisma.product.findMany({
       where: { quantity: { gt: 0 } },
       include: {
-        category: true,
+        category: {
+          include: {
+            parent: true,
+          },
+        },
         warehouse: true,
         committee: true,
         transactionType: true,
