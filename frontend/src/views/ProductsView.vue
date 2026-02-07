@@ -155,7 +155,10 @@
                 
                 <!-- Категория с тегом -->
                 <template v-else-if="column.template === 'category'">
-                  <Tag :value="data.category?.name || 'Без категории'" severity="info" />
+                  <Tag 
+                    :value="data.category ? (data.category.parent ? `${data.category.parent.name} > ${data.category.name}` : data.category.name) : 'Без категории'" 
+                    severity="info" 
+                  />
                 </template>
                 
                 <!-- Цена с форматированием -->
@@ -833,10 +836,17 @@ const saleFormErrors = reactive({
 
 const categoryOptions = computed(() => {
   const options: { label: string; value: number | null }[] = [{ label: 'Все категории', value: null }];
-
-  categoriesStore.categories.forEach((cat) => {
-    options.push({ label: cat.name, value: cat.id });
-  });
+  
+  // Используем flatCategoriesLabels из стора для отображения иерархии (С — 84 проба)
+  if (categoriesStore.flatCategoriesLabels) {
+    options.push(...categoriesStore.flatCategoriesLabels);
+  } else {
+    // Fallback если flatCategoriesLabels недоступен
+    categoriesStore.categories.forEach((cat) => {
+      options.push({ label: cat.name, value: cat.id });
+    });
+  }
+  
   return options;
 });
 
@@ -1546,7 +1556,17 @@ onMounted(async () => {
   await warehousesStore.fetchWarehouses();
   await committeesStore.fetchCommittees();
   await transactionTypesStore.fetchTransactionTypes();
+  
+  // Сначала загружаем товары (используя сохраненные в сторе фильтры)
   await productsStore.fetchProducts();
+
+  // ВОССТАНОВЛЕНИЕ UI ИЗ STORE (Подзадача 1)
+  // Синхронизируем локальные v-model с состоянием в store, чтобы фильтры не сбрасывались визуально
+  if (productsStore.filters.search) searchQuery.value = productsStore.filters.search;
+  if (productsStore.filters.category) selectedCategory.value = productsStore.filters.category;
+  if (productsStore.filters.warehouse) selectedWarehouse.value = productsStore.filters.warehouse;
+  if (productsStore.filters.committee) selectedCommittee.value = productsStore.filters.committee;
+  if (productsStore.filters.inStock) inStockOnly.value = productsStore.filters.inStock;
 });
 
 const toggleInStock = async () => {
