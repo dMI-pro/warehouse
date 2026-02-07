@@ -1105,7 +1105,8 @@ const parentCategoryOptions = computed(() => {
 
   if (editingCategory.value) {
     // Получаем ID из ключа или объекта данных
-    currentId = Number(editingCategory.value.key || editingCategory.value.id || editingCategory.value.data?.id);
+    const val = editingCategory.value as any;
+    currentId = Number(val.key || val.id || val.data?.id);
     descendants = getDescendantIds(currentId, categoriesStore.categories);
   }
 
@@ -1223,7 +1224,8 @@ const saveCategory = async () => {
         parentId: categoryForm.parentId,
       };
       // Получаем ID категории из объекта редактирования и приводим к числу
-      const categoryId = Number(editingCategory.value.key || editingCategory.value.id);
+      const val = editingCategory.value as any;
+      const categoryId = Number(val.key || val.id);
       
       // Проверка на циклическую зависимость (нельзя установить родителя равным самому себе)
       if (categoryForm.parentId && Number(categoryForm.parentId) === categoryId) {
