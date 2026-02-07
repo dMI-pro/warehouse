@@ -69,6 +69,20 @@ export const useCategoriesStore = defineStore('categories', () => {
     return flatten(categories.value);
   });
 
+  const categoriesMap = computed(() => {
+    const map = new Map<number, Category>();
+    const traverse = (cats: Category[]) => {
+      cats.forEach(cat => {
+        map.set(cat.id, cat);
+        if (cat.children && cat.children.length > 0) {
+          traverse(cat.children);
+        }
+      });
+    };
+    traverse(categories.value);
+    return map;
+  });
+
   const fetchCategories = async () => {
     loading.value = true;
     error.value = null;
@@ -131,6 +145,7 @@ export const useCategoriesStore = defineStore('categories', () => {
     categoriesTree,
     categoriesTreePrimeVue,
     flatCategoriesLabels,
+    categoriesMap,
     loading,
     error,
     fetchCategories,
