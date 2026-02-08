@@ -300,15 +300,19 @@ const fetchAuditLogs = async () => {
     }
 
     if (filters.startDate) {
-      const start = new Date(filters.startDate);
-      start.setHours(0, 0, 0, 0);
-      params.startDate = start.toISOString();
+      const d = filters.startDate;
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      params.startDate = `${year}-${month}-${day}T00:00:00.000+03:00`;
     }
 
     if (filters.endDate) {
-      const end = new Date(filters.endDate);
-      end.setHours(23, 59, 59, 999);
-      params.endDate = end.toISOString();
+      const d = filters.endDate;
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      params.endDate = `${year}-${month}-${day}T23:59:59.999+03:00`;
     }
 
     const response: PaginatedResponse<AuditLog> = await apiService.getAuditLogs(params);
@@ -337,6 +341,7 @@ const formatDateTime = (dateString: string) => {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Europe/Moscow',
   });
 };
 
