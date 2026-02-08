@@ -3,7 +3,6 @@ import {
   Get,
   Query,
   UseGuards,
-  ParseIntPipe,
 } from '@nestjs/common';
 import { AuditLogService } from './audit-log.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -87,7 +86,12 @@ export class AuditLogController {
     }
 
     if (query.endDate) {
-      params.endDate = new Date(query.endDate);
+      const endDate = new Date(query.endDate);
+      // Если передана только дата (YYYY-MM-DD), устанавливаем конец дня
+      if (query.endDate.length === 10) {
+        endDate.setHours(23, 59, 59, 999);
+      }
+      params.endDate = endDate;
     }
 
     return this.auditLogService.findAll(params);
