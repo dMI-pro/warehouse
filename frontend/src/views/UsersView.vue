@@ -267,12 +267,14 @@
 
         <div class="field">
           <label for="password" class="label">{{ editingUser ? 'Новый пароль' : 'Пароль *' }}</label>
-          <InputText
+          <Password
             id="password"
             v-model="userForm.password"
-            type="password"
             class="w-full"
+            inputClass="w-full"
             :required="!editingUser"
+            toggleMask
+            :feedback="false"
           />
           <small v-if="formErrors.password" class="p-error">{{ formErrors.password }}</small>
         </div>
@@ -470,6 +472,7 @@ import Tag from 'primevue/tag';
 import Message from 'primevue/message';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
+import Password from 'primevue/password';
 import Dropdown from 'primevue/dropdown';
 import Divider from 'primevue/divider';
 import ConfirmDialog from 'primevue/confirmdialog';
@@ -709,7 +712,10 @@ const resetUserForm = () => {
   userForm.fullName = '';
   userForm.password = '';
   userForm.role = Role.SELLER;
-  userForm.userStatusId = undefined;
+  
+  const activeStatus = userStatusesStore.userStatuses.find(s => s.code === 'active');
+  userForm.userStatusId = activeStatus ? activeStatus.id : undefined;
+
   Object.keys(formErrors).forEach((key) => {
     formErrors[key as keyof typeof formErrors] = '';
   });
