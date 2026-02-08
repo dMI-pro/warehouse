@@ -186,13 +186,18 @@
                 
                 <!-- Коммитет -->
                 <template v-else-if="column.template === 'committee'">
-                  <span
-                    v-if="data.committee"
-                    class="product-committee" 
-                    @click="openCommitteeDetails(data.committee?.id)"
-                  >
-                    {{ data.committee?.name }}
-                  </span>
+                  <template v-if="data.committee">
+                    <span
+                      v-if="isAdmin"
+                      class="product-committee" 
+                      @click="openCommitteeDetails(data.committee?.id)"
+                    >
+                      {{ data.committee?.name }}
+                    </span>
+                    <span v-else>
+                      {{ data.committee?.name }}
+                    </span>
+                  </template>
                   <span v-else>Не указан</span>
                 </template>
                 
@@ -879,7 +884,7 @@ const sortOptions = [
 ];
 
 // Используем геттеры из authStore для определения ролей
-const { isAdminOrManager, isSeller, isGuest } = storeToRefs(authStore);
+const { isAdmin, isAdminOrManager, isSeller, isGuest } = storeToRefs(authStore);
 
 // Конфигурация колонок таблицы
 const tableColumns = computed<TableColumn[]>(() => {
