@@ -410,15 +410,6 @@
                   required
                 />
                 <small v-if="formErrors.salePrice" class="p-error">{{ formErrors.salePrice }}</small>
-                <div class="mt-2">
-                  <Button
-                    label="с 20% надбавкой"
-                    size="small"
-                    severity="info"
-                    v-tooltip.top="'Установить цену: продажи × 1.25'"
-                    @click="applyCommissionMarkup"
-                  />
-                </div>
 
                 <!-- Если transactionType === "Комиссия" (transactionTypeId=2) показываем кнопку -->
                 <div v-if="productForm?.transactionTypeId === 2" class="mt-2">
@@ -1203,10 +1194,10 @@ const saveProduct = async () => {
         name: productForm.name,
         sku: productForm.sku,
         description: productForm.description,
-        purchasePrice: productForm.purchasePrice,
-        salePrice: productForm.salePrice,
-        quantity: productForm.quantity,
-        minStockLevel: productForm.minStockLevel,
+        purchasePrice: Number(productForm.purchasePrice),
+        salePrice: Number(productForm.salePrice),
+        quantity: Number(productForm.quantity),
+        minStockLevel: Number(productForm.minStockLevel),
         categoryId: productForm.categoryId,
         warehouseId: productForm.warehouseId,
         committeeId: productForm.committeeId,
@@ -1221,10 +1212,10 @@ const saveProduct = async () => {
         name: productForm.name,
         sku: productForm.sku,
         description: productForm.description,
-        purchasePrice: productForm.purchasePrice,
-        salePrice: productForm.salePrice,
-        quantity: productForm.quantity,
-        minStockLevel: productForm.minStockLevel,
+        purchasePrice: Number(productForm.purchasePrice),
+        salePrice: Number(productForm.salePrice),
+        quantity: Number(productForm.quantity),
+        minStockLevel: Number(productForm.minStockLevel),
         categoryId: productForm.categoryId,
         warehouseId: productForm.warehouseId,
         committeeId: productForm.committeeId,
