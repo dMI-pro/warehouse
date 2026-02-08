@@ -71,6 +71,7 @@
         <DataTable
           :value="filteredLogs"
           :loading="loading"
+          :lazy="true"
           :paginator="true"
           :rows="pagination.limit"
           :totalRecords="pagination.total"
@@ -248,6 +249,11 @@ const actionTypeOptions = [
   // Товары
   { label: 'Создание товара', value: 'product.create' },
   { label: 'Обновление товара', value: 'product.update' },
+  { label: 'Изменение цены', value: 'product.price_change' },
+  { label: 'Изменение остатка', value: 'product.quantity_change' },
+  { label: 'Добавление изображения', value: 'product.image_add' },
+  { label: 'Удаление изображения', value: 'product.image_delete' },
+  { label: 'Изменение порядка изображений', value: 'product.image_reorder' },
   { label: 'Удаление товара', value: 'product.delete' },
   // Продажи
   { label: 'Продажа', value: 'sale.create' },
@@ -294,11 +300,15 @@ const fetchAuditLogs = async () => {
     }
 
     if (filters.startDate) {
-      params.startDate = filters.startDate.toISOString().split('T')[0];
+      const start = new Date(filters.startDate);
+      start.setHours(0, 0, 0, 0);
+      params.startDate = start.toISOString();
     }
 
     if (filters.endDate) {
-      params.endDate = filters.endDate.toISOString().split('T')[0];
+      const end = new Date(filters.endDate);
+      end.setHours(23, 59, 59, 999);
+      params.endDate = end.toISOString();
     }
 
     const response: PaginatedResponse<AuditLog> = await apiService.getAuditLogs(params);
@@ -336,6 +346,11 @@ const getActionIcon = (action: string): string => {
     'login_attempt': 'pi pi-exclamation-triangle',
     'product.create': 'pi pi-plus-circle',
     'product.update': 'pi pi-pencil',
+    'product.price_change': 'pi pi-tag',
+    'product.quantity_change': 'pi pi-box',
+    'product.image_add': 'pi pi-image',
+    'product.image_delete': 'pi pi-trash',
+    'product.image_reorder': 'pi pi-sort-alt',
     'product.delete': 'pi pi-trash',
     'sale.create': 'pi pi-shopping-cart',
     'sale.update': 'pi pi-pencil',
@@ -367,6 +382,11 @@ const getActionColor = (action: string): string => {
     'login_attempt': '#ff4d4f',
     'product.create': '#52c41a',
     'product.update': '#1890ff',
+    'product.price_change': '#faad14',
+    'product.quantity_change': '#1890ff',
+    'product.image_add': '#52c41a',
+    'product.image_delete': '#ff4d4f',
+    'product.image_reorder': '#1890ff',
     'product.delete': '#ff4d4f',
     'sale.create': '#faad14',
     'sale.update': '#1890ff',
@@ -398,6 +418,11 @@ const getActionLabel = (action: string): string => {
     'login_attempt': 'Попытка входа',
     'product.create': 'Создание товара',
     'product.update': 'Обновление товара',
+    'product.price_change': 'Изменение цены',
+    'product.quantity_change': 'Изменение остатка',
+    'product.image_add': 'Добавление изображения',
+    'product.image_delete': 'Удаление изображения',
+    'product.image_reorder': 'Изменение порядка изображений',
     'product.delete': 'Удаление товара',
     'sale.create': 'Продажа',
     'sale.update': 'Изменение продажи',
@@ -490,6 +515,7 @@ const viewEntity = (log: any) => {
 
 const onPageChange = async (event: any) => {
   pagination.value.page = event.page + 1;
+  pagination.value.limit = event.rows;
   await fetchAuditLogs();
 };
 
