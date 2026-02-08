@@ -352,7 +352,7 @@
                       />
                     </div>
 
-                    <div class="field col-12 md:col-6" v-if="isAdminOrManager">
+                    <div class="field col-12 md:col-6">
                       <label for="warehouseId" class="block mb-2 font-medium">Склад</label>
                       <Dropdown
                         id="warehouseId"
@@ -418,7 +418,7 @@
           </Card>
         </div>
       </div>
-      <div class="mt-4">
+      <div class="mt-4" v-if="isAdminOrManager">
         <Card>
           <template #title>
             <span class="font-semibold">История действий</span>
@@ -856,6 +856,7 @@ const saveImageOrder = async () => {
 };
 
 const fetchProductLogs = async () => {
+  if (!isAdminOrManager.value) return;
   logsLoading.value = true;
   try {
     const response = await apiService.getProductHistory(productId, 1, 100);

@@ -881,6 +881,8 @@ const sortOptions = [
   { label: 'По дате создания', value: 'createdAt' },
 ];
 
+const isAdminOrManager = computed(() => authStore.hasRole(Role.MANAGER) || authStore.isAdmin);
+
 // Конфигурация колонок таблицы
 const tableColumns = computed<TableColumn[]>(() => [
   { 
