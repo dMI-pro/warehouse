@@ -31,6 +31,7 @@ const router = createRouter({
           path: 'dashboard',
           name: 'dashboard',
           component: () => import('@/views/DashboardView.vue'),
+          meta: { requiredRoles: [Role.SELLER, Role.MANAGER, Role.ADMIN] },
         },
         {
           path: 'products',
@@ -47,6 +48,7 @@ const router = createRouter({
           path: 'committees/:id',
           name: 'committee-details',
           component: () => import('@/views/CommitteeDetailsView.vue'),
+          meta: { requiredRoles: [Role.ADMIN] },
         },
         {
           path: 'reports',
@@ -105,6 +107,10 @@ router.beforeEach(
         const user = authStore.user;
         const isAllowed = !!user && (user.isSuperAdmin || requiredRoles.includes(user.role as Role));
         if (!isAllowed) {
+          if (authStore.isGuest) {
+            next({ name: 'products' });
+            return;
+          }
           next({ name: 'dashboard' });
           return;
         }
@@ -112,7 +118,8 @@ router.beforeEach(
     } else {
       // Если пользователь уже авторизован, перенаправляем на dashboard
       if (authStore.isAuthenticated) {
-        const redirect = (to.query.redirect as string) || '/dashboard';
+        const defaultRedirect = authStore.isGuest ? '/products' : '/dashboard';
+        const redirect = (to.query.redirect as string) || defaultRedirect;
         next(redirect);
         return;
       }

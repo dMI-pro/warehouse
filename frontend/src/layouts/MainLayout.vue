@@ -32,12 +32,14 @@ import Menubar from 'primevue/menubar';
 import Button from 'primevue/button';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import { useAuthStore } from '@/stores/authStore';
+import { storeToRefs } from 'pinia';
 
 import { Role } from '@/types/api';
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const { isGuest, isAdminOrManager, isAdmin } = storeToRefs(authStore);
 
 // Функция для проверки активного маршрута
 const isActive = (path: string | { name: string } | Array<string | { name: string }>): boolean => {
@@ -65,22 +67,25 @@ const isActive = (path: string | { name: string } | Array<string | { name: strin
 };
 
 const menuItems = computed(() => {
-  const items: any[] = [
-    {
+  const items: any[] = [];
+
+  if (!isGuest.value) {
+    items.push({
       label: 'Главная',
       icon: 'pi pi-home',
       command: () => router.push({ name: 'dashboard' }),
       class: isActive({ name: 'dashboard' }) ? 'p-highlight' : '',
-    },
-    {
+    });
+  }
+
+  items.push({
       label: 'Товары',
       icon: 'pi pi-box',
       command: () => router.push({ name: 'products' }),
       class: isActive([{ name: 'products' }, { name: 'product-details' }]) ? 'p-highlight' : '',
-    },
-  ];
+  });
 
-  if (authStore.hasRole(Role.MANAGER) || authStore.isAdmin) {
+  if (isAdminOrManager.value) {
     items.push({
       label: 'Отчеты',
       icon: 'pi pi-chart-bar',
@@ -102,7 +107,7 @@ const menuItems = computed(() => {
     // });
   }
 
-  if (authStore.isAdmin) {
+  if (isAdmin.value) {
     items.push({
       label: 'Журнал действий',
       icon: 'pi pi-history',
