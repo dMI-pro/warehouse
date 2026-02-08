@@ -245,6 +245,7 @@ import type { Committee } from '@/types/api';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import * as echarts from 'echarts';
+import { useAuthStore } from '@/stores/authStore';
 
 // PrimeVue Components
 import Card from 'primevue/card';
@@ -260,6 +261,7 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const confirm = useConfirm();
+const authStore = useAuthStore();
 
 interface CommitteeStats {
   committee: Committee;
@@ -594,6 +596,11 @@ const formatDate = (value: string | Date) => {
 };
 
 onMounted(() => {
+  if (!authStore.isAdmin) {
+    toast.add({ severity: 'error', summary: 'Ошибка', detail: 'Доступ запрещен' });
+    router.push('/dashboard');
+    return;
+  }
   fetchStatistics();
 });
 </script>

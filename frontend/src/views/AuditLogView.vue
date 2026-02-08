@@ -245,12 +245,36 @@ const actionTypeOptions = [
   { label: 'Все типы', value: null },
   { label: 'Вход в систему', value: 'login' },
   { label: 'Попытка входа', value: 'login_attempt' },
+  // Товары
   { label: 'Создание товара', value: 'product.create' },
   { label: 'Обновление товара', value: 'product.update' },
   { label: 'Удаление товара', value: 'product.delete' },
+  // Продажи
   { label: 'Продажа', value: 'sale.create' },
+  { label: 'Изменение продажи', value: 'sale.update' },
+  { label: 'Удаление продажи', value: 'sale.delete' },
+  // Возвраты
+  { label: 'Возврат товара', value: 'return.create' },
+  { label: 'Изменение возврата', value: 'return.update' },
+  { label: 'Удаление возврата', value: 'return.delete' },
+  // Пользователи
   { label: 'Создание пользователя', value: 'user.create' },
   { label: 'Обновление пользователя', value: 'user.update' },
+  { label: 'Удаление пользователя', value: 'user.delete' },
+  { label: 'Сброс сессий', value: 'user.sessions.revoke' },
+  { label: 'Блокировка пользователя', value: 'user.block' },
+  // Склады
+  { label: 'Создание склада', value: 'warehouse.create' },
+  { label: 'Обновление склада', value: 'warehouse.update' },
+  { label: 'Удаление склада', value: 'warehouse.delete' },
+  // Комитеты
+  { label: 'Создание комитета', value: 'committee.create' },
+  { label: 'Обновление комитета', value: 'committee.update' },
+  { label: 'Удаление комитета', value: 'committee.delete' },
+  // Статусы пользователей
+  { label: 'Создание статуса', value: 'user_status.create' },
+  { label: 'Обновление статуса', value: 'user_status.update' },
+  { label: 'Удаление статуса', value: 'user_status.delete' },
 ];
 
 const fetchAuditLogs = async () => {
@@ -314,8 +338,25 @@ const getActionIcon = (action: string): string => {
     'product.update': 'pi pi-pencil',
     'product.delete': 'pi pi-trash',
     'sale.create': 'pi pi-shopping-cart',
+    'sale.update': 'pi pi-pencil',
+    'sale.delete': 'pi pi-trash',
+    'return.create': 'pi pi-replay',
+    'return.update': 'pi pi-pencil',
+    'return.delete': 'pi pi-trash',
     'user.create': 'pi pi-user-plus',
     'user.update': 'pi pi-user-edit',
+    'user.delete': 'pi pi-user-minus',
+    'user.sessions.revoke': 'pi pi-refresh',
+    'user.block': 'pi pi-ban',
+    'warehouse.create': 'pi pi-building',
+    'warehouse.update': 'pi pi-pencil',
+    'warehouse.delete': 'pi pi-trash',
+    'committee.create': 'pi pi-users',
+    'committee.update': 'pi pi-pencil',
+    'committee.delete': 'pi pi-trash',
+    'user_status.create': 'pi pi-id-card',
+    'user_status.update': 'pi pi-pencil',
+    'user_status.delete': 'pi pi-trash',
   };
   return iconMap[action] || 'pi pi-info-circle';
 };
@@ -328,8 +369,25 @@ const getActionColor = (action: string): string => {
     'product.update': '#1890ff',
     'product.delete': '#ff4d4f',
     'sale.create': '#faad14',
+    'sale.update': '#1890ff',
+    'sale.delete': '#ff4d4f',
+    'return.create': '#722ed1',
+    'return.update': '#1890ff',
+    'return.delete': '#ff4d4f',
     'user.create': '#52c41a',
     'user.update': '#1890ff',
+    'user.delete': '#ff4d4f',
+    'user.sessions.revoke': '#faad14',
+    'user.block': '#ff4d4f',
+    'warehouse.create': '#52c41a',
+    'warehouse.update': '#1890ff',
+    'warehouse.delete': '#ff4d4f',
+    'committee.create': '#52c41a',
+    'committee.update': '#1890ff',
+    'committee.delete': '#ff4d4f',
+    'user_status.create': '#52c41a',
+    'user_status.update': '#1890ff',
+    'user_status.delete': '#ff4d4f',
   };
   return colorMap[action] || '#8c8c8c';
 };
@@ -342,8 +400,25 @@ const getActionLabel = (action: string): string => {
     'product.update': 'Обновление товара',
     'product.delete': 'Удаление товара',
     'sale.create': 'Продажа',
+    'sale.update': 'Изменение продажи',
+    'sale.delete': 'Удаление продажи',
+    'return.create': 'Возврат товара',
+    'return.update': 'Изменение возврата',
+    'return.delete': 'Удаление возврата',
     'user.create': 'Создание пользователя',
     'user.update': 'Обновление пользователя',
+    'user.delete': 'Удаление пользователя',
+    'user.sessions.revoke': 'Сброс сессий',
+    'user.block': 'Блокировка пользователя',
+    'warehouse.create': 'Создание склада',
+    'warehouse.update': 'Обновление склада',
+    'warehouse.delete': 'Удаление склада',
+    'committee.create': 'Создание комитета',
+    'committee.update': 'Обновление комитета',
+    'committee.delete': 'Удаление комитета',
+    'user_status.create': 'Создание статуса',
+    'user_status.update': 'Обновление статуса',
+    'user_status.delete': 'Удаление статуса',
   };
   return labelMap[action] || action;
 };
