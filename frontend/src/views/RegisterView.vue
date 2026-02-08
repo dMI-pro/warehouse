@@ -3,7 +3,15 @@
     <Card class="register-card">
       <template #title>Регистрация</template>
       <template #content>
-        <form @submit.prevent="handleRegister" class="register-form">
+        <div v-if="successMessage" class="text-center p-4">
+          <i class="pi pi-check-circle text-green-500 text-6xl mb-4"></i>
+          <h3 class="text-xl font-bold mb-2">Регистрация успешна!</h3>
+          <p class="text-700 mb-5 line-height-3">{{ successMessage }}</p>
+          <router-link to="/login" class="no-underline">
+            <Button label="Вернуться к входу" class="w-full" />
+          </router-link>
+        </div>
+        <form v-else @submit.prevent="handleRegister" class="register-form">
           <div class="field">
             <label for="email" class="label">Email</label>
             <InputText
@@ -78,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Card from 'primevue/card';
 import InputText from 'primevue/inputtext';
@@ -89,6 +97,7 @@ import { useAuthStore } from '@/stores/authStore';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const successMessage = ref('');
 
 const form = reactive({
   email: '',
@@ -152,8 +161,9 @@ const handleRegister = async () => {
   if (!validate()) return;
 
   try {
-    await authStore.register(form);
-    router.push({ name: 'dashboard' });
+    const response = await authStore.register(form);
+    successMessage.value = response.message || 'Регистрация успешна! Ваш аккаунт ожидает подтверждения администратором.';
+    // router.push({ name: 'dashboard' });
   } catch (error) {
     // Ошибка уже обработана в store
   }

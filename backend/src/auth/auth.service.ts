@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   UnauthorizedException,
+  ForbiddenException,
   Inject,
   forwardRef,
 } from '@nestjs/common';
@@ -41,7 +42,12 @@ export class AuthService {
     // Хеширование пароля
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Создание пользователя
+    // Получение статуса "disabled"
+    const disabledStatus = await this.prisma.userStatus.findUnique({
+      where: { code: 'disabled' },
+    });
+
+    // Создание пользователя со статусом "disabled"
     const user = await this.prisma.user.create({
       data: {
         email,
@@ -49,6 +55,9 @@ export class AuthService {
         password: hashedPassword,
         fullName,
         role: Role.GUEST,
+        status: disabledStatus
+          ? { connect: { id: disabledStatus.id } }
+          : undefined,
       },
       select: {
         id: true,
@@ -60,13 +69,15 @@ export class AuthService {
       },
     });
 
-    // Генерация JWT токена
-    const payload = { sub: user.id, username: user.username, role: user.role };
-    const access_token = this.jwtService.sign(payload);
+    // НЕ генерируем токен и НЕ входим автоматически
+    // const payload = { sub: user.id, username: user.username, role: user.role };
+    // const access_token = this.jwtService.sign(payload);
 
     return {
-      access_token,
-      user,
+      message:
+        'Регистрация прошла успешно. Учетная запись ожидает подтверждения.',
+      // access_token,
+      // user,Y
     };
   }
 
@@ -105,8 +116,13 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (user.status?.code?.toLowerCase() === 'blocked') {
-      throw new UnauthorizedException('User is blocked');
+    // Проверка статуса пользователя
+    if (user.status?.code === 'blocked') {
+      throw new ForbiddenException('Account is blocked');
+    }
+
+    if (user.status?.code === 'disabled') {
+      throw new ForbiddenException('Account is disabled. Pending approval.');
     }
 
     // Логирование успешного входа
