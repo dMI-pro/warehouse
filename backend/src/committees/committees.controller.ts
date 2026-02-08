@@ -41,7 +41,7 @@ export class CommitteesController {
   }
 
   @Get(':id/stats')
-  @Public()
+  @Roles(Role.ADMIN)
   async getStatistics(
     @Param('id', ParseIntPipe) id: number,
     @Query('startDate') startDate?: string,
@@ -51,7 +51,7 @@ export class CommitteesController {
   }
 
   @Get(':id')
-  @Public()
+  @Roles(Role.ADMIN)
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.committeesService.findOne(id);
   }
