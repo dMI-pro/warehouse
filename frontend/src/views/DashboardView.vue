@@ -1,10 +1,10 @@
 <template>
-  <div class="dashboard">
+  <div class="dashboard" v-if="!isGuest">
     <h1 class="page-title">Главная</h1>
 
     <div class="dashboard-grid">
       <!-- Статистика (2 колонки) -->
-      <Card class="widget-card stats-widget" style="grid-column: span 2">
+      <Card class="widget-card stats-widget" style="grid-column: span 2" v-if="isAdminOrManager">
         <template #content>
           <div class="widget-header">
             <div class="widget-icon">📊</div>
@@ -85,7 +85,7 @@
       </Card>
 
       <!-- График продаж (4 колонки) -->
-      <Card class="widget-card chart-widget" style="grid-column: span 4">
+      <Card class="widget-card chart-widget" style="grid-column: span 4" v-if="isAdminOrManager">
         <template #content>
           <div class="widget-header">
             <div class="widget-title">Динамика продаж</div>
@@ -147,7 +147,7 @@
         </template>
       </Card>
       <!-- Последние возвраты (2 колонки) -->
-      <Card class="widget-card recent-returns-widget" style="grid-column: span 2">
+      <Card class="widget-card recent-returns-widget" style="grid-column: span 2" v-if="isAdminOrManager">
         <template #content>
           <div class="widget-header">
             <div class="widget-icon">↩️</div>
@@ -278,7 +278,7 @@
       </Card>
 
       <!-- Последние действия (4 колонки) -->
-      <Card class="widget-card actions-widget" style="grid-column: span 4">
+      <Card class="widget-card actions-widget" style="grid-column: span 4" v-if="isAdminOrManager">
         <template #content>
           <div class="widget-header">
             <div class="widget-title">Последние действия</div>
@@ -357,6 +357,7 @@ import { apiService } from '@/services/api';
 import type { Product, Sale, Return as ApiReturn } from '@/types/api';
 import { useSalesStore } from '@/stores/salesStore';
 import { useReturnsStore } from '@/stores/returnsStore';
+import { storeToRefs } from 'pinia';
 
 use([
   CanvasRenderer,
@@ -390,6 +391,8 @@ const recentSales = ref<Array<{ productName: string; quantity: number; amount: n
 const newArrivals = ref<Array<{ name: string; quantity: number; arrivalDate: string }>>([]);
 const lastReturns = ref<Array<{ productName: string; quantity: number; time: string }>>([]);
 const salesData = ref<Sale[]>([]);
+
+const { isAdminOrManager, isGuest } = storeToRefs(authStore);
 
 const chartOption = computed(() => {
   if (!salesData.value.length) return null;

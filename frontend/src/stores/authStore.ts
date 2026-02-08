@@ -39,6 +39,12 @@ export const useAuthStore = defineStore('auth', () => {
     return user.value?.role === Role.ADMIN || user.value?.isSuperAdmin;
   });
 
+  const isManager = computed(() => user.value?.role === Role.MANAGER);
+  const isSeller = computed(() => user.value?.role === Role.SELLER);
+  const isGuest = computed(() => user.value?.role === Role.GUEST);
+
+  const isAdminOrManager = computed(() => isAdmin.value || isManager.value);
+
   // Вход
   const login = async (loginDto: LoginDto) => {
     loading.value = true;
@@ -119,6 +125,10 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     isAuthenticated,
     isAdmin,
+    isManager,
+    isSeller,
+    isGuest,
+    isAdminOrManager,
     hasRole,
     login,
     register,

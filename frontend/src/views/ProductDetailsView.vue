@@ -38,12 +38,12 @@
           <div>
             <h1 class="text-2xl font-bold text-900">{{ product.name }}</h1>
             <div class="flex align-items-center gap-3 mt-2">
-              <span class="text-sm text-600">ID: {{ product.id }}</span>
-              <span class="text-sm text-600">•</span>
+              <span v-if="authStore.isAdmin" class="text-sm text-600">ID: {{ product.id }}</span>
+              <span v-if="authStore.isAdmin" class="text-sm text-600">•</span>
               <span class="text-sm text-600">Артикул: {{ product.sku }}</span>
               <Tag 
-                v-if="product.category"
-                :value="product.category.name"
+                v-if="categoryPath"
+                :value="categoryPath"
                 severity="info"
                 class="ml-2"
               />
@@ -545,6 +545,8 @@ import Tag from 'primevue/tag';
 import ProgressSpinner from 'primevue/progressspinner';
 import ConfirmDialog from 'primevue/confirmdialog';
 import Dialog from 'primevue/dialog';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
 
 import { useProductsStore } from '@/stores/productsStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -552,11 +554,10 @@ import { useWarehousesStore } from '@/stores/warehousesStore';
 import { useCommitteesStore } from '@/stores/committeesStore';
 import { useTransactionTypesStore } from '@/stores/transactionTypesStore';
 import { useCategoriesStore } from '@/stores/categoriesStore';
-import { Role, type AuditLog, type PaginatedResponse } from '@/types/api';
+import { storeToRefs } from 'pinia';
+import { type AuditLog, type PaginatedResponse } from '@/types/api';
 import { apiService } from '@/services/api';
 import type { UpdateProductDto } from '@/types/api';
-import DataTable from 'primevue/datatable';
-import Column from 'primevue/column';
 import { isCurrentUserActor, getActorDisplayName } from '@/utils/user-utils';
 
 const route = useRoute();
@@ -598,8 +599,39 @@ const form = reactive({
 
 // Computed
 const product = computed(() => productsStore.currentProduct);
-const isAdminOrManager = computed(() => authStore.hasRole(Role.MANAGER) || authStore.isAdmin);
+const { isAdminOrManager } = storeToRefs(authStore);
 const canEdit = computed(() => isAdminOrManager.value);
+
+const categoryPath = computed(() => {
+  const p = product.value;
+  if (!p) return null;
+  
+  let currentId: number | undefined = p.categoryId || p.category?.id;
+  if (!currentId) return null;
+
+  const cats = categoriesStore.categories;
+  // If categories are not loaded yet, fallback to single category name
+  if (!cats || !cats.length) return p.category?.name;
+
+  const path: string[] = [];
+  let depth = 0;
+  
+  while (currentId && depth < 20) {
+    const cat = cats.find(c => c.id === currentId);
+    if (!cat) {
+      // Fallback for leaf node if not found in store
+      if (path.length === 0 && p.category && p.category.id === currentId) {
+        path.unshift(p.category.name);
+      }
+      break;
+    }
+    path.unshift(cat.name);
+    currentId = cat.parentId;
+    depth++;
+  }
+  
+  return path.length ? path.join(' > ') : p.category?.name;
+});
 const orderChanged = computed(() => {
   if (!product.value?.images) return false;
   const currentUrls = wrappedImages.value.map(i => i.url);

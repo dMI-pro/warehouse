@@ -64,7 +64,7 @@
               @change="handleWarehouseChange"
             />
           </div>
-          <div class="filter-item">
+          <div class="filter-item" v-if="iısAdminOrManager">
             <Dropdown
               id="committee"
               v-model="selectedCommittee"
@@ -208,6 +208,7 @@
                 <template v-else-if="column.template === 'actions'">
                   <div class="action-buttons">
                     <Button
+                      v-if="isAdminOrManager"
                       icon="pi pi-pencil"
                       severity="info"
                       size="small"
@@ -217,6 +218,7 @@
                       @click="openEditDialog(data)"
                     />
                     <Button
+                      v-if="isAdminOrManager"
                       icon="pi pi-trash"
                       severity="danger"
                       size="small"
@@ -226,6 +228,7 @@
                       @click="confirmDelete(data)"
                     />
                     <Button
+                      v-if="!isGuest"
                       icon="pi pi-shopping-cart"
                       severity="success"
                       size="small"
@@ -235,6 +238,7 @@
                       @click="openSaleDialog(data)"
                     />
                     <Button
+                      v-if="isAdminOrManager"
                       icon="pi pi-replay"
                       severity="warning"
                       size="small"
@@ -671,7 +675,9 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
+import { storeToRefs } from 'pinia';
 import { saveAs } from 'file-saver';
+
 import Card from 'primevue/card';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
@@ -881,63 +887,78 @@ const sortOptions = [
   { label: 'По дате создания', value: 'createdAt' },
 ];
 
-const isAdminOrManager = computed(() => authStore.hasRole(Role.MANAGER) || authStore.isAdmin);
+// Используем геттеры из authStore для определения ролей
+const { isAdminOrManager, isSeller, isGuest } = storeToRefs(authStore);
 
 // Конфигурация колонок таблицы
-const tableColumns = computed<TableColumn[]>(() => [
-  { 
-    header: 'Изображение', 
-    style: 'width: 100px',
-    template: 'image'
-  },
-  { 
-    field: 'name', 
-    header: 'Название', 
-    sortable: true,
-    template: 'productName'
-  },
-  { 
-    field: 'sku', 
-    header: 'Артикул', 
-    sortable: true 
-  },
-  { 
-    header: 'Категория',
-    template: 'category'
-  },
-  { 
-    field: 'salePrice', 
-    header: 'Цена продажи', 
-    sortable: true,
-    template: 'price'
-  },
-  { 
-    field: 'quantity', 
-    header: 'Кол-во', 
-    sortable: true,
-    template: 'quantity'
-  },
-  { 
-    header: 'Склад',
-    template: 'warehouse',
-    // sortable: true, // проблема описана в заметках на айфоне
-  },
-  { 
-    header: 'Коммитет',
-    template: 'committee',
-    // sortable: true, // проблема описана в заметках на айфоне
-  },
-  { 
-    header: 'Тип транзакции',
-    template: 'transactionType',
-    // sortable: true, // проблема описана в заметках на айфоне
-  },
-  { 
-    header: 'Действия', 
-    style: 'width: 180px',
-    template: 'actions'
-  },
-]);
+const tableColumns = computed<TableColumn[]>(() => {
+  const columns: TableColumn[] = [
+    { 
+      header: 'Изображение', 
+      style: 'width: 100px',
+      template: 'image'
+    },
+    { 
+      field: 'name', 
+      header: 'Название', 
+      sortable: true,
+      template: 'productName'
+    },
+    { 
+      field: 'sku', 
+      header: 'Артикул', 
+      sortable: true 
+    },
+    { 
+      header: 'Категория',
+      template: 'category'
+    },
+    { 
+      field: 'salePrice', 
+      header: 'Цена продажи', 
+      sortable: true,
+      template: 'price'
+    },
+    { 
+      field: 'quantity', 
+      header: 'Кол-во', 
+      sortable: true,
+      template: 'quantity'
+    },
+    { 
+      header: 'Склад',
+      template: 'warehouse',
+      // sortable: true, // проблема описана в заметках на айфоне
+    },
+    { 
+      header: 'Коммитет',
+      template: 'committee',
+      // sortable: true, // проблема описана в заметках на айфоне
+    },
+    { 
+      header: 'Тип транзакции',
+      template: 'transactionType',
+      // sortable: true, // проблема описана в заметках на айфоне
+    },
+    { 
+      header: 'Действия', 
+      style: 'width: 180px',
+      template: 'actions'
+    },
+  ];
+
+  return columns.filter(col => {
+    // Скрываем колонки "Коммитет" и "Тип транзакции" для продавца и гостя
+    if ((isSeller.value || isGuest.value) && (col.template === 'committee' || col.template === 'transactionType')) {
+      return false;
+    }
+    // Скрываем колонку действий для гостя (так как все действия недоступны)
+    if (isGuest.value && col.template === 'actions') {
+      return false;
+    }
+    return true;
+  });
+});
 
 // Вспомогательная функция для определения цвета типа транзакции
 const getTransactionTypeSeverity = (transactionTypeName?: string) => {
