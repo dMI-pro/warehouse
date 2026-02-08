@@ -25,6 +25,15 @@ async function main() {
       description: 'Доступ к системе ограничен',
     },
   });
+  await prisma.userStatus.upsert({
+    where: { code: 'disabled' },
+    update: {},
+    create: {
+      code: 'disabled',
+      name: 'Отключен',
+      description: 'Доступ к системе отключен',
+    },
+  });
   console.log('✅ User statuses created/verified');
 
   console.log('👤 Creating super admin...');

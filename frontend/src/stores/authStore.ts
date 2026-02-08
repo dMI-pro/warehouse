@@ -72,11 +72,12 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
     try {
       const response = await apiService.register(registerDto);
-      token.value = response.access_token;
-      user.value = response.user;
+      // При регистрации теперь не возвращается токен, так как статус пользователя "disabled"
+      // token.value = response.access_token;
+      // user.value = response.user;
 
-      localStorage.setItem('access_token', response.access_token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      // localStorage.setItem('access_token', response.access_token);
+      // localStorage.setItem('user', JSON.stringify(response.user));
 
       return response;
     } catch (err: any) {
