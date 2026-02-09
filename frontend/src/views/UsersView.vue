@@ -615,43 +615,47 @@ const formatDateTime = (dateString: string) => {
   });
 };
 
-const isSuperAdmin = computed(() => !!authStore.user?.isSuperAdmin);
-const isAdmin = computed(() => authStore.isAdmin);
 const isSelf = (user: User) => authStore.user?.id === user.id;
 const isAdminTarget = (user: User) => user.role === Role.ADMIN;
+
 const getUserRowClass = (user: User) => {
   if (!authStore.user) return '';
   return user.id === authStore.user.id ? 'current-user-row' : '';
 };
+
 const canBlockUser = (user: User) => {
-  if (isSuperAdmin.value) return true;
-  if (isAdmin.value) return !user.isSuperAdmin && !isAdminTarget(user);
+  if (authStore.user?.isSuperAdmin) return true;
+  if (authStore.isAdmin) return !user.isSuperAdmin && !isAdminTarget(user);
   return false;
 };
+
 const canDeleteUser = (user: User) => {
-  if (isSuperAdmin.value) return true;
-  if (isAdmin.value) return !user.isSuperAdmin && !isAdminTarget(user);
+  if (authStore.user?.isSuperAdmin) return true;
+  if (authStore.isAdmin) return !user.isSuperAdmin && !isAdminTarget(user);
   return false;
 };
+
 const canEditUser = (user: User) => {
-  if (isSuperAdmin.value) return true;
-  if (isAdmin.value) {
+  if (authStore.user?.isSuperAdmin) return true;
+  if (authStore.isAdmin) {
     if (isSelf(user)) return true;
     return !user.isSuperAdmin && !isAdminTarget(user);
   }
   return isSelf(user);
 };
+
 const canRevokeSessions = (user: User) => {
-  if (isSuperAdmin.value) return true;
-  if (isAdmin.value) {
+  if (authStore.user?.isSuperAdmin) return true;
+  if (authStore.isAdmin) {
     if (isSelf(user)) return true;
     return !user.isSuperAdmin && !isAdminTarget(user);
   }
   return isSelf(user);
 };
+
 const canResetPassword = (user: User) => {
-  if (isSuperAdmin.value) return true;
-  if (isAdmin.value) {
+  if (authStore.user?.isSuperAdmin) return true;
+  if (authStore.isAdmin) {
     if (isSelf(user)) return true;
     return !user.isSuperAdmin && !isAdminTarget(user);
   }
