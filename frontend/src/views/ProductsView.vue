@@ -660,9 +660,6 @@
         </div>
       </form>
     </Dialog>
-
-    <!-- Диалог подтверждения удаления -->
-    <ConfirmDialog />
   </div>
 </template>
 
@@ -687,7 +684,6 @@ import FileUpload from 'primevue/fileupload';
 import Tag from 'primevue/tag';
 import Badge from 'primevue/badge';
 import Message from 'primevue/message';
-import ConfirmDialog from 'primevue/confirmdialog';
 import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
 import Calendar from 'primevue/calendar';

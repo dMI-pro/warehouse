@@ -787,7 +787,6 @@ import Tag from 'primevue/tag';
 import Chip from 'primevue/chip';
 import Message from 'primevue/message';
 import Divider from 'primevue/divider';
-import ConfirmDialog from 'primevue/confirmdialog';
 import { useCategoriesStore } from '@/stores/categoriesStore';
 import { useWarehousesStore } from '@/stores/warehousesStore';
 import { useCommitteesStore } from '@/stores/committeesStore';

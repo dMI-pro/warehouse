@@ -475,7 +475,6 @@ import InputText from 'primevue/inputtext';
 import Password from 'primevue/password';
 import Dropdown from 'primevue/dropdown';
 import Divider from 'primevue/divider';
-import ConfirmDialog from 'primevue/confirmdialog';
 import ProgressSpinner from 'primevue/progressspinner';
 import { useUsersStore } from '@/stores/usersStore';
 import { useUserStatusesStore } from '@/stores/userStatusesStore';
