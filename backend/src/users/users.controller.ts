@@ -58,6 +58,7 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @Roles(Role.ADMIN)
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
