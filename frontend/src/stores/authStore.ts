@@ -51,11 +51,15 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
     try {
       const response = await apiService.login(loginDto);
-      token.value = response.access_token;
-      user.value = response.user;
+      token.value = response.access_token || null;
+      user.value = response.user || null;
 
-      localStorage.setItem('access_token', response.access_token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      if (response.access_token) {
+        localStorage.setItem('access_token', response.access_token);
+      }
+      if (response.user) {
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
 
       return response;
     } catch (err: any) {
