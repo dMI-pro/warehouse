@@ -118,131 +118,137 @@
         </template>
       </Card>
 
-      <!-- Правая панель с детальной информацией -->
-      <Card v-if="selectedUser" class="user-details-card">
-        <template #title>Детальная информация</template>
-        <template #content>
-          <div class="user-details">
-            <div class="user-header">
-              <div class="avatar-large" :style="{ backgroundColor: getAvatarColor(selectedUser.role) }">
-                {{ getInitials(selectedUser.fullName || selectedUser.username) }}
-              </div>
-              <div class="user-name">
-                <h3>{{ selectedUser.fullName || selectedUser.username }}</h3>
-                <Tag :value="getRoleName(selectedUser.role)" :severity="getRoleSeverity(selectedUser.role)" />
-              </div>
+      <!-- Правая панель с детальной информацией (Sidebar) -->
+      <Sidebar
+        v-model:visible="isDetailsVisible"
+        position="right"
+        class="user-details-sidebar w-full md:w-30rem lg:w-30rem"
+        modal
+      >
+        <template #header>
+          <span class="text-xl font-bold">Детальная информация</span>
+        </template>
+
+        <div v-if="selectedUser" class="user-details">
+          <div class="user-header">
+            <div class="avatar-large" :style="{ backgroundColor: getAvatarColor(selectedUser.role) }">
+              {{ getInitials(selectedUser.fullName || selectedUser.username) }}
             </div>
-
-            <Divider />
-
-            <div class="user-info-section">
-              <h4>Основная информация</h4>
-              <div class="info-item">
-                <span class="info-label">Логин:</span>
-                <span class="info-value">{{ selectedUser.username }}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Email:</span>
-                <span class="info-value">{{ selectedUser.email }}</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Роль:</span>
-                <Tag :value="getRoleName(selectedUser.role)" :severity="getRoleSeverity(selectedUser.role)" />
-              </div>
-              <div class="info-item">
-                <span class="info-label">Статус:</span>
-                <Tag
-                  :value="selectedUser.status?.name || '—'"
-                  :severity="getUserStatusColor(selectedUser.status?.code)"
-                />
-              </div>
-              <div class="info-item">
-                <span class="info-label">Дата регистрации:</span>
-                <span class="info-value">{{ selectedUser.createdAt ? formatDate(selectedUser.createdAt) : '—' }}</span>
-              </div>
+            <div class="user-name">
+              <h3>{{ selectedUser.fullName || selectedUser.username }}</h3>
+              <Tag :value="getRoleName(selectedUser.role)" :severity="getRoleSeverity(selectedUser.role)" />
             </div>
+          </div>
 
-            <Divider />
+          <Divider />
 
-            <div class="user-actions-section">
-              <h4>Действия</h4>
-              <Button
-                v-if="selectedUser && canResetPassword(selectedUser)"
-                label="Сбросить пароль"
-                icon="pi pi-key"
-                severity="warning"
-                outlined
-                class="w-full mb-2"
-                @click="confirmResetPassword(selectedUser!)"
-              />
-              <Button
-                v-if="selectedUser && canRevokeSessions(selectedUser)"
-                label="Завершить все сессии"
-                icon="pi pi-sign-out"
-                severity="warning"
-                outlined
-                class="w-full mb-2"
-                @click="confirmRevokeSessions(selectedUser!)"
-              />
-              <Button
-                v-if="selectedUser && canBlockUser(selectedUser)"
-                label="Заблокировать пользователя"
-                icon="pi pi-ban"
-                severity="danger"
-                outlined
-                class="w-full mb-2"
-                @click="confirmBlockUser(selectedUser!)"
-              />
-              <Button
-                v-if="selectedUser && canDeleteUser(selectedUser)"
-                label="Удалить пользователя"
-                icon="pi pi-trash"
-                severity="danger"
-                outlined
-                class="w-full"
-                @click="confirmDeleteUser(selectedUser!)"
+          <div class="user-info-section">
+            <h4>Основная информация</h4>
+            <div class="info-item">
+              <span class="info-label">Логин:</span>
+              <span class="info-value">{{ selectedUser.username }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Email:</span>
+              <span class="info-value">{{ selectedUser.email }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Роль:</span>
+              <Tag :value="getRoleName(selectedUser.role)" :severity="getRoleSeverity(selectedUser.role)" />
+            </div>
+            <div class="info-item">
+              <span class="info-label">Статус:</span>
+              <Tag
+                :value="selectedUser.status?.name || '—'"
+                :severity="getUserStatusColor(selectedUser.status?.code)"
               />
             </div>
+            <div class="info-item">
+              <span class="info-label">Дата регистрации:</span>
+              <span class="info-value">{{ selectedUser.createdAt ? formatDate(selectedUser.createdAt) : '—' }}</span>
+            </div>
+          </div>
 
-            <Divider />
+          <Divider />
 
-            <div class="user-history-section">
-              <h4>История действий</h4>
-              <div v-if="userHistory.length === 0" class="no-history">
-                Нет данных о действиях
-              </div>
-              <div v-else class="history-list">
-                <div
-                  v-for="(action, index) in userHistory"
-                  :key="index"
-                  class="history-item"
-                >
-                  <div class="history-time">{{ formatDateTime(action.createdAt) }}</div>
-                  <div class="history-action-row">
-                    <div class="history-action-text">
-                      {{ getUserActionLabel(action.action) }}
-                      <span
-                        v-if="action.user"
-                        :class="['history-actor', { 'self-actor': isCurrentUserActor(action.user) }]"
-                      >
-                        ({{ getActorDisplayName(action.user) }})
-                      </span>
-                    </div>
-                    <Button
-                      v-if="action.oldValues || action.newValues"
-                      label="Подробно"
-                      icon="pi pi-eye"
-                      text
-                      size="small"
-                      @click="showHistoryDetails(action)"
-                    />
+          <div class="user-actions-section">
+            <h4>Действия</h4>
+            <Button
+              v-if="selectedUser && canResetPassword(selectedUser)"
+              label="Сбросить пароль"
+              icon="pi pi-key"
+              severity="warning"
+              outlined
+              class="w-full mb-2"
+              @click="confirmResetPassword(selectedUser!)"
+            />
+            <Button
+              v-if="selectedUser && canRevokeSessions(selectedUser)"
+              label="Завершить все сессии"
+              icon="pi pi-sign-out"
+              severity="warning"
+              outlined
+              class="w-full mb-2"
+              @click="confirmRevokeSessions(selectedUser!)"
+            />
+            <Button
+              v-if="selectedUser && canBlockUser(selectedUser)"
+              label="Заблокировать пользователя"
+              icon="pi pi-ban"
+              severity="danger"
+              outlined
+              class="w-full mb-2"
+              @click="confirmBlockUser(selectedUser!)"
+            />
+            <Button
+              v-if="selectedUser && canDeleteUser(selectedUser)"
+              label="Удалить пользователя"
+              icon="pi pi-trash"
+              severity="danger"
+              outlined
+              class="w-full"
+              @click="confirmDeleteUser(selectedUser!)"
+            />
+          </div>
+
+          <Divider />
+
+          <div class="user-history-section">
+            <h4>История действий</h4>
+            <div v-if="userHistory.length === 0" class="no-history">
+              Нет данных о действиях
+            </div>
+            <div v-else class="history-list">
+              <div
+                v-for="(action, index) in userHistory"
+                :key="index"
+                class="history-item"
+              >
+                <div class="history-time">{{ formatDateTime(action.createdAt) }}</div>
+                <div class="history-action-row">
+                  <div class="history-action-text">
+                    {{ getUserActionLabel(action.action) }}
+                    <span
+                      v-if="action.user"
+                      :class="['history-actor', { 'self-actor': isCurrentUserActor(action.user) }]"
+                    >
+                      ({{ getActorDisplayName(action.user) }})
+                    </span>
                   </div>
+                  <Button
+                    v-if="action.oldValues || action.newValues"
+                    label="Подробно"
+                    icon="pi pi-eye"
+                    text
+                    size="small"
+                    @click="showHistoryDetails(action)"
+                  />
                 </div>
               </div>
             </div>
           </div>
-        </template>
-      </Card>
+        </div>
+      </Sidebar>
     </div>
 
     <!-- Диалог добавления/редактирования пользователя -->
@@ -485,6 +491,7 @@ import Password from 'primevue/password';
 import Dropdown from 'primevue/dropdown';
 import Divider from 'primevue/divider';
 import ProgressSpinner from 'primevue/progressspinner';
+import Sidebar from 'primevue/sidebar';
 import { useUsersStore } from '@/stores/usersStore';
 import { useUserStatusesStore } from '@/stores/userStatusesStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -498,6 +505,15 @@ const authStore = useAuthStore();
 const userStatusesStore = useUserStatusesStore();
 const confirm = useConfirm();
 const toast = useToast();
+
+const isDetailsVisible = computed({
+  get: () => !!selectedUser.value,
+  set: (val) => {
+    if (!val) {
+      selectedUser.value = null;
+    }
+  },
+});
 
 const selectedUser = ref<User | null>(null);
 const userDialogVisible = ref(false);
@@ -960,19 +976,12 @@ const getUserActionLabel = (action: string): string => {
 }
 
 .users-layout {
-  display: grid;
-  grid-template-columns: 1fr 400px;
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
 }
 
 .users-table-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.user-details-card {
-  position: sticky;
-  top: 1rem;
-  height: fit-content;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
