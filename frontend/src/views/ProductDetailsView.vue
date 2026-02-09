@@ -522,8 +522,6 @@
         </div>
       </Dialog>
     </div>
-
-    <ConfirmDialog />
   </div>
 </template>
 
@@ -543,7 +541,6 @@ import Galleria from 'primevue/galleria';
 import OrderList from 'primevue/orderlist';
 import Tag from 'primevue/tag';
 import ProgressSpinner from 'primevue/progressspinner';
-import ConfirmDialog from 'primevue/confirmdialog';
 import Dialog from 'primevue/dialog';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
