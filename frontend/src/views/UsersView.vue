@@ -190,8 +190,17 @@
                 icon="pi pi-ban"
                 severity="danger"
                 outlined
-                class="w-full"
+                class="w-full mb-2"
                 @click="confirmBlockUser(selectedUser!)"
+              />
+              <Button
+                v-if="selectedUser && canDeleteUser(selectedUser)"
+                label="Удалить пользователя"
+                icon="pi pi-trash"
+                severity="danger"
+                outlined
+                class="w-full"
+                @click="confirmDeleteUser(selectedUser!)"
               />
             </div>
 
@@ -573,6 +582,29 @@ const formatDate = (dateString: string) => {
   });
 };
 
+const confirmDeleteUser = (user: User) => {
+  confirm.require({
+    message: `Вы уверены, что хотите удалить пользователя "${user.fullName || user.username}"? Это действие нельзя отменить.`,
+    header: 'Подтверждение удаления',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        await usersStore.deleteUser(user.id);
+        toast.add({
+          severity: 'success',
+          summary: 'Успешно',
+          detail: 'Пользователь удален',
+          life: 3000,
+        });
+        selectedUser.value = null;
+      } catch (err: any) {
+        // Error already handled in store
+      }
+    },
+  });
+};
+
 const formatDateTime = (dateString: string) => {
   return new Date(dateString).toLocaleString('ru-RU', {
     day: '2-digit',
@@ -592,6 +624,11 @@ const getUserRowClass = (user: User) => {
   return user.id === authStore.user.id ? 'current-user-row' : '';
 };
 const canBlockUser = (user: User) => {
+  if (isSuperAdmin.value) return true;
+  if (isAdmin.value) return !user.isSuperAdmin && !isAdminTarget(user);
+  return false;
+};
+const canDeleteUser = (user: User) => {
   if (isSuperAdmin.value) return true;
   if (isAdmin.value) return !user.isSuperAdmin && !isAdminTarget(user);
   return false;
