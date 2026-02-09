@@ -65,7 +65,7 @@ class QueryAuditLogDto {
 
 @Controller('audit-logs')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.MANAGER)
 export class AuditLogController {
   constructor(private readonly auditLogService: AuditLogService) {}
 
