@@ -172,7 +172,8 @@ export class MinioService implements OnModuleInit {
 
   getKeyFromUrl(url: string): string | null {
     try {
-      const u = new URL(url);
+      // Используем dummy base для поддержки относительных URL (например /minio/...)
+      const u = new URL(url, 'http://dummy.base');
       const parts = u.pathname.split('/').filter(Boolean);
       const bucketIndex = parts.lastIndexOf(this.bucketName);
       if (bucketIndex >= 0 && bucketIndex < parts.length - 1) {
