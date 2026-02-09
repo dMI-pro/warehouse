@@ -354,10 +354,11 @@ import Column from 'primevue/column';
 import { useAuthStore } from '@/stores/authStore';
 import { useProductsStore } from '@/stores/productsStore';
 import { apiService } from '@/services/api';
-import type { Product, Sale, Return as ApiReturn } from '@/types/api';
+import type { Product, Sale, Return as ApiReturn, AuditLog } from '@/types/api';
 import { useSalesStore } from '@/stores/salesStore';
 import { useReturnsStore } from '@/stores/returnsStore';
 import { storeToRefs } from 'pinia';
+import { getActorDisplayName } from '@/utils/user-utils';
 
 use([
   CanvasRenderer,
@@ -547,6 +548,14 @@ const loadStats = async () => {
       endDate: endDate.toISOString(),
     });
 
+    // Загружаем логи создания товаров для получения информации о пользователе
+    const productCreateLogsResponse = await apiService.getAuditLogs({
+      action: 'product.create',
+      limit: 5,
+      page: 1,
+    });
+    const productCreateLogs = productCreateLogsResponse.data;
+
     // Рассчитываем статистику
     let totalPositions = allProducts.length;
     let totalItemsQuantity = 0;
@@ -646,22 +655,22 @@ const loadStats = async () => {
         type: 'Продажа',
         entity: sale.product?.name || 'Товар',
         details: `${sale.quantity} шт. на ${formatPrice(Number(sale.salePrice) * sale.quantity)}`,
-        user: sale.user?.fullName || sale.user?.username || 'Неизвестно',
+        user: getActorDisplayName(sale.user),
         time: sale.soldAt || sale.createdAt || new Date().toISOString(),
       })),
       ...returnsResponse.slice(0, 5).map((ret: ApiReturn) => ({
         type: 'Возврат',
         entity: ret.product?.name || 'Товар',
         details: `${ret.quantity} шт.`,
-        user: ret.user?.fullName || ret.user?.username || 'Неизвестно',
+        user: getActorDisplayName(ret.user),
         time: ret.returnedAt || new Date().toISOString(),
       })),
-      ...newArrivals.value.map((p) => ({
+      ...productCreateLogs.map((log: AuditLog) => ({
         type: 'Добавление товара',
-        entity: p.name,
-        details: `${p.quantity} шт.`,
-        user: 'Система',
-        time: p.arrivalDate,
+        entity: log.newValues?.name || (log.entityId ? `Товар #${log.entityId}` : 'Товар'),
+        details: log.newValues?.quantity ? `${log.newValues.quantity} шт.` : '—',
+        user: getActorDisplayName(log.user),
+        time: log.createdAt,
       })),
     ]
       .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
