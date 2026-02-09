@@ -64,7 +64,7 @@
               @change="handleWarehouseChange"
             />
           </div>
-          <div class="filter-item" v-if="iısAdminOrManager">
+          <div class="filter-item" v-if="isAdminOrManager">
             <Dropdown
               id="committee"
               v-model="selectedCommittee"
