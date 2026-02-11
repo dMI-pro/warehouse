@@ -1148,6 +1148,7 @@ const resetProductForm = () => {
   productForm.transactionTypeId = undefined;
   productForm.arrivalDate = undefined;
   productForm.images = [];
+  pendingFiles.value = [];
   Object.keys(formErrors).forEach((key) => {
     formErrors[key as keyof typeof formErrors] = '';
   });
