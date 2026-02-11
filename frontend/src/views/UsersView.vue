@@ -516,6 +516,7 @@ const isDetailsVisible = computed({
 });
 
 const selectedUser = ref<User | null>(null);
+const rows = ref(20);
 const userDialogVisible = ref(false);
 const editingUser = ref<User | null>(null);
 
