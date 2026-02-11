@@ -238,7 +238,7 @@
                   :value="normalizedReportData"
                   :loading="isLoading"
                   :paginator="true"
-                  :rows="15"
+                  v-model:rows="rows"
                   :rowsPerPageOptions="[10, 15, 30, 50]"
                   paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
                   currentPageReportTemplate="{first} - {last} из {totalRecords}"
@@ -540,6 +540,7 @@ const activeTabIndex = ref(0);
 const mainChartRef = ref<HTMLDivElement | null>(null);
 let mainChart: echarts.ECharts | null = null;
 const isLoading = ref(false);
+const rows = ref(15);
 const saving = ref(false);
 const dateRangeError = ref<string>('');
 const resizeObserver = ref<ResizeObserver | null>(null);

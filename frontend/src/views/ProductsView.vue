@@ -109,8 +109,9 @@
           :value="productsStore.products"
           v-model:selection="selectedProducts"
           :loading="productsStore.loading"
+          :lazy="true"
           :paginator="true"
-          :rows="productsStore.pagination.limit"
+          v-model:rows="productsStore.pagination.limit"
           :totalRecords="productsStore.pagination.total"
           :first="(productsStore.pagination.page - 1) * productsStore.pagination.limit"
           :rowsPerPageOptions="[10, 20, 50, 100]"
@@ -1099,6 +1100,7 @@ const getCategoryBreadcrumb = (category: any) => {
 
 const onPageChange = (event: any) => {
   productsStore.setPage(event.page + 1);
+  productsStore.pagination.limit = event.rows;
   productsStore.fetchProducts();
 };
 

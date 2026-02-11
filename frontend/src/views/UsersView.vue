@@ -23,7 +23,7 @@
             v-model:selection="selectedUser"
             :loading="usersStore.loading"
             :paginator="true"
-            :rows="20"
+            v-model:rows="rows"
             :rowsPerPageOptions="[20, 50, 100]"
             paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
             currentPageReportTemplate="{first} - {last} из {totalRecords}"
