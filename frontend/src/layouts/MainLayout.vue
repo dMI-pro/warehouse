@@ -5,16 +5,49 @@
         <div class="logo">Склад Анти...</div>
       </template>
       <template #end>
-        <div class="user-info">
-          <ThemeToggle />
-          <span class="username">{{ authStore.user?.fullName || authStore.user?.username }}</span>
-          <Button
-            label="Выход"
-            icon="pi pi-sign-out"
-            severity="secondary"
-            text
-            @click="handleLogout"
-          />
+        <div class="user-info" v-if="!isGuest">
+          <div class="user-desktop">
+            <ThemeToggle />
+            <span class="username">{{ userDisplayName }}</span>
+            <Button
+              label="Выход"
+              icon="pi pi-sign-out"
+              severity="secondary"
+              text
+              @click="handleLogout"
+            />
+          </div>
+
+          <div class="user-mobile" @click="toggleUserMenu">
+            <div class="header-avatar" :style="{ backgroundColor: userAvatarColor }">
+              {{ userInitials }}
+            </div>
+            <span class="username username-mobile">{{ userDisplayName }}</span>
+            <i class="pi pi-chevron-down user-menu-icon" />
+          </div>
+
+          <OverlayPanel ref="userMenuRef" class="user-menu-panel">
+            <div class="user-menu-header">
+              <div class="header-avatar" :style="{ backgroundColor: userAvatarColor }">
+                {{ userInitials }}
+              </div>
+              <div class="user-menu-text">
+                <div class="user-menu-name">{{ userDisplayName }}</div>
+              </div>
+            </div>
+            <div class="user-menu-item">
+              <span class="user-menu-label">Тема</span>
+              <ThemeToggle />
+            </div>
+            <Button
+              label="Выйти"
+              icon="pi pi-sign-out"
+              severity="secondary"
+              text
+              class="user-menu-logout"
+              @click="handleLogout"
+            />
+          </OverlayPanel>
         </div>
       </template>
     </Menubar>
@@ -26,20 +59,32 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import Menubar from 'primevue/menubar';
 import Button from 'primevue/button';
+import OverlayPanel from 'primevue/overlaypanel';
 import ThemeToggle from '@/components/ThemeToggle.vue';
 import { useAuthStore } from '@/stores/authStore';
 import { storeToRefs } from 'pinia';
 
 import { Role } from '@/types/api';
+import { getInitials, getAvatarColor } from '@/utils/user-utils';
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 const { isGuest, isAdminOrManager, isAdmin } = storeToRefs(authStore);
+const userMenuRef = ref();
+
+const userDisplayName = computed(() => authStore.user?.fullName || authStore.user?.username || '');
+const userInitials = computed(() => getInitials(userDisplayName.value));
+const userAvatarColor = computed(() => {
+  if (authStore.user?.role) {
+    return getAvatarColor(authStore.user.role as Role);
+  }
+  return '#8c8c8c';
+});
 
 // Функция для проверки активного маршрута
 const isActive = (path: string | { name: string } | Array<string | { name: string }>): boolean => {
@@ -129,6 +174,11 @@ const handleLogout = () => {
   authStore.logout();
   router.push({ name: 'login' });
 };
+
+const toggleUserMenu = (event: MouseEvent) => {
+  if (!userMenuRef.value) return;
+  userMenuRef.value.toggle(event);
+};
 </script>
 
 <style scoped>
@@ -164,8 +214,80 @@ const handleLogout = () => {
   flex-wrap: wrap;
 }
 
+.user-desktop {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-mobile {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.header-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
 .username {
   font-weight: 500;
+}
+
+.username-mobile {
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-menu-icon {
+  font-size: 0.875rem;
+}
+
+.user-menu-panel {
+  min-width: 220px;
+}
+
+.user-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.5rem 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--surface-border);
+  margin-bottom: 0.5rem;
+}
+
+.user-menu-name {
+  font-weight: 600;
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem;
+}
+
+.user-menu-label {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+}
+
+.user-menu-logout {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0.5rem;
 }
 
 .content-wrapper {
@@ -191,9 +313,17 @@ const handleLogout = () => {
   }
 
   .user-info {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    justify-content: flex-end;
     gap: 0.5rem;
+  }
+
+  .user-desktop {
+    display: none;
+  }
+
+  .user-mobile {
+    display: flex;
   }
 
   .content-wrapper {

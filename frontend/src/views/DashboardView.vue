@@ -887,6 +887,19 @@ onMounted(() => {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .page-title {
+    font-size: 1.6rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .widget-header {
+    gap: 0.5rem;
+  }
+
+  .widget-title {
+    font-size: 1.1rem;
+  }
+
   .span-4 {
     grid-column: span 2 !important;
   }
@@ -910,6 +923,29 @@ onMounted(() => {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.25rem;
+  }
+
+  .page-title {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+  }
+
+  .widget-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .widget-icon {
+    font-size: 1.5rem;
+  }
+
+  .widget-title {
+    font-size: 1rem;
+  }
+
+  .widget-title small {
+    display: none;
   }
 }
 </style>
