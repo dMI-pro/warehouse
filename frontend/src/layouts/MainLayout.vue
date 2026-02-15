@@ -1,8 +1,17 @@
 <template>
   <div class="layout-wrapper">
-    <Menubar :model="menuItems" class="main-menu">
+    <Menubar :model="menuItems" class="main-menu" :class="{ 'menu-open': mobileMenuOpen }">
       <template #start>
-        <div class="logo">Склад Анти...</div>
+        <div class="start-left">
+          <Button
+            class="burger-btn"
+            icon="pi pi-bars"
+            text
+            aria-label="Открыть меню"
+            @click="toggleMobileMenu"
+          />
+          <div class="logo">Склад Анти...</div>
+        </div>
       </template>
       <template #end>
         <div class="user-info" v-if="!isGuest">
@@ -76,6 +85,7 @@ const route = useRoute();
 const authStore = useAuthStore();
 const { isGuest, isAdminOrManager, isAdmin } = storeToRefs(authStore);
 const userMenuRef = ref();
+const mobileMenuOpen = ref(false);
 
 const userDisplayName = computed(() => authStore.user?.fullName || authStore.user?.username || '');
 const userInitials = computed(() => getInitials(userDisplayName.value));
@@ -179,6 +189,10 @@ const toggleUserMenu = (event: MouseEvent) => {
   if (!userMenuRef.value) return;
   userMenuRef.value.toggle(event);
 };
+
+const toggleMobileMenu = () => {
+  mobileMenuOpen.value = !mobileMenuOpen.value;
+};
 </script>
 
 <style scoped>
@@ -198,6 +212,10 @@ const toggleUserMenu = (event: MouseEvent) => {
   position: sticky;
   top: 0;
   z-index: 1000;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .logo {
@@ -207,11 +225,27 @@ const toggleUserMenu = (event: MouseEvent) => {
   color: var(--primary-color);
 }
 
+.start-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.main-menu :deep(.p-menubar-button) {
+  display: none !important;
+}
+
+.burger-btn {
+  display: none;
+}
+
 .user-info {
   display: flex;
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .user-desktop {
@@ -244,7 +278,7 @@ const toggleUserMenu = (event: MouseEvent) => {
 }
 
 .username-mobile {
-  max-width: 120px;
+  max-width: 80px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -310,6 +344,14 @@ const toggleUserMenu = (event: MouseEvent) => {
   .logo {
     font-size: 1.25rem;
     margin-right: 1rem;
+    max-width: 60vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .burger-btn {
+    display: inline-flex;
   }
 
   .user-info {
@@ -331,8 +373,13 @@ const toggleUserMenu = (event: MouseEvent) => {
   }
 
   :deep(.p-menubar-root-list) {
+    display: none;
     flex-direction: column;
     width: 100%;
+  }
+
+  .main-menu.menu-open :deep(.p-menubar-root-list) {
+    display: flex;
   }
 }
 </style>
