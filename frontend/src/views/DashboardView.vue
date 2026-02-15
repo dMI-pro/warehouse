@@ -185,12 +185,15 @@
             <div class="widget-title">Динамика продаж</div>
           </div>
           <div class="chart-container">
-            <v-chart
-              v-if="chartOption"
-              :option="chartOption"
-              :loading="loading"
-              class="chart"
-            />
+        <div v-if="chartOption" class="chart-scroll" ref="chartScrollRef">
+              <div class="chart-inner">
+                <v-chart
+                  :option="chartOption"
+                  :loading="loading"
+                  class="chart"
+                />
+              </div>
+            </div>
             <div v-else class="chart-placeholder">Загрузка данных...</div>
           </div>
         </template>
@@ -335,7 +338,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -375,6 +378,7 @@ const authStore = useAuthStore();
 const productsStore = useProductsStore();
 const salesStore = useSalesStore();
 const returnsStore = useReturnsStore();
+const chartScrollRef = ref<HTMLDivElement | null>(null);
 
 const loading = ref(false);
 const stats = ref({
@@ -490,6 +494,19 @@ const chartOption = computed(() => {
       },
     ],
   };
+});
+
+const scrollChartToRight = () => {
+  const el = chartScrollRef.value;
+  if (!el) return;
+  const max = el.scrollWidth - el.clientWidth;
+  if (max > 0) el.scrollLeft = max;
+};
+
+watch(chartOption, async (opt) => {
+  if (!opt) return;
+  await nextTick();
+  scrollChartToRight();
 });
 
 const formatNumber = (num: number) => {
@@ -704,6 +721,7 @@ onMounted(() => {
       loadStats();
     }
   }, 5 * 60 * 1000);
+  window.addEventListener('resize', scrollChartToRight);
 });
 </script>
 
@@ -822,6 +840,18 @@ onMounted(() => {
 .chart-container {
   height: 300px;
   width: 100%;
+}
+
+.chart-scroll {
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chart-inner {
+  min-width: 1000px;
+  height: 100%;
 }
 
 .chart {
