@@ -4,7 +4,7 @@
 
     <div class="dashboard-grid">
       <!-- Статистика (2 колонки) -->
-      <Card class="widget-card stats-widget" style="grid-column: span 2" v-if="isAdminOrManager">
+      <Card class="widget-card stats-widget span-2" v-if="isAdminOrManager">
         <template #content>
           <div class="widget-header">
             <div class="widget-icon">📊</div>
@@ -44,7 +44,7 @@
       </Card>
 
       <!-- Новые поступления (2 колонки) -->
-      <Card class="widget-card new-arrivals-widget" style="grid-column: span 2">
+      <Card class="widget-card new-arrivals-widget span-2">
         <template #content>
           <div class="widget-header">
             <div class="widget-icon">📥</div>
@@ -89,7 +89,7 @@
       </Card>
 
       <!-- Последние продажи (2 колонки) -->
-      <Card class="widget-card recent-sales-widget" style="grid-column: span 2">
+      <Card class="widget-card recent-sales-widget span-2">
         <template #content>
           <div class="widget-header">
             <div class="widget-icon">💰</div>
@@ -134,7 +134,7 @@
       </Card>
 
       <!-- Последние возвраты (2 колонки) -->
-      <Card class="widget-card recent-returns-widget" style="grid-column: span 2" v-if="isAdminOrManager">
+      <Card class="widget-card recent-returns-widget span-2" v-if="isAdminOrManager">
         <template #content>
           <div class="widget-header">
             <div class="widget-icon">↩️</div>
@@ -179,7 +179,7 @@
       </Card>
 
       <!-- Динамика продаж (4 колонки) -->
-      <Card class="widget-card chart-widget" style="grid-column: span 4" v-if="isAdminOrManager">
+      <Card class="widget-card chart-widget span-4" v-if="isAdminOrManager">
         <template #content>
           <div class="widget-header">
             <div class="widget-title">Динамика продаж</div>
@@ -197,7 +197,7 @@
       </Card>
 
       <!-- Последние действия (4 колонки) -->
-      <Card class="widget-card actions-widget" style="grid-column: span 4" v-if="isAdminOrManager">
+      <Card class="widget-card actions-widget span-4" v-if="isAdminOrManager">
         <template #content>
           <div class="widget-header">
             <div class="widget-title">Последние действия</div>
@@ -250,7 +250,7 @@
       </Card>
 
       <!-- Низкий запас (2 колонки) -->
-      <Card class="widget-card low-stock-widget" style="grid-column: span 2">
+      <Card class="widget-card low-stock-widget span-2">
         <template #content>
           <div class="widget-header">
             <div class="widget-icon">⚠️</div>
@@ -291,7 +291,7 @@
       </Card>
 
       <!-- Долгохранящиеся товары (2 колонки) -->
-      <Card class="widget-card long-storage-widget" style="grid-column: span 2">
+      <Card class="widget-card long-storage-widget span-2">
         <template #content>
           <div class="widget-header" title="Товары которые не продаются больше 90 дней">
             <div class="widget-icon">📦</div>
@@ -726,10 +726,19 @@ onMounted(() => {
   gap: 1.5rem;
 }
 
+.span-2 {
+  grid-column: span 2;
+}
+
+.span-4 {
+  grid-column: span 4;
+}
+
 .widget-card {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border-radius: 8px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-width: 0;
 }
 
 .widget-card:hover {
@@ -848,14 +857,12 @@ onMounted(() => {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .stats-widget,
-  .low-stock-widget {
-    grid-column: span 1 !important;
+  .span-4 {
+    grid-column: span 2 !important;
   }
 
-  .chart-widget,
-  .actions-widget {
-    grid-column: span 2 !important;
+  .span-2 {
+    grid-column: span 1 !important;
   }
 }
 
@@ -864,10 +871,8 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .stats-widget,
-  .low-stock-widget,
-  .chart-widget,
-  .actions-widget {
+  .span-4,
+  .span-2 {
     grid-column: span 1 !important;
   }
   

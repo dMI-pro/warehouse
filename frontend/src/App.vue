@@ -106,5 +106,16 @@ body {
     padding: 0.5rem;
     font-size: 0.875rem;
   }
+
+  .p-datatable-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .p-dialog {
+    width: 95vw !important;
+    max-width: 600px;
+    margin: 0 auto;
+  }
 }
 </style>
