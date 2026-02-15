@@ -43,61 +43,47 @@
         </template>
       </Card>
 
-      <!-- Низкий запас (2 колонки) -->
-      <Card class="widget-card low-stock-widget" style="grid-column: span 2">
+      <!-- Новые поступления (2 колонки) -->
+      <Card class="widget-card new-arrivals-widget" style="grid-column: span 2">
         <template #content>
           <div class="widget-header">
-            <div class="widget-icon">⚠️</div>
-            <div class="widget-title">Низкий запас</div>
-          </div>
-          <div class="low-stock-content">
-            <div class="low-stock-item">
-              <div class="low-stock-label">
-                Товаров с низким запасом:
-                <span class="low-stock-value warning">{{ lowStockProducts.length }}</span>
-              </div>
-              <div class="stats__container" v-if="lowStockProducts.length > 0">
-                <Tag 
-                  v-for="(product, index) of lowStockProducts.slice(0, 3)" 
-                  :key="index"
-                  :value="getNameProductWithQuantity(product)"
-                  severity="warn"
-                  class="mb-1"
-                />
-                <div v-if="lowStockProducts.length > 3" class="text-sm text-500 mt-1">
-                  + ещё {{ lowStockProducts.length - 3 }}
-                </div>
-              </div>
-              <div v-else class="text-sm text-500 mt-2">
-                Все товары в норме
-              </div>
+            <div class="widget-icon">📥</div>
+            <div class="widget-title">
+              Новые поступления
+              <small class="text-sm text-500">(новые 5 поступлений)</small>
             </div>
-            <Button
-              label="Просмотреть"
-              icon="pi pi-eye"
-              severity="warning"
-              outlined
-              @click="viewLowStock"
-              :disabled="lowStockProducts.length === 0"
-            />
           </div>
-        </template>
-      </Card>
-
-      <!-- График продаж (4 колонки) -->
-      <Card class="widget-card chart-widget" style="grid-column: span 4" v-if="isAdminOrManager">
-        <template #content>
-          <div class="widget-header">
-            <div class="widget-title">Динамика продаж</div>
-          </div>
-          <div class="chart-container">
-            <v-chart
-              v-if="chartOption"
-              :option="chartOption"
+          <div class="new-arrivals-content">
+            <DataTable
+              :value="newArrivals"
               :loading="loading"
-              class="chart"
-            />
-            <div v-else class="chart-placeholder">Загрузка данных...</div>
+              :paginator="false"
+              class="new-arrivals-table"
+              :rows="5"
+              :scrollable="true"
+              scrollHeight="200px"
+            >
+              <Column field="name" header="Товар">
+                <template #body="{ data }">
+                  <div class="truncate-text" style="max-width: 280px">{{ data.name }}</div>
+                </template>
+              </Column>
+              <Column field="quantity" header="Кол-во" style="width: 80px" />
+              <Column field="arrivalDate" header="Дата" style="width: 120px">
+                <template #body="{ data }">
+                  {{ formatDate(data.arrivalDate) }}
+                </template>
+              </Column>
+            </DataTable>
+            <div class="text-center mt-2">
+              <Button 
+                label="Все товары" 
+                icon="pi pi-list" 
+                text 
+                size="small" 
+                @click="router.push('/products')"
+              />
+            </div>
           </div>
         </template>
       </Card>
@@ -146,6 +132,7 @@
           </div>
         </template>
       </Card>
+
       <!-- Последние возвраты (2 колонки) -->
       <Card class="widget-card recent-returns-widget" style="grid-column: span 2" v-if="isAdminOrManager">
         <template #content>
@@ -191,88 +178,20 @@
         </template>
       </Card>
 
-      <!-- Новые поступления (2 колонки) -->
-      <Card class="widget-card new-arrivals-widget" style="grid-column: span 2">
+      <!-- Динамика продаж (4 колонки) -->
+      <Card class="widget-card chart-widget" style="grid-column: span 4" v-if="isAdminOrManager">
         <template #content>
           <div class="widget-header">
-            <div class="widget-icon">📥</div>
-            <div class="widget-title">
-              Новые поступления
-              <small class="text-sm text-500">(новые 5 поступлений)</small>
-            </div>
+            <div class="widget-title">Динамика продаж</div>
           </div>
-          <div class="new-arrivals-content">
-            <DataTable
-              :value="newArrivals"
+          <div class="chart-container">
+            <v-chart
+              v-if="chartOption"
+              :option="chartOption"
               :loading="loading"
-              :paginator="false"
-              class="new-arrivals-table"
-              :rows="5"
-              :scrollable="true"
-              scrollHeight="200px"
-            >
-              <Column field="name" header="Товар">
-                <template #body="{ data }">
-                  <div class="truncate-text" style="max-width: 280px">{{ data.name }}</div>
-                </template>
-              </Column>
-              <Column field="quantity" header="Кол-во" style="width: 80px" />
-              <Column field="arrivalDate" header="Дата" style="width: 120px">
-                <template #body="{ data }">
-                  {{ formatDate(data.arrivalDate) }}
-                </template>
-              </Column>
-            </DataTable>
-            <div class="text-center mt-2">
-              <Button 
-                label="Все товары" 
-                icon="pi pi-list" 
-                text 
-                size="small" 
-                @click="router.push('/products')"
-              />
-            </div>
-          </div>
-        </template>
-      </Card>
-
-      <!-- Долгохранящиеся товары (2 колонки) -->
-      <Card class="widget-card long-storage-widget" style="grid-column: span 2">
-        <template #content>
-          <div class="widget-header" title="Товары которые не продаются больше 90 дней">
-            <div class="widget-icon">📦</div>
-            <div class="widget-title">Долгохранящиеся товары</div>
-          </div>
-          <div class="long-storage-content">
-            <div class="long-storage-item">
-              <div class="long-storage-label">
-                Товаров на складе более 90 дней:
-                <span class="long-storage-value warning">{{ longStorageProducts.length }}</span>
-              </div>
-              <div class="stats__container" v-if="longStorageProducts.length > 0">
-                <Tag 
-                  v-for="(product, index) of longStorageProducts.slice(0, 3)" 
-                  :key="index"
-                  :value="getNameProductWithQuantity(product)" 
-                  severity="info"
-                  class="mb-1"
-                />
-                <div v-if="longStorageProducts.length > 3" class="text-sm text-500 mt-1">
-                  + ещё {{ longStorageProducts.length - 3 }}
-                </div>
-              </div>
-              <div v-else class="text-sm text-500 mt-2">
-                Нет долгохранящихся товаров
-              </div>
-            </div>
-            <Button
-              label="Просмотреть"
-              icon="pi pi-eye"
-              severity="warning"
-              outlined
-              @click="viewLongStorage"
-              :disabled="longStorageProducts.length === 0"
+              class="chart"
             />
+            <div v-else class="chart-placeholder">Загрузка данных...</div>
           </div>
         </template>
       </Card>
@@ -325,6 +244,88 @@
               text 
               size="small" 
               @click="router.push('/audit-log')"
+            />
+          </div>
+        </template>
+      </Card>
+
+      <!-- Низкий запас (2 колонки) -->
+      <Card class="widget-card low-stock-widget" style="grid-column: span 2">
+        <template #content>
+          <div class="widget-header">
+            <div class="widget-icon">⚠️</div>
+            <div class="widget-title">Низкий запас</div>
+          </div>
+          <div class="low-stock-content">
+            <div class="low-stock-item">
+              <div class="low-stock-label">
+                Товаров с низким запасом:
+                <span class="low-stock-value warning">{{ lowStockProducts.length }}</span>
+              </div>
+              <div class="stats__container" v-if="lowStockProducts.length > 0">
+                <Tag 
+                  v-for="(product, index) of lowStockProducts.slice(0, 3)" 
+                  :key="index"
+                  :value="getNameProductWithQuantity(product)"
+                  severity="warn"
+                  class="mb-1"
+                />
+                <div v-if="lowStockProducts.length > 3" class="text-sm text-500 mt-1">
+                  + ещё {{ lowStockProducts.length - 3 }}
+                </div>
+              </div>
+              <div v-else class="text-sm text-500 mt-2">
+                Все товары в норме
+              </div>
+            </div>
+            <Button
+              label="Просмотреть"
+              icon="pi pi-eye"
+              severity="warning"
+              outlined
+              @click="viewLowStock"
+              :disabled="lowStockProducts.length === 0"
+            />
+          </div>
+        </template>
+      </Card>
+
+      <!-- Долгохранящиеся товары (2 колонки) -->
+      <Card class="widget-card long-storage-widget" style="grid-column: span 2">
+        <template #content>
+          <div class="widget-header" title="Товары которые не продаются больше 90 дней">
+            <div class="widget-icon">📦</div>
+            <div class="widget-title">Долгохранящиеся товары</div>
+          </div>
+          <div class="long-storage-content">
+            <div class="long-storage-item">
+              <div class="long-storage-label">
+                Товаров на складе более 90 дней:
+                <span class="long-storage-value warning">{{ longStorageProducts.length }}</span>
+              </div>
+              <div class="stats__container" v-if="longStorageProducts.length > 0">
+                <Tag 
+                  v-for="(product, index) of longStorageProducts.slice(0, 3)" 
+                  :key="index"
+                  :value="getNameProductWithQuantity(product)" 
+                  severity="info"
+                  class="mb-1"
+                />
+                <div v-if="longStorageProducts.length > 3" class="text-sm text-500 mt-1">
+                  + ещё {{ longStorageProducts.length - 3 }}
+                </div>
+              </div>
+              <div v-else class="text-sm text-500 mt-2">
+                Нет долгохранящихся товаров
+              </div>
+            </div>
+            <Button
+              label="Просмотреть"
+              icon="pi pi-eye"
+              severity="warning"
+              outlined
+              @click="viewLongStorage"
+              :disabled="longStorageProducts.length === 0"
             />
           </div>
         </template>
