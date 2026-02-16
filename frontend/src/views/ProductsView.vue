@@ -2,7 +2,7 @@
   <div class="products">
     <div class="page-header">
       <h1 class="page-title">Товары</h1>
-      <div class="header-actions">
+      <div v-if="authStore.isAdmin || authStore.isManager" class="header-actions">
         <Button
           label="Экспорт CSV"
           icon="pi pi-file-export"
