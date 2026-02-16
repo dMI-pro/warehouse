@@ -1,30 +1,21 @@
 <template>
   <div class="layout-wrapper">
-    <Menubar :model="menuItems" class="main-menu" :class="{ 'menu-open': mobileMenuOpen }">
+    <Menubar :model="menuItems" class="main-menu">
       <template #start>
-        <div class="start-left">
-          <Button
-            class="burger-btn"
-            icon="pi pi-bars"
-            text
-            aria-label="Открыть меню"
-            @click="toggleMobileMenu"
-          />
-          <div class="logo">Склад Анти...</div>
-        </div>
+        <div class="logo">Склад Анти...</div>
       </template>
       <template #end>
-        <div class="user-info" v-if="!isGuest">
+        <div class="user-info">
           <div class="user-desktop">
-            <ThemeToggle />
+          <ThemeToggle />
             <span class="username">{{ userDisplayName }}</span>
-            <Button
-              label="Выход"
-              icon="pi pi-sign-out"
-              severity="secondary"
-              text
-              @click="handleLogout"
-            />
+          <Button
+            label="Выход"
+            icon="pi pi-sign-out"
+            severity="secondary"
+            text
+            @click="handleLogout"
+          />
           </div>
 
           <div class="user-mobile" @click="toggleUserMenu">
@@ -189,10 +180,6 @@ const toggleUserMenu = (event: MouseEvent) => {
   if (!userMenuRef.value) return;
   userMenuRef.value.toggle(event);
 };
-
-const toggleMobileMenu = () => {
-  mobileMenuOpen.value = !mobileMenuOpen.value;
-};
 </script>
 
 <style scoped>
@@ -212,10 +199,6 @@ const toggleMobileMenu = () => {
   position: sticky;
   top: 0;
   z-index: 1000;
-  width: 100%;
-  max-width: 100vw;
-  box-sizing: border-box;
-  overflow-x: hidden;
 }
 
 .logo {
@@ -223,21 +206,6 @@ const toggleMobileMenu = () => {
   font-weight: bold;
   margin-right: 2rem;
   color: var(--primary-color);
-}
-
-.start-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-.main-menu :deep(.p-menubar-button) {
-  display: none !important;
-}
-
-.burger-btn {
-  display: none;
 }
 
 .user-info {
@@ -343,15 +311,8 @@ const toggleMobileMenu = () => {
 @media (max-width: 768px) {
   .logo {
     font-size: 1.25rem;
-    margin-right: 1rem;
-    max-width: 60vw;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .burger-btn {
-    display: inline-flex;
+    margin-right: 0.3rem;
+    max-width: 40vw;
   }
 
   .user-info {
@@ -373,13 +334,8 @@ const toggleMobileMenu = () => {
   }
 
   :deep(.p-menubar-root-list) {
-    display: none;
     flex-direction: column;
     width: 100%;
-  }
-
-  .main-menu.menu-open :deep(.p-menubar-root-list) {
-    display: flex;
   }
 }
 </style>
