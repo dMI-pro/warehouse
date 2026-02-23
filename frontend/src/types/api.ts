@@ -295,6 +295,17 @@ export interface FileUploadEvent {
     originalEvent: Event;
 }
 
+// Медиа (MinIO)
+export interface MediaItem {
+  key: string;
+  url: string;
+  size: number;
+  lastModified: string;
+  type: 'image' | 'video';
+  used: boolean;
+  usedCount: number;
+}
+
 export interface UserStatus {
   id: number;
   code: string;
@@ -336,6 +347,5 @@ export interface UpdateUserDto {
   role?: Role;
   userStatusId?: number;
 }
-
 
 

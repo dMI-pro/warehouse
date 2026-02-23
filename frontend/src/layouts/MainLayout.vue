@@ -139,6 +139,12 @@ const menuItems = computed(() => {
       class: isActive({ name: 'reports' }) ? 'p-highlight' : '',
     });
     items.push({
+      label: 'Медиа',
+      icon: 'pi pi-images',
+      command: () => router.push({ name: 'media' }),
+      class: isActive({ name: 'media' }) ? 'p-highlight' : '',
+    });
+    items.push({
       label: 'Настройки',
       icon: 'pi pi-cog',
       command: () => router.push({ name: 'settings', query: { tab: 'categories' } }),

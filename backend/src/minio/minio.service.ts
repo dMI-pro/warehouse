@@ -31,12 +31,13 @@ export class MinioService implements OnModuleInit {
       'MINIO_SECRET_KEY',
       'minioadmin',
     );
-    
+
     const presignedConfig = this.configService.get<string>('MINIO_PRESIGNED');
     if (presignedConfig !== undefined) {
       this.usePresigned = presignedConfig === 'true';
     } else {
-      this.usePresigned = this.configService.get<string>('NODE_ENV') === 'production';
+      this.usePresigned =
+        this.configService.get<string>('NODE_ENV') === 'production';
     }
 
     this.minioClient = new Minio.Client({
@@ -156,14 +157,19 @@ export class MinioService implements OnModuleInit {
       'MINIO_PUBLIC_URL',
       'http://localhost:9000',
     );
-    
+
     // Убираем конечный слеш из publicUrl, если он есть
     const normalizedPublicUrl = publicUrl.replace(/\/$/, '');
     // Убираем начальный слеш из fileName, если он есть, чтобы избежать двойных слешей при склеивании
-    const normalizedFileName = fileName.startsWith('/') ? fileName.substring(1) : fileName;
-    
+    const normalizedFileName = fileName.startsWith('/')
+      ? fileName.substring(1)
+      : fileName;
+
     // Проверка на случай, если fileName уже начинается с publicUrl
-    if (fileName.startsWith(publicUrl) || fileName.startsWith(normalizedPublicUrl)) {
+    if (
+      fileName.startsWith(publicUrl) ||
+      fileName.startsWith(normalizedPublicUrl)
+    ) {
       return fileName;
     }
 
@@ -189,5 +195,46 @@ export class MinioService implements OnModuleInit {
     } catch {
       return null;
     }
+  }
+
+  async listObjects(
+    prefix: string = '',
+    recursive: boolean = true,
+  ): Promise<
+    Array<{
+      name: string;
+      size: number;
+      lastModified: Date;
+      etag?: string;
+    }>
+  > {
+    const objects: Array<{
+      name: string;
+      size: number;
+      lastModified: Date;
+      etag?: string;
+    }> = [];
+    return new Promise((resolve, reject) => {
+      const stream = this.minioClient.listObjectsV2(
+        this.bucketName,
+        prefix,
+        recursive,
+      );
+      stream.on('data', (obj) => {
+        if (obj?.name && obj?.size != null && obj?.lastModified) {
+          objects.push({
+            name: obj.name,
+            size: obj.size,
+            lastModified: obj.lastModified,
+            etag: obj.etag,
+          });
+        }
+      });
+      stream.on('error', (err) => {
+        this.logger.error(`Error listing objects: ${err.message}`, err.stack);
+        reject(err);
+      });
+      stream.on('end', () => resolve(objects));
+    });
   }
 }
