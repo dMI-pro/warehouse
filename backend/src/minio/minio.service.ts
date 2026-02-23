@@ -1,7 +1,6 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as Minio from 'minio';
-import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 
 @Injectable()
@@ -93,7 +92,9 @@ export class MinioService implements OnModuleInit {
     folder: string = 'products',
   ): Promise<string> {
     const fileExt = path.extname(file.originalname);
-    const fileName = `${folder}/${uuidv4()}${fileExt}`;
+    const originalBase = path.basename(file.originalname, fileExt);
+    const safeBase = this.toLatinSlug(originalBase) || 'file';
+    const fileName = await this.buildUniqueFileName(folder, safeBase, fileExt);
     const metaData = {
       'Content-Type': file.mimetype,
     };
@@ -112,6 +113,79 @@ export class MinioService implements OnModuleInit {
       this.logger.error(`Error uploading file: ${err.message}`, err.stack);
       throw err;
     }
+  }
+
+  private async buildUniqueFileName(folder: string, base: string, ext: string) {
+    const normalizedFolder = folder.replace(/^\/+|\/+$/g, '');
+    const prefix = normalizedFolder ? `${normalizedFolder}/` : '';
+    let candidate = `${prefix}${base}${ext}`;
+    let counter = 1;
+    while (await this.objectExists(candidate)) {
+      candidate = `${prefix}${base}-${counter}${ext}`;
+      counter += 1;
+      if (counter > 1000) {
+        candidate = `${prefix}${base}-${Date.now()}${ext}`;
+        break;
+      }
+    }
+    return candidate;
+  }
+
+  private async objectExists(objectName: string) {
+    try {
+      await this.minioClient.statObject(this.bucketName, objectName);
+      return true;
+    } catch (err: any) {
+      if (err?.code === 'NotFound' || err?.code === 'NoSuchKey') return false;
+      throw err;
+    }
+  }
+
+  private toLatinSlug(value: string) {
+    const map: Record<string, string> = {
+      а: 'a',
+      б: 'b',
+      в: 'v',
+      г: 'g',
+      д: 'd',
+      е: 'e',
+      ё: 'e',
+      ж: 'zh',
+      з: 'z',
+      и: 'i',
+      й: 'y',
+      к: 'k',
+      л: 'l',
+      м: 'm',
+      н: 'n',
+      о: 'o',
+      п: 'p',
+      р: 'r',
+      с: 's',
+      т: 't',
+      у: 'u',
+      ф: 'f',
+      х: 'h',
+      ц: 'ts',
+      ч: 'ch',
+      ш: 'sh',
+      щ: 'sch',
+      ъ: '',
+      ы: 'y',
+      ь: '',
+      э: 'e',
+      ю: 'yu',
+      я: 'ya',
+    };
+    const lowered = value.toLowerCase();
+    let result = '';
+    for (const ch of lowered) {
+      result += map[ch] ?? ch;
+    }
+    return result
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
   }
 
   async deleteFile(fileName: string) {
