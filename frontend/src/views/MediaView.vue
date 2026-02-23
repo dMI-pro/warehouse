@@ -83,6 +83,7 @@
         sortMode="single"
         :sortField="tableSortField"
         :sortOrder="tableSortOrder"
+        :rowClass="rowClass"
         @sort="onSort"
         selectionMode="multiple"
         v-model:selection="selectedRows"
@@ -242,6 +243,10 @@ function formatDate(iso: string) {
   return d.toLocaleString();
 }
 
+function rowClass(data: MediaItem) {
+  return selectedKeys.value.includes(data.key) ? 'row-selected' : '';
+}
+
 function computeDateRange() {
   if (!filters.date) return { startDate: undefined as string | undefined, endDate: undefined as string | undefined };
   const start = new Date(filters.date);
@@ -374,6 +379,9 @@ onMounted(() => load());
   grid-template-columns: 1fr auto auto auto auto auto;
   gap: .5rem;
   align-items: center;
+}
+:deep(.p-datatable-tbody > tr.row-selected) {
+  background: color-mix(in srgb, var(--primary-color) 12%, transparent);
 }
 .thumb {
   width: 64px;
