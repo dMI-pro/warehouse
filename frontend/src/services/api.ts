@@ -34,6 +34,7 @@ import type {
   UpdateUserStatusDto,
   CreateUserDto,
   UpdateUserDto,
+  MediaItem,
 } from '@/types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -131,6 +132,26 @@ class ApiService {
 
   async deleteUser(id: number): Promise<void> {
     await this.api.delete(`/users/${id}`);
+  }
+
+  // Media endpoints
+  async getMedia(params?: {
+    search?: string;
+    unusedOnly?: boolean;
+    startDate?: string;
+    endDate?: string;
+    sortBy?: 'date' | 'name' | 'size' | 'type' | 'used';
+    sortOrder?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<MediaItem>> {
+    const response = await this.api.get<PaginatedResponse<MediaItem>>('/media', { params });
+    return response.data;
+  }
+
+  async deleteMedia(keys: string[]): Promise<{ deleted: string[]; errors: Array<{ key: string; error: string }> }> {
+    const response = await this.api.delete('/media', { data: { keys } });
+    return response.data;
   }
 
   // Products endpoints

@@ -17,6 +17,7 @@ import { TransactionTypesModule } from './transaction-types/transaction-types.mo
 import { ReturnsModule } from './returns/returns.module';
 import { MinioModule } from './minio/minio.module';
 import { UserStatusesModule } from './user-statuses/user-statuses.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { UserStatusesModule } from './user-statuses/user-statuses.module';
     TransactionTypesModule,
     ReturnsModule,
     UserStatusesModule,
+    MediaModule,
   ],
   controllers: [AppController],
   providers: [

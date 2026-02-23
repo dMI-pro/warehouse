@@ -63,6 +63,12 @@ const router = createRouter({
           meta: { requiredRoles: [Role.MANAGER, Role.ADMIN] },
         },
         {
+          path: 'media',
+          name: 'media',
+          component: () => import('@/views/MediaView.vue'),
+          meta: { requiredRoles: [Role.MANAGER, Role.ADMIN] },
+        },
+        {
           path: 'audit-log',
           name: 'audit-log',
           component: () => import('@/views/AuditLogView.vue'),

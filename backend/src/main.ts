@@ -62,7 +62,11 @@ async function bootstrap() {
   const allowedOrigins =
     process.env.NODE_ENV === 'production'
       ? process.env.FRONTEND_URL
-        ? [process.env.FRONTEND_URL.trim(), 'http://smagrarom.ru', 'https://smagrarom.ru']
+        ? [
+            process.env.FRONTEND_URL.trim(),
+            'http://smagrarom.ru',
+            'https://smagrarom.ru',
+          ]
         : ['http://localhost:5173']
       : [
           'http://smagrarom.ru',
@@ -82,7 +86,9 @@ async function bootstrap() {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        console.warn(`CORS blocked origin: ${origin}. Allowed: ${JSON.stringify(allowedOrigins)}`);
+        console.warn(
+          `CORS blocked origin: ${origin}. Allowed: ${JSON.stringify(allowedOrigins)}`,
+        );
         callback(new Error('Not allowed by CORS'));
       }
     },
