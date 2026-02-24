@@ -76,17 +76,22 @@
             <template #title>
               <div class="flex justify-content-between align-items-center">
                 <span class="font-semibold">Фотографии товара</span>
+                <div v-if="uploadInProgress" class="flex align-items-center gap-2 text-sm text-600">
+                  <ProgressSpinner style="width: 16px; height: 16px" strokeWidth="6" />
+                  <span>Загрузка {{ uploadCompleted }}/{{ uploadTotal }} ({{ uploadProgressPercent }}%)</span>
+                </div>
                 <div v-if="canEdit">
                   <FileUpload
                     mode="basic"
                     name="image"
-                    :auto="true"
+                    :auto="false"
                     chooseLabel="Добавить фото"
                     accept="image/*"
-                    :maxFileSize="10485760"
+                    :maxFileSize="52428800"
                     :multiple="true"
+                    :disabled="uploadInProgress"
                     customUpload
-                    @uploader="onUploadImage"
+                    @select="onUploadImage"
                     class="p-button-sm"
                   />
                 </div>
@@ -205,12 +210,13 @@
                   v-if="canEdit"
                   mode="basic"
                   name="image"
-                  :auto="true"
+                  :auto="false"
                   chooseLabel="Добавить первое фото"
                   accept="image/*"
-                    :maxFileSize="10485760"
+                    :maxFileSize="52428800"
+                  :disabled="uploadInProgress"
                   customUpload
-                  @uploader="onUploadImage"
+                  @select="onUploadImage"
                   class="p-button-outlined mt-4"
                 />
               </div>
@@ -554,6 +560,7 @@ import { useCategoriesStore } from '@/stores/categoriesStore';
 import { storeToRefs } from 'pinia';
 import { type AuditLog, type PaginatedResponse } from '@/types/api';
 import { apiService } from '@/services/api';
+import { compressImageFile } from '@/utils/imageCompression';
 import type { UpdateProductDto } from '@/types/api';
 import { isCurrentUserActor, getActorDisplayName } from '@/utils/user-utils';
 
@@ -578,6 +585,9 @@ const logsLoading = ref(false);
 const detailsDialogVisible = ref(false);
 const selectedLog = ref<AuditLog | null>(null);
 const selectedLogChanges = ref<Array<{ key: string; old: string; new: string }>>([]);
+const uploadInProgress = ref(false);
+const uploadTotal = ref(0);
+const uploadCompleted = ref(0);
 
 // Form State
 const form = reactive({
@@ -633,6 +643,10 @@ const orderChanged = computed(() => {
   if (!product.value?.images) return false;
   const currentUrls = wrappedImages.value.map(i => i.url);
   return JSON.stringify(currentUrls) !== JSON.stringify(product.value.images);
+});
+const uploadProgressPercent = computed(() => {
+  if (!uploadTotal.value) return 0;
+  return Math.round((uploadCompleted.value / uploadTotal.value) * 100);
 });
 
 const isFormChanged = computed(() => {
@@ -806,9 +820,15 @@ const onUploadImage = async (event: any) => {
   
   if (files.length === 0) return;
   
+  uploadInProgress.value = true;
+  uploadTotal.value = files.length;
+  uploadCompleted.value = 0;
+
   try {
     for (const file of files) {
-      await productsStore.uploadImage(product.value.id, file);
+      const compressed = await compressImageFile(file);
+      await productsStore.uploadImage(product.value.id, compressed);
+      uploadCompleted.value += 1;
     }
     
     toast.add({ 
@@ -819,7 +839,9 @@ const onUploadImage = async (event: any) => {
     });
     
     await productsStore.fetchProduct(product.value.id);
-    event.options.clear();
+    if (event?.options?.clear) {
+      event.options.clear();
+    }
   } catch (e: any) {
     toast.add({ 
       severity: 'error', 
@@ -827,6 +849,10 @@ const onUploadImage = async (event: any) => {
       detail: e.message || 'Ошибка загрузки изображений', 
       life: 3000 
     });
+  } finally {
+    uploadInProgress.value = false;
+    uploadTotal.value = 0;
+    uploadCompleted.value = 0;
   }
 };
 
