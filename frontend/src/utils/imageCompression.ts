@@ -38,8 +38,14 @@ export async function compressImageFile(
       fileType: fileType.includes('webp') ? 'image/webp' : fileType,
       initialQuality: 0.85,
     });
+    const baseName = file.name.replace(/\.[^/.]+$/, '') || 'image';
+    const targetName = `${baseName}.webp`;
+    const needsRename = !(compressedFile instanceof File) || !/\.[a-z0-9]+$/i.test(compressedFile.name);
+    const finalFile = needsRename
+      ? new File([compressedFile], targetName, { type: 'image/webp' })
+      : compressedFile;
 
-    return compressedFile;
+    return finalFile;
   } catch (error) {
     console.error('Ошибка сжатия изображения:', error);
     // В случае ошибки возвращаем оригинальный файл
