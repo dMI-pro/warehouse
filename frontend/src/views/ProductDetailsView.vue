@@ -76,10 +76,6 @@
             <template #title>
               <div class="flex justify-content-between align-items-center">
                 <span class="font-semibold">Фотографии товара</span>
-                <div v-if="uploadInProgress" class="flex align-items-center gap-2 text-sm text-600">
-                  <ProgressSpinner style="width: 16px; height: 16px" strokeWidth="6" />
-                  <span>Загрузка {{ uploadCompleted }}/{{ uploadTotal }} ({{ uploadProgressPercent }}%)</span>
-                </div>
                 <div v-if="canEdit">
                   <FileUpload
                     mode="basic"
@@ -87,9 +83,8 @@
                     :auto="false"
                     chooseLabel="Добавить фото"
                     accept="image/*"
-                    :maxFileSize="52428800"
+                    :maxFileSize="10485760"
                     :multiple="true"
-                    :disabled="uploadInProgress"
                     customUpload
                     @select="onUploadImage"
                     class="p-button-sm"
@@ -214,7 +209,6 @@
                   chooseLabel="Добавить первое фото"
                   accept="image/*"
                     :maxFileSize="52428800"
-                  :disabled="uploadInProgress"
                   customUpload
                   @select="onUploadImage"
                   class="p-button-outlined mt-4"
@@ -585,9 +579,6 @@ const logsLoading = ref(false);
 const detailsDialogVisible = ref(false);
 const selectedLog = ref<AuditLog | null>(null);
 const selectedLogChanges = ref<Array<{ key: string; old: string; new: string }>>([]);
-const uploadInProgress = ref(false);
-const uploadTotal = ref(0);
-const uploadCompleted = ref(0);
 
 // Form State
 const form = reactive({
@@ -643,10 +634,6 @@ const orderChanged = computed(() => {
   if (!product.value?.images) return false;
   const currentUrls = wrappedImages.value.map(i => i.url);
   return JSON.stringify(currentUrls) !== JSON.stringify(product.value.images);
-});
-const uploadProgressPercent = computed(() => {
-  if (!uploadTotal.value) return 0;
-  return Math.round((uploadCompleted.value / uploadTotal.value) * 100);
 });
 
 const isFormChanged = computed(() => {
@@ -820,15 +807,10 @@ const onUploadImage = async (event: any) => {
   
   if (files.length === 0) return;
   
-  uploadInProgress.value = true;
-  uploadTotal.value = files.length;
-  uploadCompleted.value = 0;
-
   try {
     for (const file of files) {
-      const compressed = await compressImageFile(file);
+      const compressed = await compressImageFile(file, { useWebWorker: false });
       await productsStore.uploadImage(product.value.id, compressed);
-      uploadCompleted.value += 1;
     }
     
     toast.add({ 
@@ -849,10 +831,6 @@ const onUploadImage = async (event: any) => {
       detail: e.message || 'Ошибка загрузки изображений', 
       life: 3000 
     });
-  } finally {
-    uploadInProgress.value = false;
-    uploadTotal.value = 0;
-    uploadCompleted.value = 0;
   }
 };
 
