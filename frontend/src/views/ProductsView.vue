@@ -464,7 +464,7 @@
                   <FileUpload
                     mode="basic"
                     accept="image/*"
-                    :maxFileSize="5000000"
+                    :maxFileSize="52428800"
                     :multiple="true"
                     chooseLabel="Выбрать файлы"
                     @select="handleImageSelect"
