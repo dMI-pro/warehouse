@@ -417,8 +417,8 @@
                 />
                 <small v-if="formErrors.salePrice" class="p-error">{{ formErrors.salePrice }}</small>
 
-                <!-- Если transactionType === "Комиссия" (transactionTypeId=2) показываем кнопку -->
-                <div v-if="productForm?.transactionTypeId === 2" class="mt-2">
+                <!-- Если transactionType === "Комиссия" (transactionTypeId=2) показываем кнопку v-if="productForm?.transactionTypeId === 2" -->
+                <div class="mt-2">
                   <Button
                     label="с 20% надбавкой"
                     size="small"
