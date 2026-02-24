@@ -1258,14 +1258,14 @@ const handleImageSelect = async (event: any) => {
   for (const file of files) {
     try {
       if (editingProduct.value) {
-        const compressed = await compressImageFile(file);
+        const compressed = await compressImageFile(file, { useWebWorker: false });
         const product = await productsStore.uploadImage(editingProduct.value.id, compressed);
         if (product.images) {
           productForm.images = [...product.images];
         }
       } else {
         // Для нового товара сохраняем файлы для загрузки после создания
-        const compressed = await compressImageFile(file);
+        const compressed = await compressImageFile(file, { useWebWorker: false });
         pendingFiles.value.push(compressed);
         
         // Создаем превью
