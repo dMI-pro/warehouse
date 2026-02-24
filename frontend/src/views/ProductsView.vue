@@ -1278,10 +1278,11 @@ const handleImageSelect = async (event: any) => {
         reader.readAsDataURL(compressed);
       }
     } catch (error) {
+      const backendMessage = (error as any)?.response?.data?.message;
       toast.add({
         severity: 'error',
         summary: 'Ошибка',
-        detail: 'Не удалось загрузить изображение',
+        detail: backendMessage || 'Не удалось загрузить изображение',
         life: 3000,
       });
     }

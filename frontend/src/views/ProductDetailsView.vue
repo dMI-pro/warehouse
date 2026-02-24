@@ -825,10 +825,11 @@ const onUploadImage = async (event: any) => {
       event.options.clear();
     }
   } catch (e: any) {
+    const backendMessage = e?.response?.data?.message;
     toast.add({ 
       severity: 'error', 
       summary: 'Ошибка', 
-      detail: e.message || 'Ошибка загрузки изображений', 
+      detail: backendMessage || e.message || 'Ошибка загрузки изображений', 
       life: 3000 
     });
   }
