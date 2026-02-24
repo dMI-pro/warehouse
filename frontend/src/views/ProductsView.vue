@@ -1258,13 +1258,15 @@ const handleImageSelect = async (event: any) => {
   for (const file of files) {
     try {
       if (editingProduct.value) {
-        const product = await productsStore.uploadImage(editingProduct.value.id, file);
+        const compressed = await compressImageFile(file);
+        const product = await productsStore.uploadImage(editingProduct.value.id, compressed);
         if (product.images) {
           productForm.images = [...product.images];
         }
       } else {
         // Для нового товара сохраняем файлы для загрузки после создания
-        pendingFiles.value.push(file);
+        const compressed = await compressImageFile(file);
+        pendingFiles.value.push(compressed);
         
         // Создаем превью
         const reader = new FileReader();
@@ -1273,7 +1275,7 @@ const handleImageSelect = async (event: any) => {
             productForm.images = [...(productForm.images || []), e.target.result];
           }
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(compressed);
       }
     } catch (error) {
       toast.add({
