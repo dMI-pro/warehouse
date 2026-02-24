@@ -190,11 +190,7 @@ class ApiService {
   async uploadProductImage(id: number, file: File): Promise<Product> {
     const formData = new FormData();
     formData.append('image', file);
-    const response = await this.api.post<Product>(`/products/${id}/images`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await this.api.post<Product>(`/products/${id}/images`, formData);
     return response.data;
   }
 
