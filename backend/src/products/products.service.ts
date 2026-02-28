@@ -23,6 +23,21 @@ export class ProductsService {
     private minioService: MinioService,
   ) {}
 
+  /**
+   * Очищает массив изображений, оставляя только ключи MinIO (относительные пути)
+   * Удаляет дубликаты и пустые значения
+   */
+  private cleanImages(images: string[]): string[] {
+    if (!images || !Array.isArray(images)) return [];
+    
+    const keys = images
+      .filter(Boolean)
+      .map((img) => this.minioService.getKeyFromUrl(img) || img);
+      
+    // Удаляем дубликаты
+    return Array.from(new Set(keys));
+  }
+
   private mapProduct(product: any) {
     return product;
   }
@@ -98,9 +113,7 @@ export class ProductsService {
     }
 
     // Очистка путей изображений (сохраняем только ключи, а не полные URL)
-    const imageKeys = (createProductDto.images ?? [])
-      .filter(Boolean)
-      .map((img) => this.minioService.getKeyFromUrl(img) || img);
+    const imageKeys = this.cleanImages(createProductDto.images ?? []);
 
     const product = await this.prisma.product.create({
       data: {
@@ -363,11 +376,15 @@ export class ProductsService {
       }
     }
 
-    // Очистка путей изображений (сохраняем только ключи, а не полные URL)
+    // Очистка всех путей изображений (и новых, и старых в БД)
     if (updateProductDto.images) {
-      updateProductDto.images = updateProductDto.images
-        .filter(Boolean)
-        .map((img) => this.minioService.getKeyFromUrl(img) || img);
+      updateProductDto.images = this.cleanImages(updateProductDto.images);
+    } else if (oldProduct.images) {
+      // Даже если images не переданы, очищаем старые, если они грязные
+      const cleaned = this.cleanImages(oldProduct.images);
+      if (JSON.stringify(cleaned) !== JSON.stringify(oldProduct.images)) {
+        updateProductDto.images = cleaned;
+      }
     }
 
     const updatedProduct = await this.prisma.product.update({
@@ -694,12 +711,14 @@ export class ProductsService {
       compressedFile as Express.Multer.File,
     );
 
+    // Добавляем новый файл и очищаем весь массив
+    const currentImages = product.images || [];
+    const updatedImages = this.cleanImages([...currentImages, fileName]);
+
     const updatedProduct = await this.prisma.product.update({
       where: { id },
       data: {
-        images: {
-          push: fileName,
-        },
+        images: updatedImages,
       },
       include: {
         category: true,
@@ -752,7 +771,10 @@ export class ProductsService {
       console.warn(`File ${imageToDelete} not found in MinIO`);
     }
 
-    const updatedImages = product.images.filter((img) => img !== imageToDelete);
+    // Удаляем файл и очищаем оставшиеся пути
+    const updatedImages = this.cleanImages(
+      product.images.filter((img) => img !== imageToDelete),
+    );
 
     const updatedProduct = await this.prisma.product.update({
       where: { id },
@@ -794,21 +816,8 @@ export class ProductsService {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundException(`Product ${id} not found`);
 
-    const currentKeys = product.images;
-    const newKeys: string[] = [];
-
-    for (const url of imageUrls) {
-      const keyFromUrl = this.minioService.getKeyFromUrl(url);
-      const key = keyFromUrl
-        ? currentKeys.find((k) => k === keyFromUrl)
-        : undefined;
-      // Если это не URL, а уже ключ (на случай, если фронт шлет ключи)
-      if (key) {
-        newKeys.push(key);
-      } else if (currentKeys.includes(url)) {
-        newKeys.push(url);
-      }
-    }
+    // Очищаем присланные URL и сохраняем только ключи
+    const newKeys = this.cleanImages(imageUrls);
 
     const updatedProduct = await this.prisma.product.update({
       where: { id },
