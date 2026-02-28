@@ -27,8 +27,8 @@ export async function compressImage(
   buffer: Buffer,
   options: ImageCompressionOptions = {},
 ): Promise<Buffer> {
-  // Проверяем флаг сжатия в .env
-  if (process.env.ENABLE_IMAGE_COMPRESSION === 'false') {
+  // Проверяем флаг сжатия в .env. По умолчанию сжатие ВЫКЛЮЧЕНО, если флаг не равен 'true'
+  if (process.env.ENABLE_IMAGE_COMPRESSION !== 'true') {
     return buffer;
   }
 

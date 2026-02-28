@@ -1233,31 +1233,37 @@ const saveProduct = async () => {
       };
       const createdProduct = await productsStore.createProduct(createDto);
       
+      // Close dialog immediately after product record is created
+      const currentPendingFiles = [...pendingFiles.value];
+      const productName = createdProduct.name;
+      const productId = createdProduct.id;
+      
+      closeDialog();
+
       // Upload pending images in background
-      if (pendingFiles.value.length > 0) {
-        const filesToUpload = [...pendingFiles.value];
-        // Don't await this loop to allow dialog to close immediately
+      if (currentPendingFiles.length > 0) {
+        // Don't await this loop to allow UI to remain responsive
         (async () => {
           let uploadedCount = 0;
-          for (const file of filesToUpload) {
+          for (const file of currentPendingFiles) {
             try {
-              await productsStore.uploadImage(createdProduct.id, file);
+              await productsStore.uploadImage(productId, file);
               uploadedCount++;
             } catch (err) {
               console.error('Error uploading image:', err);
             }
           }
-          if (uploadedCount < filesToUpload.length) {
-            toast.add({ severity: 'warn', summary: 'Внимание', detail: `Загружено ${uploadedCount} из ${filesToUpload.length} изображений для товара ${createdProduct.name}`, life: 5000 });
+          if (uploadedCount < currentPendingFiles.length) {
+            toast.add({ severity: 'warn', summary: 'Внимание', detail: `Загружено ${uploadedCount} из ${currentPendingFiles.length} изображений для товара ${productName}`, life: 5000 });
           } else {
-            toast.add({ severity: 'success', summary: 'Успешно', detail: `Все изображения для товара ${createdProduct.name} загружены`, life: 3000 });
+            toast.add({ severity: 'success', summary: 'Успешно', detail: `Все изображения для товара ${productName} загружены`, life: 3000 });
           }
         })();
       }
 
       toast.add({ severity: 'success', summary: 'Успешно', detail: 'Товар создан, изображения загружаются в фоновом режиме', life: 3000 });
+      return; // Early return to prevent calling closeDialog() again below
     }
-    closeDialog();
   } catch (error) {
     // Ошибка уже обработана в store
   }
