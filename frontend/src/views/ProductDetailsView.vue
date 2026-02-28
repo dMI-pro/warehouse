@@ -1001,8 +1001,10 @@ const showDetails = (log: AuditLog) => {
 </script>
 
 <style scoped>
-.custom-upload-button :deep(.p-fileupload-filename) {
-  display: none;
+.custom-upload-button :deep(.p-fileupload-filename),
+.custom-upload-button :deep(.p-fileupload-file-name),
+.custom-upload-button :deep(.p-fileupload-files) {
+  display: none !important;
 }
 
 .custom-upload-button :deep(.p-button-label) {
