@@ -76,7 +76,11 @@
             <template #title>
               <div class="flex justify-content-between align-items-center">
                 <span class="font-semibold">Фотографии товара</span>
-                <div v-if="canEdit">
+                <div v-if="canEdit" class="flex align-items-center gap-2">
+                  <span v-if="productsStore.isUploading(productId)" class="text-sm text-primary flex align-items-center gap-2">
+                    <i class="pi pi-spin pi-spinner"></i>
+                    Загрузка...
+                  </span>
                   <FileUpload
                     mode="basic"
                     name="image"
@@ -88,11 +92,15 @@
                     customUpload
                     @select="onUploadImage"
                     class="p-button-sm"
+                    :disabled="productsStore.isUploading(productId)"
                   />
                 </div>
               </div>
             </template>
             <template #content>
+              <Message v-if="productsStore.isUploading(productId)" severity="info" :closable="false" class="mb-3">
+                Изображения загружаются. Пожалуйста, подождите.
+              </Message>
               <!-- Галерея -->
               <div v-if="product.images && product.images.length > 0">
                 <!-- Основная галерея -->
@@ -212,6 +220,7 @@
                   customUpload
                   @select="onUploadImage"
                   class="p-button-outlined mt-4"
+                  :disabled="productsStore.isUploading(productId)"
                 />
               </div>
             </template>
@@ -807,31 +816,42 @@ const onUploadImage = async (event: any) => {
   
   if (files.length === 0) return;
   
-  try {
-    for (const file of files) {
-      const compressed = await compressImageFile(file, { useWebWorker: false });
-      await productsStore.uploadImage(product.value.id, compressed);
+  const id = product.value.id;
+  const filesToUpload = [...files];
+
+  // Don't await the whole process to keep UI responsive
+  (async () => {
+    let uploadedCount = 0;
+    for (const file of filesToUpload) {
+      try {
+        const compressed = await compressImageFile(file, { useWebWorker: false });
+        await productsStore.uploadImage(id, compressed);
+        uploadedCount++;
+      } catch (e: any) {
+        console.error('Error uploading image:', e);
+      }
     }
     
-    toast.add({ 
-      severity: 'success', 
-      summary: 'Успешно', 
-      detail: `Загружено ${files.length} изображений`, 
-      life: 3000 
-    });
-    
-    await productsStore.fetchProduct(product.value.id);
-    if (event?.options?.clear) {
-      event.options.clear();
+    if (uploadedCount > 0) {
+      toast.add({ 
+        severity: 'success', 
+        summary: 'Успешно', 
+        detail: `Загружено ${uploadedCount} из ${filesToUpload.length} изображений`, 
+        life: 3000 
+      });
+      await productsStore.fetchProduct(id);
+    } else {
+      toast.add({ 
+        severity: 'error', 
+        summary: 'Ошибка', 
+        detail: 'Не удалось загрузить ни одного изображения', 
+        life: 3000 
+      });
     }
-  } catch (e: any) {
-    const backendMessage = e?.response?.data?.message;
-    toast.add({ 
-      severity: 'error', 
-      summary: 'Ошибка', 
-      detail: backendMessage || e.message || 'Ошибка загрузки изображений', 
-      life: 3000 
-    });
+  })();
+
+  if (event?.options?.clear) {
+    event.options.clear();
   }
 };
 

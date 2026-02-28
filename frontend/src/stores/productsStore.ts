@@ -8,6 +8,10 @@ export const useProductsStore = defineStore('products', () => {
   const currentProduct = ref<Product | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const uploadingImages = ref<Record<number, boolean>>({});
+
+  const isUploading = computed(() => (id: number) => !!uploadingImages.value[id]);
+
   const pagination = ref({
     total: 0,
     page: 1,
@@ -123,6 +127,7 @@ export const useProductsStore = defineStore('products', () => {
 
   const uploadImage = async (id: number, file: File) => {
     loading.value = true;
+    uploadingImages.value[id] = true;
     try {
       const product = await apiService.uploadProductImage(id, file);
       if (currentProduct.value && currentProduct.value.id === id) {
@@ -138,6 +143,7 @@ export const useProductsStore = defineStore('products', () => {
       throw err;
     } finally {
       loading.value = false;
+      uploadingImages.value[id] = false;
     }
   };
 
@@ -195,6 +201,8 @@ export const useProductsStore = defineStore('products', () => {
     currentProduct,
     loading,
     error,
+    uploadingImages,
+    isUploading,
     pagination,
     filters,
     filteredProducts,
