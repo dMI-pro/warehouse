@@ -1266,14 +1266,14 @@ const saveProduct = async () => {
             }
           }
           if (uploadedCount < currentPendingFiles.length) {
-            toast.add({ severity: 'warn', summary: 'Внимание', detail: `Загружено ${uploadedCount} из ${currentPendingFiles.length} изображений для товара ${productName}`, life: 5000 });
+            toast.add({ severity: 'warn', summary: 'Внимание', detail: `Загружено ${uploadedCount} из ${currentPendingFiles.length} изображений для товара ${productName}`, life: 3600000 });
           } else {
-            toast.add({ severity: 'success', summary: 'Успешно', detail: `Все изображения для товара ${productName} загружены`, life: 3000 });
+            toast.add({ severity: 'success', summary: 'Успешно', detail: `Все изображения для товара ${productName} загружены`, life: 3600000 });
           }
         })();
       }
 
-      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Товар создан, изображения загружаются в фоновом режиме', life: 3000 });
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Товар создан, изображения загружаются в фоновом режиме', life: 9000 });
       return; // Early return to prevent calling closeDialog() again below
     }
   } catch (error) {
@@ -1309,14 +1309,14 @@ const handleImageSelect = async (event: any) => {
           severity: 'success',
           summary: 'Успешно',
           detail: `Загружено ${uploadedCount} из ${filesToUpload.length} изображений`,
-          life: 3000,
+          life: 7200000,
         });
       } else {
         toast.add({
           severity: 'error',
           summary: 'Ошибка',
           detail: 'Не удалось загрузить изображения',
-          life: 3000,
+          life: 7200000,
         });
       }
     })();

@@ -861,7 +861,7 @@ const onUploadImage = async (event: any) => {
         severity: 'success', 
         summary: 'Успешно', 
         detail: `Загружено ${uploadedCount} из ${filesToUpload.length} изображений`, 
-        life: 3000 
+        life: 7200000 
       });
       await productsStore.fetchProduct(id);
     } else {
@@ -869,7 +869,7 @@ const onUploadImage = async (event: any) => {
         severity: 'error', 
         summary: 'Ошибка', 
         detail: 'Не удалось загрузить ни одного изображения', 
-        life: 3000 
+        life: 7200000 
       });
     }
   })();
