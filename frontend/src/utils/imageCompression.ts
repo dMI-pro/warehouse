@@ -24,6 +24,11 @@ export async function compressImageFile(
   file: File,
   options: CompressionOptions = {},
 ): Promise<File> {
+  // Проверяем флаг сжатия в .env
+  if (import.meta.env.VITE_ENABLE_IMAGE_COMPRESSION === 'false') {
+    return file;
+  }
+
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
   try {

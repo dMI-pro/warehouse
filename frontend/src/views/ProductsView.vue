@@ -458,6 +458,9 @@
             <div class="tab-content">
               <div class="field">
                 <label class="label">Загрузка изображений</label>
+                <div v-if="editingProduct && productsStore.isUploading(editingProduct.id)" class="mb-2 text-primary">
+                  <i class="pi pi-spin pi-spinner"></i> Идет загрузка изображений...
+                </div>
                 <div class="upload-zone" @drop.prevent="handleDrop" @dragover.prevent @dragenter.prevent>
                   <i class="pi pi-cloud-upload" style="font-size: 3rem; color: var(--primary-color)"></i>
                   <p>Перетащите изображения сюда или</p>
@@ -468,6 +471,7 @@
                     :multiple="true"
                     chooseLabel="Выбрать файлы"
                     @select="handleImageSelect"
+                    :disabled="editingProduct ? productsStore.isUploading(editingProduct.id) : false"
                   />
                 </div>
               </div>
@@ -1229,23 +1233,29 @@ const saveProduct = async () => {
       };
       const createdProduct = await productsStore.createProduct(createDto);
       
-      // Upload pending images
+      // Upload pending images in background
       if (pendingFiles.value.length > 0) {
-        let uploadedCount = 0;
-        for (const file of pendingFiles.value) {
-          try {
-            await productsStore.uploadImage(createdProduct.id, file);
-            uploadedCount++;
-          } catch (err) {
-            console.error('Error uploading image:', err);
+        const filesToUpload = [...pendingFiles.value];
+        // Don't await this loop to allow dialog to close immediately
+        (async () => {
+          let uploadedCount = 0;
+          for (const file of filesToUpload) {
+            try {
+              await productsStore.uploadImage(createdProduct.id, file);
+              uploadedCount++;
+            } catch (err) {
+              console.error('Error uploading image:', err);
+            }
           }
-        }
-        if (uploadedCount < pendingFiles.value.length) {
-          toast.add({ severity: 'warn', summary: 'Внимание', detail: `Загружено ${uploadedCount} из ${pendingFiles.value.length} изображений`, life: 3000 });
-        }
+          if (uploadedCount < filesToUpload.length) {
+            toast.add({ severity: 'warn', summary: 'Внимание', detail: `Загружено ${uploadedCount} из ${filesToUpload.length} изображений для товара ${createdProduct.name}`, life: 5000 });
+          } else {
+            toast.add({ severity: 'success', summary: 'Успешно', detail: `Все изображения для товара ${createdProduct.name} загружены`, life: 3000 });
+          }
+        })();
       }
 
-      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Товар создан', life: 3000 });
+      toast.add({ severity: 'success', summary: 'Успешно', detail: 'Товар создан, изображения загружаются в фоновом режиме', life: 3000 });
     }
     closeDialog();
   } catch (error) {
@@ -1255,20 +1265,51 @@ const saveProduct = async () => {
 
 const handleImageSelect = async (event: any) => {
   const files = Array.from(event.files) as File[];
-  for (const file of files) {
-    try {
-      if (editingProduct.value) {
-        const compressed = await compressImageFile(file, { useWebWorker: false });
-        const product = await productsStore.uploadImage(editingProduct.value.id, compressed);
-        if (product.images) {
-          productForm.images = [...product.images];
+  
+  if (editingProduct.value) {
+    const id = editingProduct.value.id;
+    const filesToUpload = [...files];
+    
+    // Asynchronous upload for editing
+    (async () => {
+      let uploadedCount = 0;
+      for (const file of filesToUpload) {
+        try {
+          const compressed = await compressImageFile(file, { useWebWorker: false });
+          const product = await productsStore.uploadImage(id, compressed);
+          if (product.images) {
+            productForm.images = [...product.images];
+          }
+          uploadedCount++;
+        } catch (error) {
+          console.error('Error uploading image:', error);
         }
+      }
+      
+      if (uploadedCount > 0) {
+        toast.add({
+          severity: 'success',
+          summary: 'Успешно',
+          detail: `Загружено ${uploadedCount} из ${filesToUpload.length} изображений`,
+          life: 3000,
+        });
       } else {
-        // Для нового товара сохраняем файлы для загрузки после создания
+        toast.add({
+          severity: 'error',
+          summary: 'Ошибка',
+          detail: 'Не удалось загрузить изображения',
+          life: 3000,
+        });
+      }
+    })();
+  } else {
+    // For new product creation - still use current logic as it's just previewing
+    for (const file of files) {
+      try {
         const compressed = await compressImageFile(file, { useWebWorker: false });
         pendingFiles.value.push(compressed);
         
-        // Создаем превью
+        // Create preview
         const reader = new FileReader();
         reader.onload = (e) => {
           if (e.target?.result && typeof e.target.result === 'string') {
@@ -1276,15 +1317,9 @@ const handleImageSelect = async (event: any) => {
           }
         };
         reader.readAsDataURL(compressed);
+      } catch (error) {
+        console.error('Error processing preview image:', error);
       }
-    } catch (error) {
-      const backendMessage = (error as any)?.response?.data?.message;
-      toast.add({
-        severity: 'error',
-        summary: 'Ошибка',
-        detail: backendMessage || 'Не удалось загрузить изображение',
-        life: 3000,
-      });
     }
   }
 };
