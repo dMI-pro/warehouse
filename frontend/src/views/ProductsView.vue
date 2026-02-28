@@ -464,25 +464,26 @@
                 <div class="upload-zone" @drop.prevent="handleDrop" @dragover.prevent @dragenter.prevent>
                   <i class="pi pi-cloud-upload" style="font-size: 3rem; color: var(--primary-color)"></i>
                   <p>Перетащите изображения сюда или</p>
-                  <FileUpload
-                    mode="basic"
-                    accept="image/*"
-                    :maxFileSize="52428800"
-                    :multiple="true"
-                    @select="handleImageSelect"
+                  <!-- Скрытый загрузчик -->
+                  <div style="display: none">
+                    <FileUpload
+                      ref="fileUploadRef"
+                      mode="basic"
+                      accept="image/*"
+                      :maxFileSize="52428800"
+                      :multiple="true"
+                      @select="handleImageSelect"
+                    />
+                  </div>
+                  <!-- Кастомная кнопка -->
+                  <Button 
+                    label="Выбрать файлы" 
+                    icon="pi pi-plus" 
+                    @click="fileUploadRef?.choose()" 
+                    severity="secondary"
+                    outlined
                     :disabled="editingProduct ? productsStore.isUploading(editingProduct.id) : false"
-                  >
-                    <template #choose="{ chooseCallback }">
-                      <Button 
-                        label="Выбрать файлы" 
-                        icon="pi pi-plus" 
-                        @click="chooseCallback" 
-                        severity="secondary"
-                        outlined
-                        :disabled="editingProduct ? productsStore.isUploading(editingProduct.id) : false"
-                      />
-                    </template>
-                  </FileUpload>
+                  />
                 </div>
               </div>
 
@@ -746,6 +747,7 @@ const editingProduct = ref<Product | null>(null);
 const selectedProduct = ref<Product | null>(null);
 const selectedProducts = ref<Product[]>([]);
 const pendingFiles = ref<File[]>([]);
+const fileUploadRef = ref<any>(null);
 
 const generateSku = async () => {
   try {
