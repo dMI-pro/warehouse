@@ -469,11 +469,20 @@
                     accept="image/*"
                     :maxFileSize="52428800"
                     :multiple="true"
-                    chooseLabel="Выбрать файлы"
                     @select="handleImageSelect"
                     :disabled="editingProduct ? productsStore.isUploading(editingProduct.id) : false"
-                    class="p-button-outlined custom-upload-button"
-                  />
+                  >
+                    <template #choose="{ chooseCallback }">
+                      <Button 
+                        label="Выбрать файлы" 
+                        icon="pi pi-plus" 
+                        @click="chooseCallback" 
+                        severity="secondary"
+                        outlined
+                        :disabled="editingProduct ? productsStore.isUploading(editingProduct.id) : false"
+                      />
+                    </template>
+                  </FileUpload>
                 </div>
               </div>
 
@@ -1803,14 +1812,6 @@ const toggleInStock = async () => {
   color: var(--text-color-secondary);
   font-size: 0.875rem;
   margin-top: 0.25rem;
-}
-
-.custom-upload-button :deep(.p-fileupload-filename) {
-  display: none;
-}
-
-.custom-upload-button :deep(.p-button-label) {
-  margin-left: 0.5rem;
 }
 
 .upload-zone {

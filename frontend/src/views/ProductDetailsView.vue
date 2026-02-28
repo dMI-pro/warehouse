@@ -85,15 +85,23 @@
                     mode="basic"
                     name="image"
                     :auto="false"
-                    chooseLabel="Добавить фото"
                     accept="image/*"
                     :maxFileSize="10485760"
                     :multiple="true"
                     customUpload
                     @select="onUploadImage"
-                    class="p-button-sm custom-upload-button"
                     :disabled="productsStore.isUploading(productId)"
-                  />
+                  >
+                    <template #choose="{ chooseCallback }">
+                      <Button 
+                        label="Добавить фото" 
+                        icon="pi pi-plus" 
+                        @click="chooseCallback" 
+                        size="small"
+                        :disabled="productsStore.isUploading(productId)"
+                      />
+                    </template>
+                  </FileUpload>
                 </div>
               </div>
             </template>
@@ -214,14 +222,24 @@
                   mode="basic"
                   name="image"
                   :auto="false"
-                  chooseLabel="Добавить первое фото"
                   accept="image/*"
-                    :maxFileSize="52428800"
+                  :maxFileSize="52428800"
                   customUpload
                   @select="onUploadImage"
-                  class="p-button-outlined mt-4 custom-upload-button"
                   :disabled="productsStore.isUploading(productId)"
-                />
+                >
+                  <template #choose="{ chooseCallback }">
+                    <Button 
+                      label="Добавить первое фото" 
+                      icon="pi pi-plus" 
+                      @click="chooseCallback" 
+                      severity="secondary"
+                      outlined
+                      class="mt-4"
+                      :disabled="productsStore.isUploading(productId)"
+                    />
+                  </template>
+                </FileUpload>
               </div>
             </template>
           </Card>
@@ -1001,16 +1019,6 @@ const showDetails = (log: AuditLog) => {
 </script>
 
 <style scoped>
-.custom-upload-button :deep(.p-fileupload-filename),
-.custom-upload-button :deep(.p-fileupload-file-name),
-.custom-upload-button :deep(.p-fileupload-files) {
-  display: none !important;
-}
-
-.custom-upload-button :deep(.p-button-label) {
-  margin-left: 0.5rem;
-}
-
 .product-details-view {
   max-width: 1400px;
   margin: 0 auto;
