@@ -97,6 +97,11 @@ export class ProductsService {
       }
     }
 
+    // Очистка путей изображений (сохраняем только ключи, а не полные URL)
+    const imageKeys = (createProductDto.images ?? [])
+      .filter(Boolean)
+      .map((img) => this.minioService.getKeyFromUrl(img) || img);
+
     const product = await this.prisma.product.create({
       data: {
         name: createProductDto.name,
@@ -111,7 +116,7 @@ export class ProductsService {
         committeeId: createProductDto.committeeId,
         transactionTypeId: createProductDto.transactionTypeId,
         arrivalDate: createProductDto.arrivalDate || new Date(),
-        images: createProductDto.images ?? [],
+        images: imageKeys,
       },
       include: {
         category: {
@@ -356,6 +361,13 @@ export class ProductsService {
           `Transaction type with ID ${updateProductDto.transactionTypeId} not found`,
         );
       }
+    }
+
+    // Очистка путей изображений (сохраняем только ключи, а не полные URL)
+    if (updateProductDto.images) {
+      updateProductDto.images = updateProductDto.images
+        .filter(Boolean)
+        .map((img) => this.minioService.getKeyFromUrl(img) || img);
     }
 
     const updatedProduct = await this.prisma.product.update({

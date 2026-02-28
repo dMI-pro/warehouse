@@ -38,6 +38,11 @@ export async function compressImage(
     let image = sharp(buffer);
     const metadata = await image.metadata();
 
+    // Если это не изображение (например, видео или другой файл), возвращаем как есть
+    if (!metadata.format) {
+      return buffer;
+    }
+
     // Определяем формат, если не указан
     const outputFormat =
       opts.format || (metadata.format === 'png' ? 'png' : 'jpeg');

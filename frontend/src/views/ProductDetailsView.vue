@@ -91,7 +91,7 @@
                     :multiple="true"
                     customUpload
                     @select="onUploadImage"
-                    class="p-button-sm"
+                    class="p-button-sm custom-upload-button"
                     :disabled="productsStore.isUploading(productId)"
                   />
                 </div>
@@ -219,7 +219,7 @@
                     :maxFileSize="52428800"
                   customUpload
                   @select="onUploadImage"
-                  class="p-button-outlined mt-4"
+                  class="p-button-outlined mt-4 custom-upload-button"
                   :disabled="productsStore.isUploading(productId)"
                 />
               </div>
@@ -1001,6 +1001,14 @@ const showDetails = (log: AuditLog) => {
 </script>
 
 <style scoped>
+.custom-upload-button :deep(.p-fileupload-filename) {
+  display: none;
+}
+
+.custom-upload-button :deep(.p-button-label) {
+  margin-left: 0.5rem;
+}
+
 .product-details-view {
   max-width: 1400px;
   margin: 0 auto;
