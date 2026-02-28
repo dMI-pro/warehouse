@@ -838,7 +838,7 @@ export class ProductsService {
         entityId: id,
         oldValues: {
           order: await Promise.all(
-            currentKeys.map((k) => this.minioService.getFileUrl(k)),
+            product.images.map((k) => this.minioService.getFileUrl(k)),
           ),
         },
         newValues: {
