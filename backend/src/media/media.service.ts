@@ -72,7 +72,10 @@ export class MediaService {
     });
     for (const p of products) {
       for (const img of p.images || []) {
-        usedMap.set(img, (usedMap.get(img) || 0) + 1);
+        if (!img) continue;
+        // Если это URL, извлекаем ключ
+        const key = this.minio.getKeyFromUrl(img) || img;
+        usedMap.set(key, (usedMap.get(key) || 0) + 1);
       }
     }
 

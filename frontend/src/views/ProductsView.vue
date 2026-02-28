@@ -472,6 +472,7 @@
                     chooseLabel="Выбрать файлы"
                     @select="handleImageSelect"
                     :disabled="editingProduct ? productsStore.isUploading(editingProduct.id) : false"
+                    class="p-button-outlined custom-upload-button"
                   />
                 </div>
               </div>
@@ -1802,6 +1803,14 @@ const toggleInStock = async () => {
   color: var(--text-color-secondary);
   font-size: 0.875rem;
   margin-top: 0.25rem;
+}
+
+.custom-upload-button :deep(.p-fileupload-filename) {
+  display: none;
+}
+
+.custom-upload-button :deep(.p-button-label) {
+  margin-left: 0.5rem;
 }
 
 .upload-zone {
