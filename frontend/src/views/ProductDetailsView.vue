@@ -81,27 +81,28 @@
                     <i class="pi pi-spin pi-spinner"></i>
                     Загрузка...
                   </span>
-                  <FileUpload
-                    mode="basic"
-                    name="image"
-                    :auto="false"
-                    accept="image/*"
-                    :maxFileSize="10485760"
-                    :multiple="true"
-                    customUpload
-                    @select="onUploadImage"
+                  <!-- Скрытый загрузчик -->
+                  <div style="display: none">
+                    <FileUpload
+                      ref="fileUploadRef1"
+                      mode="basic"
+                      name="image"
+                      :auto="false"
+                      accept="image/*"
+                      :maxFileSize="10485760"
+                      :multiple="true"
+                      customUpload
+                      @select="onUploadImage"
+                    />
+                  </div>
+                  <!-- Кастомная кнопка -->
+                  <Button 
+                    label="Добавить фото" 
+                    icon="pi pi-plus" 
+                    @click="fileUploadRef1?.choose()" 
+                    size="small"
                     :disabled="productsStore.isUploading(productId)"
-                  >
-                    <template #choose="{ chooseCallback }">
-                      <Button 
-                        label="Добавить фото" 
-                        icon="pi pi-plus" 
-                        @click="chooseCallback" 
-                        size="small"
-                        :disabled="productsStore.isUploading(productId)"
-                      />
-                    </template>
-                  </FileUpload>
+                  />
                 </div>
               </div>
             </template>
@@ -217,29 +218,31 @@
                 </div>
                 <h4 class="empty-images-title">Нет изображений</h4>
                 <p class="empty-images-description">Добавьте фотографии товара для лучшего представления</p>
-                <FileUpload
+                
+                <!-- Скрытый загрузчик -->
+                <div style="display: none">
+                  <FileUpload
+                    ref="fileUploadRef2"
+                    mode="basic"
+                    name="image"
+                    :auto="false"
+                    accept="image/*"
+                    :maxFileSize="52428800"
+                    customUpload
+                    @select="onUploadImage"
+                  />
+                </div>
+                <!-- Кастомная кнопка -->
+                <Button 
                   v-if="canEdit"
-                  mode="basic"
-                  name="image"
-                  :auto="false"
-                  accept="image/*"
-                  :maxFileSize="52428800"
-                  customUpload
-                  @select="onUploadImage"
+                  label="Добавить первое фото" 
+                  icon="pi pi-plus" 
+                  @click="fileUploadRef2?.choose()" 
+                  severity="secondary"
+                  outlined
+                  class="mt-4"
                   :disabled="productsStore.isUploading(productId)"
-                >
-                  <template #choose="{ chooseCallback }">
-                    <Button 
-                      label="Добавить первое фото" 
-                      icon="pi pi-plus" 
-                      @click="chooseCallback" 
-                      severity="secondary"
-                      outlined
-                      class="mt-4"
-                      :disabled="productsStore.isUploading(productId)"
-                    />
-                  </template>
-                </FileUpload>
+                />
               </div>
             </template>
           </Card>
@@ -596,6 +599,9 @@ const warehousesStore = useWarehousesStore();
 const committeesStore = useCommitteesStore();
 const transactionTypesStore = useTransactionTypesStore();
 const categoriesStore = useCategoriesStore();
+
+const fileUploadRef1 = ref<any>(null);
+const fileUploadRef2 = ref<any>(null);
 
 const productId = Number(route.params.id);
 const saving = ref(false);
