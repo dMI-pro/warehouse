@@ -6,25 +6,38 @@ import { join } from 'path';
 import helmet from 'helmet';
 import { json, urlencoded } from 'express';
 import rateLimit from 'express-rate-limit';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Increase body size limit
-  app.use(json({ limit: '50mb' }));
-  app.use(urlencoded({ extended: true, limit: '50mb' }));
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   // Trust proxy when behind reverse proxy (nginx) for correct rate limit IP
   app.set('trust proxy', 1);
 
-  // Rate limiting
-  const limiter = rateLimit({
+  // Global Rate limiting
+  const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: process.env.NODE_ENV === 'production' ? 300 : 1000,
+    max: process.env.NODE_ENV === 'production' ? 1000 : 2000, // Slightly higher for general use
     standardHeaders: true,
     legacyHeaders: false,
+    message: 'Too many requests from this IP, please try again after 15 minutes',
   });
-  app.use(limiter);
+  app.use(globalLimiter);
+
+  // Stricter rate limiting for auth endpoints
+  const authLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 15, // 15 attempts per hour
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Too many auth attempts, please try again after an hour',
+    skip: (req) => !req.url.includes('/auth/login') && !req.url.includes('/auth/register'),
+  });
+  app.use(authLimiter);
 
   // Security headers
   app.use(
@@ -33,17 +46,27 @@ async function bootstrap() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
           scriptSrc: ["'self'"],
-          imgSrc: ["'self'", 'data:', 'https:'],
+          imgSrc: ["'self'", 'data:', 'https:', 'http:'],
+          connectSrc: ["'self'", 'https:', 'http:', 'ws:', 'wss:'],
+          fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'self'"],
         },
       },
     }),
   );
 
+  // Global Interceptor to exclude sensitive fields
+  app.useGlobalInterceptors(new TransformInterceptor());
+
   // Настройка статической раздачи файлов для загрузки изображений
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads/',
+    setHeaders: (res) => {
+      res.set('X-Content-Type-Options', 'nosniff');
+    },
   });
 
   // Включение валидации для всех входящих запросов
