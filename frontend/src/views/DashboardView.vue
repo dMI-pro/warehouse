@@ -119,6 +119,11 @@
                   {{ formatPrice(data.amount) }}
                 </template>
               </Column>
+              <Column field="time" header="Дата" style="width: 140px">
+                <template #body="{ data }">
+                  {{ formatTime(data.time) }}
+                </template>
+              </Column>
             </DataTable>
             <div class="text-center mt-2">
               <Button 
@@ -185,7 +190,7 @@
             <div class="widget-title">Динамика продаж</div>
           </div>
           <div class="chart-container">
-        <div v-if="chartOption" class="chart-scroll" ref="chartScrollRef">
+            <div class="chart-scroll" ref="chartScrollRef">
               <div class="chart-inner">
                 <v-chart
                   :option="chartOption"
@@ -194,7 +199,7 @@
                 />
               </div>
             </div>
-            <div v-else class="chart-placeholder">Загрузка данных...</div>
+            <div v-if="loading" class="chart-placeholder">Загрузка данных...</div>
           </div>
         </template>
       </Card>
@@ -379,6 +384,7 @@ const productsStore = useProductsStore();
 const salesStore = useSalesStore();
 const returnsStore = useReturnsStore();
 const chartScrollRef = ref<HTMLDivElement | null>(null);
+const CHART_DAYS = 30;
 
 const loading = ref(false);
 const stats = ref({
@@ -393,52 +399,63 @@ const stats = ref({
 const lowStockProducts = ref<Product[]>([]);
 const longStorageProducts = ref<Product[]>([]);
 const recentActions = ref<Array<{ type: string; entity: string; details: string; user: string; time: string }>>([]);
-const recentSales = ref<Array<{ productName: string; quantity: number; amount: number }>>([]);
+const recentSales = ref<Array<{ productName: string; quantity: number; amount: number; time: string }>>([]);
 const newArrivals = ref<Array<{ name: string; quantity: number; arrivalDate: string }>>([]);
 const lastReturns = ref<Array<{ productName: string; quantity: number; time: string }>>([]);
 const salesData = ref<Sale[]>([]);
 
+const getSaleDateKey = (sale: Sale) => {
+  const rawDate = sale.soldAt || sale.createdAt;
+  if (!rawDate) return null;
+
+  const parsedDate = new Date(rawDate);
+  if (Number.isNaN(parsedDate.getTime())) return null;
+
+  return parsedDate.toISOString().split('T')[0] || null;
+};
+
+const getRecentChartDateKeys = () =>
+  Array.from({ length: CHART_DAYS }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (CHART_DAYS - 1 - index));
+    return date.toISOString().split('T')[0];
+  }).filter((date): date is string => Boolean(date));
+
+const chartSeriesData = computed(() => {
+  const recentDateKeys = getRecentChartDateKeys();
+  const salesByDate = new Map<string, number>(recentDateKeys.map((date) => [date, 0]));
+
+  salesData.value.forEach((sale) => {
+    const dateKey = getSaleDateKey(sale);
+    if (!dateKey || !salesByDate.has(dateKey)) return;
+
+    const saleAmount = Number(sale.salePrice) * sale.quantity;
+    salesByDate.set(dateKey, (salesByDate.get(dateKey) || 0) + saleAmount);
+  });
+
+  return recentDateKeys.map((dateKey) => {
+    const date = new Date(dateKey);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+
+    return {
+      dateKey,
+      label: `${day}.${month}`,
+      value: salesByDate.get(dateKey) || 0,
+    };
+  });
+});
+
+const hasSalesInChartPeriod = computed(() =>
+  chartSeriesData.value.some((item) => item.value > 0),
+);
+
 const { isAdminOrManager, isGuest } = storeToRefs(authStore);
 
 const chartOption = computed(() => {
-  if (!salesData.value.length) return null;
-
-  // Группируем продажи по датам за последние 30 дней
-  const last30Days = Array.from({ length: 30 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (29 - i));
-    return date.toISOString().split('T')[0];
-  }).filter((d): d is string => !!d);
-
-  const salesByDate = new Map<string, number>();
-  last30Days.forEach((date) => {
-    if (date) {
-      salesByDate.set(date, 0);
-    }
-  });
-
-  salesData.value.forEach((sale) => {
-    if (sale.soldAt || sale.createdAt) {
-      const date = (sale.soldAt || sale.createdAt).split('T')[0];
-      if (date && salesByDate.has(date)) {
-        const saleAmount = Number(sale.salePrice) * sale.quantity;
-        salesByDate.set(date, (salesByDate.get(date) || 0) + saleAmount);
-      }
-    }
-  });
-
-  const dates = last30Days.map((d) => {
-    if (d) {
-      const date = new Date(d);
-      // Используем padStart для добавления ведущих нулей
-      const day = date.getDate().toString().padStart(2, '0');
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      return `${day}.${month}`;
-    }
-    return '';
-  }).filter(Boolean);
-
-  const values = Array.from(salesByDate.values());
+  const dates = chartSeriesData.value.map((item) => item.label);
+  const values = chartSeriesData.value.map((item) => item.value);
 
   return {
     tooltip: {
@@ -475,8 +492,12 @@ const chartOption = computed(() => {
         type: 'line',
         smooth: true,
         data: values,
+        showSymbol: false,
         itemStyle: {
           color: '#3b82f6',
+        },
+        lineStyle: {
+          width: 3,
         },
         areaStyle: {
           color: {
@@ -555,23 +576,31 @@ const loadStats = async () => {
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 1);
 
-    const salesResponse = await apiService.getSales({
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      limit: 1000,
-    });
-    
-    const returnsResponse = await apiService.getReturns({
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-    });
-
-    // Загружаем логи создания товаров для получения информации о пользователе
-    const productCreateLogsResponse = await apiService.getAuditLogs({
-      action: 'product.create',
-      limit: 5,
-      page: 1,
-    });
+    const [
+      salesChartResponse,
+      recentSalesResponse,
+      returnsResponse,
+      productCreateLogsResponse,
+    ] = await Promise.all([
+      apiService.getSales({
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        limit: 1000,
+      }),
+      apiService.getSales({
+        limit: 5,
+        page: 1,
+      }),
+      apiService.getReturns({
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      }),
+      apiService.getAuditLogs({
+        action: 'product.create',
+        limit: 5,
+        page: 1,
+      }),
+    ]);
     const productCreateLogs = productCreateLogsResponse.data;
 
     // Рассчитываем статистику
@@ -597,7 +626,7 @@ const loadStats = async () => {
     });
 
     // Продажи за месяц
-    salesResponse.data.forEach((sale: Sale) => {
+    salesChartResponse.data.forEach((sale: Sale) => {
       soldItemsCount += sale.quantity;
     });
 
@@ -626,10 +655,11 @@ const loadStats = async () => {
     );
 
     // Формируем список последних продаж
-    recentSales.value = salesResponse.data.slice(0, 5).map((sale: Sale) => ({
+    recentSales.value = recentSalesResponse.data.slice(0, 5).map((sale: Sale) => ({
       productName: sale.product?.name || 'Неизвестный товар',
       quantity: sale.quantity,
       amount: Number(sale.salePrice) * sale.quantity,
+      time: sale.soldAt || sale.createdAt || new Date().toISOString(),
     }));
 
     // Формируем список новых поступлений (товары, добавленные за последние 7 дней)
@@ -669,7 +699,7 @@ const loadStats = async () => {
     }));
 
     recentActions.value = [
-      ...salesResponse.data.slice(0, 5).map((sale: Sale) => ({
+      ...salesChartResponse.data.slice(0, 5).map((sale: Sale) => ({
         type: 'Продажа',
         entity: sale.product?.name || 'Товар',
         details: `${sale.quantity} шт. на ${formatPrice(Number(sale.salePrice) * sale.quantity)}`,
@@ -695,7 +725,7 @@ const loadStats = async () => {
       .slice(0, 5);
 
     // Сохраняем данные для графика
-    salesData.value = salesResponse.data;
+    salesData.value = salesChartResponse.data;
 
   } catch (error) {
     console.error('Failed to load dashboard stats', error);
@@ -785,9 +815,9 @@ onMounted(() => {
 }
 
 .stats-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
 }
 
 .long-storage-item,
@@ -807,23 +837,26 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--surface-border);
-}
-
-.stats-item:last-child {
-  border-bottom: none;
+  gap: 1rem;
+  min-width: 0;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  background: var(--surface-ground);
 }
 
 .stat-label {
   font-size: 0.875rem;
   color: var(--text-color-secondary);
+  min-width: 0;
 }
 
 .stat-value {
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--text-color);
+  text-align: right;
+  word-break: break-word;
 }
 
 .stat-value.warning {
@@ -868,6 +901,13 @@ onMounted(() => {
   font-size: 0.875rem;
 }
 
+.chart-empty-state {
+  margin-top: 0.75rem;
+  text-align: center;
+  color: var(--text-color-secondary);
+  font-size: 0.9rem;
+}
+
 .truncate-text {
   white-space: nowrap;
   overflow: hidden;
@@ -907,6 +947,10 @@ onMounted(() => {
   .span-2 {
     grid-column: span 1 !important;
   }
+
+  .stats-content {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 768px) {
@@ -917,6 +961,10 @@ onMounted(() => {
   .span-4,
   .span-2 {
     grid-column: span 1 !important;
+  }
+
+  .stats-content {
+    grid-template-columns: 1fr;
   }
   
   .stats-item {
