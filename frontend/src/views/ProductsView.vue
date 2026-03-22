@@ -114,7 +114,7 @@
           v-model:rows="productsStore.pagination.limit"
           :totalRecords="productsStore.pagination.total"
           :first="(productsStore.pagination.page - 1) * productsStore.pagination.limit"
-          :rowsPerPageOptions="[10, 20, 50, 100]"
+          :rowsPerPageOptions="rowsPerPageOptions"
           paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
           currentPageReportTemplate="{first} - {last} из {totalRecords}"
           :emptyMessage="productsStore.loading ? 'Загрузка...' : 'Нет товаров'"
@@ -748,6 +748,8 @@ const selectedProduct = ref<Product | null>(null);
 const selectedProducts = ref<Product[]>([]);
 const pendingFiles = ref<File[]>([]);
 const fileUploadRef = ref<any>(null);
+
+const rowsPerPageOptions = [10, 20, 50, 100, 500, 1000, 2000, 3000]
 
 const generateSku = async () => {
   try {
