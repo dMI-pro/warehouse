@@ -13,6 +13,8 @@ import { Prisma } from '@prisma/client';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { MinioService } from '../minio/minio.service';
 import { compressImage } from '../common/utils/image-compression.util';
+import * as ExcelJS from 'exceljs';
+import { Parser } from 'json2csv';
 
 @Injectable()
 export class ProductsService {
@@ -651,6 +653,152 @@ export class ProductsService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async exportProducts(format: 'xlsx' | 'csv') {
+    const products = await this.prisma.product.findMany({
+      include: {
+        category: {
+          include: {
+            parent: true,
+          },
+        },
+        warehouse: true,
+        committee: true,
+        transactionType: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const data = await Promise.all(products.map(async (p) => ({
+      id: p.id,
+      name: p.name,
+      sku: p.sku,
+      description: p.description || '',
+      categoryName: p.category ? this.getCategoryPath(p.category) : 'Без категории',
+      purchasePrice: Number(p.purchasePrice),
+      salePrice: Number(p.salePrice),
+      quantity: p.quantity,
+      minStockLevel: p.minStockLevel || 0,
+      warehouseName: p.warehouse?.name || 'Не указан',
+      committeeName: p.committee?.name || 'Не указан',
+      transactionTypeName: p.transactionType?.name || 'Не указан',
+      arrivalDate: p.arrivalDate || null,
+      images: p.images && p.images.length > 0 
+        ? (await Promise.all(p.images.map(img => this.minioService.getFileUrl(img)))).join('; ')
+        : '',
+    })));
+
+    if (format === 'csv') {
+      const fields = [
+        { label: 'ID', value: 'id' },
+        { label: 'Название', value: 'name' },
+        { label: 'Артикул', value: 'sku' },
+        { label: 'Описание', value: 'description' },
+        { label: 'Категория', value: 'categoryName' },
+        { label: 'Цена закупки', value: 'purchasePrice' },
+        { label: 'Цена продажи', value: 'salePrice' },
+        { label: 'Количество', value: 'quantity' },
+        { label: 'Мин. запас', value: 'minStockLevel' },
+        { label: 'Склад', value: 'warehouseName' },
+        { label: 'Комитет', value: 'committeeName' },
+        { label: 'Тип транзакции', value: 'transactionTypeName' },
+        { label: 'Дата поступления', value: 'arrivalDate' },
+        { label: 'Изображения', value: 'images' },
+      ];
+      const json2csvParser = new Parser({ fields, withBOM: true });
+      const csv = json2csvParser.parse(data);
+      return Buffer.from(csv, 'utf-8');
+    } else {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Products');
+
+      worksheet.columns = [
+        { header: 'ID', key: 'id', width: 10 },
+        { header: 'Название', key: 'name', width: 30 },
+        { header: 'Артикул', key: 'sku', width: 15 },
+        { header: 'Описание', key: 'description', width: 40 },
+        { header: 'Категория', key: 'categoryName', width: 25 },
+        { header: 'Цена закупки', key: 'purchasePrice', width: 15 },
+        { header: 'Цена продажи', key: 'salePrice', width: 15 },
+        { header: 'Количество', key: 'quantity', width: 12 },
+        { header: 'Мин. запас', key: 'minStockLevel', width: 12 },
+        { header: 'Склад', key: 'warehouseName', width: 20 },
+        { header: 'Комитет', key: 'committeeName', width: 20 },
+        { header: 'Тип транзакции', key: 'transactionTypeName', width: 20 },
+        { header: 'Дата поступления', key: 'arrivalDate', width: 20 },
+        { header: 'Изображения', key: 'images', width: 50 },
+      ];
+
+      // Стилизация заголовков
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+      worksheet.addRows(data);
+
+      // Форматирование колонок и создание гиперссылок для изображений
+      data.forEach((row, index) => {
+        const rowIndex = index + 2; // +1 за заголовок, +1 за 1-based index
+        
+        // Колонка изображений (14)
+        if (row.images) {
+          const imageCell = worksheet.getCell(rowIndex, 14);
+          const firstUrl = row.images.split('; ')[0];
+          imageCell.value = {
+            text: row.images,
+            hyperlink: firstUrl,
+            tooltip: 'Кликните, чтобы открыть фото'
+          };
+          imageCell.font = { color: { argb: 'FF0000FF' }, underline: true };
+        }
+      });
+
+      // Установка форматов для числовых колонок и дат
+      worksheet.getColumn(6).numFmt = '#,##0.00'; // purchasePrice
+      worksheet.getColumn(7).numFmt = '#,##0.00'; // salePrice
+      worksheet.getColumn(13).numFmt = 'yyyy-mm-dd hh:mm'; // arrivalDate
+
+      // Добавление итоговой строки
+      const totalRowIndex = data.length + 2;
+      const totalRow = worksheet.getRow(totalRowIndex);
+      totalRow.font = { bold: true };
+      
+      // Название для итоговой строки в первой колонке
+      worksheet.getCell(totalRowIndex, 1).value = 'Итого:';
+
+      // Формулы для суммирования числовых колонок
+      const numericColumns = [
+        { col: 6, key: 'F' }, // purchasePrice
+        { col: 7, key: 'G' }, // salePrice
+        { col: 8, key: 'H' }, // quantity
+        { col: 9, key: 'I' }, // minStockLevel
+      ];
+
+      numericColumns.forEach(({ col, key }) => {
+        const cell = worksheet.getCell(totalRowIndex, col);
+        cell.value = {
+          formula: `SUM(${key}2:${key}${totalRowIndex - 1})`,
+          date1904: false
+        };
+        // Форматирование для цен (колонки 6 и 7)
+        if (col === 6 || col === 7) {
+          cell.numFmt = '#,##0.00';
+        }
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      return Buffer.from(buffer);
+    }
+  }
+
+  private getCategoryPath(category: any): string {
+    const path = [category.name];
+    let current = category;
+    while (current.parent) {
+      path.unshift(current.parent.name);
+      current = current.parent;
+    }
+    return path.join(' > ');
   }
 
   async remove(id: number, userId: number) {

@@ -45,49 +45,37 @@ export async function exportExcelTable(
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Данные');
 
-  const tableName = options?.tableName || 'ExportTable';
   const dateFormat = options?.dateFormat || defaultDateFormat;
 
-  // Prepare table columns config
-  const tableColumns = columns.map((col, idx) => {
-    const isNumeric = col.type === 'number';
-    return {
-      name: col.header,
-      filterButton: true,
-      totalsRowFunction: options?.totals && isNumeric ? 'sum' as const : undefined,
-      totalsRowLabel: options?.totals && !isNumeric && idx === 0 ? 'Итого:' : undefined,
-    };
+  // Set columns
+  sheet.columns = columns.map((col) => ({
+    header: col.header,
+    key: col.key,
+    width: 15, // Default width
+  }));
+
+  // Style header row
+  const headerRow = sheet.getRow(1);
+  headerRow.font = { bold: true };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE0E0E0' },
+  };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+  // Add rows
+  const tableRows = rows.map((row) => {
+    const rowData: Record<string, any> = {};
+    columns.forEach((col) => {
+      rowData[col.key] = formatCellValue(row[col.key], col.type, dateFormat);
+    });
+    return rowData;
   });
 
-  // Prepare plain values for table rows
-  const tableRows = rows.map((row) =>
-    columns.map((col) => {
-      const raw = row[col.key];
-      return formatCellValue(raw, col.type, dateFormat);
-    })
-  );
+  sheet.addRows(tableRows);
 
-  // Add the table with headers
-  sheet.addTable({
-    name: tableName,
-    ref: 'A1',
-    headerRow: true,
-    totalsRow: !!options?.totals,
-    columns: tableColumns,
-    rows: tableRows,
-  });
-
-  // Apply column formats (dates, numbers) and hyperlinks after table creation
-  columns.forEach((col, colIndex) => {
-    const excelCol = sheet.getColumn(colIndex + 1);
-    if (col.type === 'number') {
-      excelCol.numFmt = '#,##0.00';
-    } else if (col.type === 'date') {
-      excelCol.numFmt = 'yyyy-mm-dd hh:mm';
-    }
-  });
-
-  // Resolve links for URL/image fields
+  // Apply column formats (dates, numbers) and hyperlinks
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const imageFieldSet = new Set(options?.imageFields || []);
 
@@ -106,32 +94,44 @@ export async function exportExcelTable(
     return { text: url, url };
   };
 
-  // Iterate over data region to set hyperlinks where applicable
-  const dataStartRow = 2; // after header
-  const dataEndRow = dataStartRow + rows.length - 1;
+  columns.forEach((col, colIndex) => {
+    const excelCol = sheet.getColumn(colIndex + 1);
+    if (col.type === 'number') {
+      excelCol.numFmt = '#,##0.00';
+    } else if (col.type === 'date') {
+      excelCol.numFmt = 'yyyy-mm-dd hh:mm';
+    }
 
-  for (let r = dataStartRow; r <= dataEndRow; r++) {
-    columns.forEach((col, cIdx) => {
-      const key = col.key;
-      const cell = sheet.getCell(r, cIdx + 1);
-      const rowObj = rows[r - dataStartRow] || {};
-      const raw = (rowObj as Record<string, any>)[key];
-
-      const isUrlType = col.type === 'url' || imageFieldSet.has(key);
-
-      if (isUrlType) {
-        if (Array.isArray(raw)) {
-          const first = raw[0];
-          const link = resolveLink(first, key);
-          if (link) {
-            cell.value = { text: link.text, hyperlink: link.url };
-          }
-        } else {
-          const link = resolveLink(raw, key);
-          if (link) {
-            cell.value = { text: link.text, hyperlink: link.url };
-          }
+    // Set hyperlinks for URL/image fields
+    const isUrlType = col.type === 'url' || imageFieldSet.has(col.key);
+    if (isUrlType) {
+      for (let r = 2; r <= rows.length + 1; r++) {
+        const cell = sheet.getCell(r, colIndex + 1);
+        const raw = rows[r - 2][col.key];
+        const val = Array.isArray(raw) ? raw[0] : raw;
+        const link = resolveLink(val, col.key);
+        if (link) {
+          cell.value = { text: link.text, hyperlink: link.url };
+          cell.font = { color: { argb: 'FF0000FF' }, underline: true };
         }
+      }
+    }
+  });
+
+  // Add totals row if requested
+  if (options?.totals) {
+    const totalRowIndex = rows.length + 2;
+    const totalRow = sheet.getRow(totalRowIndex);
+    totalRow.font = { bold: true };
+    
+    columns.forEach((col, idx) => {
+      if (idx === 0) {
+        totalRow.getCell(idx + 1).value = 'Итого:';
+      } else if (col.type === 'number') {
+        const colLetter = sheet.getColumn(idx + 1).letter;
+        totalRow.getCell(idx + 1).value = {
+          formula: `SUM(${colLetter}2:${colLetter}${totalRowIndex - 1})`,
+        };
       }
     });
   }
