@@ -106,8 +106,11 @@ export async function exportExcelTable(
     const isUrlType = col.type === 'url' || imageFieldSet.has(col.key);
     if (isUrlType) {
       for (let r = 2; r <= rows.length + 1; r++) {
+        const rowData = rows[r - 2];
+        if (!rowData) continue;
+        
         const cell = sheet.getCell(r, colIndex + 1);
-        const raw = rows[r - 2][col.key];
+        const raw = rowData[col.key];
         const val = Array.isArray(raw) ? raw[0] : raw;
         const link = resolveLink(val, col.key);
         if (link) {
