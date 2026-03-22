@@ -5,6 +5,7 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -23,6 +24,7 @@ export class ProductsService {
     @Inject(forwardRef(() => AuditLogService))
     private auditLogService: AuditLogService,
     private minioService: MinioService,
+    private configService: ConfigService,
   ) {}
 
   /**
@@ -670,14 +672,16 @@ export class ProductsService {
       orderBy: { name: 'asc' },
     });
 
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || '';
+
     const data = await Promise.all(products.map(async (p) => ({
-      id: p.id,
+      id: Number(p.id),
       name: p.name,
       sku: p.sku,
       description: p.description || '',
       categoryName: p.category ? this.getCategoryPath(p.category) : 'Без категории',
-      purchasePrice: Number(p.purchasePrice),
-      salePrice: Number(p.salePrice),
+      purchasePrice: Math.round(Number(p.purchasePrice)),
+      salePrice: Math.round(Number(p.salePrice)),
       quantity: p.quantity,
       minStockLevel: p.minStockLevel || 0,
       warehouseName: p.warehouse?.name || 'Не указан',
@@ -685,7 +689,13 @@ export class ProductsService {
       transactionTypeName: p.transactionType?.name || 'Не указан',
       arrivalDate: p.arrivalDate || null,
       images: p.images && p.images.length > 0 
-        ? (await Promise.all(p.images.map(img => this.minioService.getFileUrl(img)))).join('; ')
+        ? (await Promise.all(p.images.map(async img => {
+            const url = await this.minioService.getFileUrl(img);
+            if (url.startsWith('/') && frontendUrl) {
+              return `${frontendUrl}${url}`;
+            }
+            return url;
+          }))).join('; ')
         : '',
     })));
 
@@ -754,8 +764,9 @@ export class ProductsService {
       });
 
       // Установка форматов для числовых колонок и дат
-      worksheet.getColumn(6).numFmt = '#,##0.00'; // purchasePrice
-      worksheet.getColumn(7).numFmt = '#,##0.00'; // salePrice
+      worksheet.getColumn(1).numFmt = '0'; // ID
+      worksheet.getColumn(6).numFmt = '#,##0'; // purchasePrice
+      worksheet.getColumn(7).numFmt = '#,##0'; // salePrice
       worksheet.getColumn(13).numFmt = 'yyyy-mm-dd hh:mm'; // arrivalDate
 
       // Добавление итоговой строки
@@ -782,7 +793,7 @@ export class ProductsService {
         };
         // Форматирование для цен (колонки 6 и 7)
         if (col === 6 || col === 7) {
-          cell.numFmt = '#,##0.00';
+          cell.numFmt = '#,##0';
         }
       });
 

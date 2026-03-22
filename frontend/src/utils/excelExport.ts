@@ -97,7 +97,7 @@ export async function exportExcelTable(
   columns.forEach((col, colIndex) => {
     const excelCol = sheet.getColumn(colIndex + 1);
     if (col.type === 'number') {
-      excelCol.numFmt = '#,##0.00';
+      excelCol.numFmt = '#,##0';
     } else if (col.type === 'date') {
       excelCol.numFmt = 'yyyy-mm-dd hh:mm';
     }
