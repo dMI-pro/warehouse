@@ -4,19 +4,15 @@
       <h1 class="page-title">Товары</h1>
       <div v-if="authStore.isAdmin || authStore.isManager" class="header-actions">
         <Button
-          label="Экспорт CSV"
+          label="Экспорт"
           icon="pi pi-file-export"
           severity="secondary"
           outlined
-          @click="exportToCSV"
+          @click="toggleExportMenu"
+          aria-haspopup="true"
+          aria-controls="export-menu"
         />
-        <Button
-          label="Экспорт Excel"
-          icon="pi pi-file-excel"
-          severity="secondary"
-          outlined
-          @click="exportToExcel"
-        />
+        <Menu ref="exportMenu" id="export-menu" :model="exportMenuItems" :popup="true" />
         <Button
           v-if="authStore.hasRole(Role.MANAGER) || authStore.isAdmin"
           label="Добавить товар"
@@ -704,6 +700,7 @@ import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
 import Calendar from 'primevue/calendar';
 import TreeSelect from 'primevue/treeselect';
+import Menu from 'primevue/menu';
 import { useProductsStore } from '@/stores/productsStore';
 import { useCategoriesStore } from '@/stores/categoriesStore';
 import { useSalesStore } from '@/stores/salesStore';
@@ -747,9 +744,53 @@ const editingProduct = ref<Product | null>(null);
 const selectedProduct = ref<Product | null>(null);
 const selectedProducts = ref<Product[]>([]);
 const pendingFiles = ref<File[]>([]);
-const fileUploadRef = ref<any>(null);
-
 const rowsPerPageOptions = [10, 20, 50, 100, 500, 1000, 2000, 3000]
+const exportMenu = ref();
+const exportMenuItems = ref([
+  {
+    label: 'Экспорт текущей страницы',
+    items: [
+      {
+        label: 'Excel',
+        icon: 'pi pi-file-excel',
+        command: () => {
+          exportToExcel();
+        }
+      },
+      {
+        label: 'CSV',
+        icon: 'pi pi-file',
+        command: () => {
+          exportToCSV();
+        }
+      }
+    ]
+  },
+  {
+    label: 'Экспорт всего списка',
+    items: [
+      {
+        label: 'Excel',
+        icon: 'pi pi-file-excel',
+        command: () => {
+          exportAllProducts('xlsx');
+        }
+      },
+      {
+        label: 'CSV',
+        icon: 'pi pi-file',
+        command: () => {
+          exportAllProducts('csv');
+        }
+      }
+    ]
+  }
+]);
+
+const toggleExportMenu = (event: any) => {
+  exportMenu.value.toggle(event);
+};
+const fileUploadRef = ref<any>(null);
 
 const generateSku = async () => {
   try {
@@ -1570,16 +1611,22 @@ const exportToCSV = () => {
     return;
   }
 
-  const headers = ['Название', 'Артикул', 'Категория', 'Цена закупки', 'Цена продажи', 'Количество', 'Мин. запас', 'Описание'];
+  const headers = ['ID', 'Название', 'Артикул', 'Описание', 'Категория', 'Цена закупки', 'Цена продажи', 'Количество', 'Мин. запас', 'Склад', 'Комитет', 'Тип транзакции', 'Дата поступления', 'Изображения'];
   const rows = products.map((product) => [
+    product.id.toString(),
     product.name,
     product.sku,
-    product.category?.name || '',
+    product.description || '',
+    getCategoryBreadcrumb(product.category),
     product.purchasePrice.toString(),
     product.salePrice.toString(),
     product.quantity.toString(),
     product.minStockLevel.toString(),
-    product.description || '',
+    product.warehouse?.name || 'Не указан',
+    product.committee?.name || 'Не указан',
+    product.transactionType?.name || 'Не указан',
+    product.arrivalDate ? new Date(product.arrivalDate).toLocaleString('ru-RU') : 'Не указана',
+    (product.images || []).map(img => getImageUrl(img)).join('; '),
   ]);
 
   const csvContent = [headers, ...rows]
@@ -1610,22 +1657,24 @@ const exportToExcel = () => {
     id: p.id,
     name: p.name,
     sku: p.sku,
-    categoryName: p.category?.name || '',
+    description: p.description || '',
+    categoryName: getCategoryBreadcrumb(p.category),
     purchasePrice: Number(p.purchasePrice),
     salePrice: Number(p.salePrice),
     quantity: p.quantity,
     minStockLevel: p.minStockLevel || 0,
-    warehouseName: p.warehouse?.name || '',
-    committeeName: p.committee?.name || '',
-    transactionTypeName: p.transactionType?.name || '',
+    warehouseName: p.warehouse?.name || 'Не указан',
+    committeeName: p.committee?.name || 'Не указан',
+    transactionTypeName: p.transactionType?.name || 'Не указан',
     arrivalDate: p.arrivalDate || null,
-    images: p.images || [],
+    images: (p.images || []).map(img => getImageUrl(img)),
   }));
 
   const allColumns: ExcelColumn[] = [
     { key: 'id', header: 'ID', type: 'number' },
     { key: 'name', header: 'Название', type: 'string' },
     { key: 'sku', header: 'Артикул', type: 'string' },
+    { key: 'description', header: 'Описание', type: 'string' },
     { key: 'categoryName', header: 'Категория', type: 'string' },
     { key: 'purchasePrice', header: 'Цена закупки', type: 'number' },
     { key: 'salePrice', header: 'Цена продажи', type: 'number' },
@@ -1686,6 +1735,12 @@ const toggleInStock = async () => {
   inStockOnly.value = !inStockOnly.value;
   productsStore.setFilters({ inStock: inStockOnly.value });
   await productsStore.fetchProducts({ page: 1 });
+};
+
+const exportAllProducts = (format: 'xlsx' | 'csv') => {
+    const exportUrl = `${API_BASE_URL}/products/export?format=${format}`;
+    window.open(exportUrl, '_blank');
+    toast.add({ severity: 'info', summary: 'Экспорт запущен', detail: `Формируется файл ${format.toUpperCase()}, скачивание начнется автоматически.`, life: 5000 });
 };
 </script>
 

@@ -12,7 +12,9 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -31,6 +33,32 @@ import { extname } from 'path';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
+
+  @Get('export')
+  @Public() // Allow public access or use @Roles if needed. The frontend opens this in a new tab.
+  async export(
+    @Query('format') format: 'xlsx' | 'csv' = 'xlsx',
+    @Res() res: Response,
+  ) {
+    const buffer = await this.productsService.exportProducts(format);
+    const date = new Date().toISOString().split('T')[0];
+    const filename = `products_all_${date}.${format}`;
+
+    if (format === 'csv') {
+      res.set({
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      });
+    } else {
+      res.set({
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      });
+    }
+
+    res.send(buffer);
+  }
 
   @Get('last-sku')
   @Roles(Role.MANAGER, Role.ADMIN)
