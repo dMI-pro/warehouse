@@ -160,6 +160,7 @@ class ApiService {
     page?: number;
     limit?: number;
     inStock?: boolean;
+    sortBy?: 'createdAt' | 'arrivalDate';
   }): Promise<PaginatedResponse<Product>> {
     const response = await this.api.get<PaginatedResponse<Product>>('/products', { params });
     return response.data;

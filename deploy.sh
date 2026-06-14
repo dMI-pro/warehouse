@@ -1,17 +1,28 @@
 #!/usr/bin/env bash
-# deploy.sh
 set -euo pipefail
 
-echo "Pulling latest changes..."
-git pull --rebase
+BRANCH="${1:-staging}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "Building production images..."
-docker compose -f docker-compose.prod.yml build
+cd "${SCRIPT_DIR}"
 
-echo "Starting services..."
-docker compose -f docker-compose.prod.yml up -d
+echo "Deploy branch: ${BRANCH}"
+echo "Compose file: ${COMPOSE_FILE}"
+
+echo "Fetching latest changes..."
+git fetch origin "${BRANCH}"
+
+echo "Switching to branch ${BRANCH}..."
+git checkout "${BRANCH}"
+
+echo "Pulling latest commit (fast-forward only)..."
+git pull --ff-only origin "${BRANCH}"
+
+echo "Rebuilding and starting services..."
+docker compose -f "${COMPOSE_FILE}" up -d --build
 
 echo "Pruning unused images..."
-docker image prune -f
+docker image prune -f >/dev/null
 
 echo "Deployment complete."

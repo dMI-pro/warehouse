@@ -69,9 +69,14 @@
                 </template>
               </Column>
               <Column field="quantity" header="Кол-во" style="width: 80px" />
-              <Column field="arrivalDate" header="Дата" style="width: 120px">
+              <Column field="arrivalDate" style="width: 140px">
+                <template #header>
+                  <span title="Дата поступления товара на склад (поле «Дата поступления»), а не дата создания карточки в системе">
+                    Дата
+                  </span>
+                </template>
                 <template #body="{ data }">
-                  {{ formatDate(data.arrivalDate) }}
+                  {{ formatTime(data.arrivalDate) }}
                 </template>
               </Column>
             </DataTable>
@@ -567,21 +572,20 @@ const getNameProductWithQuantity = (product: Product) => {
 const loadStats = async () => {
   loading.value = true;
   try {
-    // Загружаем все товары для статистики
-    const productsResponse = await apiService.getProducts({ limit: 1000 });
-    const allProducts = productsResponse.data;
-
-    // Загружаем продажи и возвраты за последний месяц
     const endDate = new Date();
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 1);
 
     const [
+      productsResponse,
+      newArrivalsResponse,
       salesChartResponse,
       recentSalesResponse,
       returnsResponse,
       productCreateLogsResponse,
     ] = await Promise.all([
+      apiService.getProducts({ limit: 1000 }),
+      apiService.getProducts({ limit: 5, sortBy: 'arrivalDate' }),
       apiService.getSales({
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
@@ -601,6 +605,7 @@ const loadStats = async () => {
         page: 1,
       }),
     ]);
+    const allProducts = productsResponse.data;
     const productCreateLogs = productCreateLogsResponse.data;
 
     // Рассчитываем статистику
@@ -662,26 +667,13 @@ const loadStats = async () => {
       time: sale.soldAt || sale.createdAt || new Date().toISOString(),
     }));
 
-    // Формируем список новых поступлений (товары, добавленные за последние 7 дней)
-    const sevenDaysAgo = new Date();
-    // оставить датой или переделать на последнии 5 поступлейний, чтобы  
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 30);
-    newArrivals.value = allProducts
-      // .filter((product: Product) => {
-      //   if (!product.arrivalDate && !product.createdAt) return false;
-      //   const productDate = product.arrivalDate ? new Date(product.arrivalDate) : new Date(product.createdAt);
-      //   return productDate >= sevenDaysAgo;
-      // })
-      .sort((a: Product, b: Product) => {
-        const dateA = new Date(a.arrivalDate || a.createdAt);
-        const dateB = new Date(b.arrivalDate || b.createdAt);
-        return dateB.getTime() - dateA.getTime();
-      })
-      .slice(0, 5)
+    // Последние 5 поступлений по дате arrivalDate (не createdAt)
+    newArrivals.value = newArrivalsResponse.data
+      .filter((product: Product) => Boolean(product.arrivalDate))
       .map((product: Product) => ({
         name: product.name,
         quantity: product.quantity,
-        arrivalDate: product.arrivalDate || product.createdAt,
+        arrivalDate: product.arrivalDate as string,
       }));
 
     // Подсчитываем долгохранящиеся товары (на складе более 90 дней)
@@ -699,7 +691,7 @@ const loadStats = async () => {
     }));
 
     recentActions.value = [
-      ...salesChartResponse.data.slice(0, 5).map((sale: Sale) => ({
+      ...recentSalesResponse.data.map((sale: Sale) => ({
         type: 'Продажа',
         entity: sale.product?.name || 'Товар',
         details: `${sale.quantity} шт. на ${formatPrice(Number(sale.salePrice) * sale.quantity)}`,
