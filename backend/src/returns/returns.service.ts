@@ -8,7 +8,9 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateReturnDto } from './dto/create-return.dto';
 import { UpdateReturnDto } from './dto/update-return.dto';
+import { QueryReturnsDto } from './dto/query-returns.dto';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ReturnsService {
@@ -91,8 +93,22 @@ export class ReturnsService {
     return result;
   }
 
-  async findAll(query: any) {
-    return this.prisma.return.findMany({
+  async findAll(query: QueryReturnsDto) {
+    const { startDate, endDate, page = 1, limit } = query;
+    const where: Prisma.ReturnWhereInput = {};
+
+    if (startDate || endDate) {
+      where.returnedAt = {};
+      if (startDate) {
+        where.returnedAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        where.returnedAt.lte = new Date(endDate);
+      }
+    }
+
+    const findManyArgs: Prisma.ReturnFindManyArgs = {
+      where,
       include: {
         product: true,
         user: true,
@@ -100,7 +116,14 @@ export class ReturnsService {
       orderBy: {
         returnedAt: 'desc',
       },
-    });
+    };
+
+    if (limit) {
+      findManyArgs.skip = (page - 1) * limit;
+      findManyArgs.take = limit;
+    }
+
+    return this.prisma.return.findMany(findManyArgs);
   }
 
   async findOne(id: number) {

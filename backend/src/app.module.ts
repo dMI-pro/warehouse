@@ -18,6 +18,7 @@ import { ReturnsModule } from './returns/returns.module';
 import { MinioModule } from './minio/minio.module';
 import { UserStatusesModule } from './user-statuses/user-statuses.module';
 import { MediaModule } from './media/media.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { MediaModule } from './media/media.module';
     ReturnsModule,
     UserStatusesModule,
     MediaModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

@@ -14,6 +14,7 @@ import {
 import { ReturnsService } from './returns.service';
 import { CreateReturnDto } from './dto/create-return.dto';
 import { UpdateReturnDto } from './dto/update-return.dto';
+import { QueryReturnsDto } from './dto/query-returns.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -33,7 +34,7 @@ export class ReturnsController {
 
   @Get()
   @Roles(Role.SELLER, Role.MANAGER, Role.ADMIN)
-  findAll(@Query() query: any) {
+  findAll(@Query() query: QueryReturnsDto) {
     return this.returnsService.findAll(query);
   }
 

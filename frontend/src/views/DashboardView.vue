@@ -348,7 +348,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -366,13 +366,44 @@ import Button from 'primevue/button';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import { useAuthStore } from '@/stores/authStore';
-import { useProductsStore } from '@/stores/productsStore';
 import { apiService } from '@/services/api';
-import type { Product, Sale, Return as ApiReturn, AuditLog } from '@/types/api';
-import { useSalesStore } from '@/stores/salesStore';
-import { useReturnsStore } from '@/stores/returnsStore';
+import type { Product } from '@/types/api';
 import { storeToRefs } from 'pinia';
-import { getActorDisplayName } from '@/utils/user-utils';
+import { mapAuditLogToDashboardAction } from '@/utils/audit-log-display';
+
+type DashboardAction = {
+  type: string;
+  entity: string;
+  details: string;
+  user: string;
+  time: string;
+};
+
+const buildRecentProductActions = (
+  recentSales: Array<{ productName: string; quantity: number; amount: number; time: string; userName: string }>,
+  lastReturns: Array<{ productName: string; quantity: number; time: string; userName: string }>,
+  productLogs: Parameters<typeof mapAuditLogToDashboardAction>[0][],
+): DashboardAction[] => {
+  return [
+    ...recentSales.map((sale) => ({
+      type: 'Продажа',
+      entity: sale.productName,
+      details: `${sale.quantity} шт. на ${formatPrice(sale.amount)}`,
+      user: sale.userName,
+      time: String(sale.time),
+    })),
+    ...lastReturns.map((ret) => ({
+      type: 'Возврат',
+      entity: ret.productName,
+      details: `${ret.quantity} шт.`,
+      user: ret.userName,
+      time: String(ret.time),
+    })),
+    ...productLogs.map(mapAuditLogToDashboardAction),
+  ]
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    .slice(0, 5);
+};
 
 use([
   CanvasRenderer,
@@ -385,11 +416,10 @@ use([
 
 const router = useRouter();
 const authStore = useAuthStore();
-const productsStore = useProductsStore();
-const salesStore = useSalesStore();
-const returnsStore = useReturnsStore();
 const chartScrollRef = ref<HTMLDivElement | null>(null);
 const CHART_DAYS = 30;
+const REFRESH_MS = 5 * 60 * 1000;
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 const loading = ref(false);
 const stats = ref({
@@ -407,17 +437,7 @@ const recentActions = ref<Array<{ type: string; entity: string; details: string;
 const recentSales = ref<Array<{ productName: string; quantity: number; amount: number; time: string }>>([]);
 const newArrivals = ref<Array<{ name: string; quantity: number; arrivalDate: string }>>([]);
 const lastReturns = ref<Array<{ productName: string; quantity: number; time: string }>>([]);
-const salesData = ref<Sale[]>([]);
-
-const getSaleDateKey = (sale: Sale) => {
-  const rawDate = sale.soldAt || sale.createdAt;
-  if (!rawDate) return null;
-
-  const parsedDate = new Date(rawDate);
-  if (Number.isNaN(parsedDate.getTime())) return null;
-
-  return parsedDate.toISOString().split('T')[0] || null;
-};
+const salesChartData = ref<Array<{ date: string; amount: number }>>([]);
 
 const getRecentChartDateKeys = () =>
   Array.from({ length: CHART_DAYS }, (_, index) => {
@@ -431,12 +451,10 @@ const chartSeriesData = computed(() => {
   const recentDateKeys = getRecentChartDateKeys();
   const salesByDate = new Map<string, number>(recentDateKeys.map((date) => [date, 0]));
 
-  salesData.value.forEach((sale) => {
-    const dateKey = getSaleDateKey(sale);
-    if (!dateKey || !salesByDate.has(dateKey)) return;
-
-    const saleAmount = Number(sale.salePrice) * sale.quantity;
-    salesByDate.set(dateKey, (salesByDate.get(dateKey) || 0) + saleAmount);
+  salesChartData.value.forEach((point) => {
+    if (salesByDate.has(point.date)) {
+      salesByDate.set(point.date, point.amount);
+    }
   });
 
   return recentDateKeys.map((dateKey) => {
@@ -557,14 +575,6 @@ const formatTime = (time: string) => {
   }).format(date);
 };
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-  }).format(date);
-};
-
 const getNameProductWithQuantity = (product: Product) => {
   return `${product.name} — ${product.quantity} шт.`
 }
@@ -572,153 +582,41 @@ const getNameProductWithQuantity = (product: Product) => {
 const loadStats = async () => {
   loading.value = true;
   try {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setMonth(startDate.getMonth() - 1);
+    const summaryPromise = apiService.getDashboardSummary({ chartDays: CHART_DAYS });
+    const productLogsPromise = isAdminOrManager.value
+      ? apiService.getAuditLogs({ entityType: 'Product', limit: 5, page: 1 })
+      : Promise.resolve(null);
 
-    const [
-      productsResponse,
-      newArrivalsResponse,
-      salesChartResponse,
-      recentSalesResponse,
-      returnsResponse,
-      productCreateLogsResponse,
-    ] = await Promise.all([
-      apiService.getProducts({ limit: 1000 }),
-      apiService.getProducts({ limit: 5, sortBy: 'arrivalDate' }),
-      apiService.getSales({
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        limit: 1000,
-      }),
-      apiService.getSales({
-        limit: 5,
-        page: 1,
-      }),
-      apiService.getReturns({
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-      }),
-      apiService.getAuditLogs({
-        action: 'product.create',
-        limit: 5,
-        page: 1,
-      }),
+    const [summary, productLogsResponse] = await Promise.all([
+      summaryPromise,
+      productLogsPromise,
     ]);
-    const allProducts = productsResponse.data;
-    const productCreateLogs = productCreateLogsResponse.data;
 
-    // Рассчитываем статистику
-    let totalPositions = allProducts.length;
-    let totalItemsQuantity = 0;
-    let activePositions = 0;
-    let activeItemsCount = 0;
-    let soldItemsCount = 0;
-    let returnedItemsCount = 0;
-    let totalValue = 0;
-
-    // Товары
-    allProducts.forEach((product: Product) => {
-      const quantity = product.quantity || 0;
-      totalItemsQuantity += quantity;
-      
-      if (quantity > 0) {
-        activePositions++;
-        activeItemsCount += quantity;
-      }
-      
-      totalValue += product.salePrice * quantity;
-    });
-
-    // Продажи за месяц
-    salesChartResponse.data.forEach((sale: Sale) => {
-      soldItemsCount += sale.quantity;
-    });
-
-    // Возвраты за месяц
-    returnsResponse.forEach((ret: ApiReturn) => {
-      returnedItemsCount += ret.quantity;
-    });
-    
-    // Складываем активные, проданные и возвращенные товары
-    totalItemsQuantity += soldItemsCount + returnedItemsCount;
-
-    // Обновляем статистику
-    stats.value = {
-      totalPositions,
-      totalItemsQuantity,
-      activePositions,
-      activeItemsCount,
-      soldItemsCount,
-      returnedItemsCount,
-      totalValue
-    };
-    
-    // Подсчитываем товары с низким запасом
-    lowStockProducts.value = allProducts.filter(
-      (product: Product) => product.minStockLevel > 0 && product.quantity < product.minStockLevel
-    );
-
-    // Формируем список последних продаж
-    recentSales.value = recentSalesResponse.data.slice(0, 5).map((sale: Sale) => ({
-      productName: sale.product?.name || 'Неизвестный товар',
-      quantity: sale.quantity,
-      amount: Number(sale.salePrice) * sale.quantity,
-      time: sale.soldAt || sale.createdAt || new Date().toISOString(),
+    stats.value = summary.stats;
+    newArrivals.value = summary.newArrivals.map((item) => ({
+      name: item.name,
+      quantity: item.quantity,
+      arrivalDate: String(item.arrivalDate),
     }));
-
-    // Последние 5 поступлений по дате arrivalDate (не createdAt)
-    newArrivals.value = newArrivalsResponse.data
-      .filter((product: Product) => Boolean(product.arrivalDate))
-      .map((product: Product) => ({
-        name: product.name,
-        quantity: product.quantity,
-        arrivalDate: product.arrivalDate as string,
-      }));
-
-    // Подсчитываем долгохранящиеся товары (на складе более 90 дней)
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    longStorageProducts.value = allProducts.filter((product: Product) => {
-      const arrivalDate = product.arrivalDate ? new Date(product.arrivalDate) : new Date(product.createdAt);
-      return arrivalDate < ninetyDaysAgo && product.quantity > 0;
-    });
-
-    lastReturns.value = returnsResponse.slice(0, 5).map((ret: ApiReturn) => ({
-      productName: ret.product?.name || 'Товар',
-      quantity: ret.quantity,
-      time: ret.returnedAt || new Date().toISOString(),
+    lowStockProducts.value = summary.lowStockProducts;
+    longStorageProducts.value = summary.longStorageProducts;
+    recentSales.value = summary.recentSales.map((sale) => ({
+      ...sale,
+      time: String(sale.time),
     }));
+    lastReturns.value = summary.lastReturns.map((ret) => ({
+      ...ret,
+      time: String(ret.time),
+    }));
+    salesChartData.value = summary.salesChart;
 
-    recentActions.value = [
-      ...recentSalesResponse.data.map((sale: Sale) => ({
-        type: 'Продажа',
-        entity: sale.product?.name || 'Товар',
-        details: `${sale.quantity} шт. на ${formatPrice(Number(sale.salePrice) * sale.quantity)}`,
-        user: getActorDisplayName(sale.user),
-        time: sale.soldAt || sale.createdAt || new Date().toISOString(),
-      })),
-      ...returnsResponse.slice(0, 5).map((ret: ApiReturn) => ({
-        type: 'Возврат',
-        entity: ret.product?.name || 'Товар',
-        details: `${ret.quantity} шт.`,
-        user: getActorDisplayName(ret.user),
-        time: ret.returnedAt || new Date().toISOString(),
-      })),
-      ...productCreateLogs.map((log: AuditLog) => ({
-        type: 'Добавление товара',
-        entity: log.newValues?.name || (log.entityId ? `Товар #${log.entityId}` : 'Товар'),
-        details: log.newValues?.quantity ? `${log.newValues.quantity} шт.` : '—',
-        user: getActorDisplayName(log.user),
-        time: log.createdAt,
-      })),
-    ]
-      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-      .slice(0, 5);
-
-    // Сохраняем данные для графика
-    salesData.value = salesChartResponse.data;
-
+    if (productLogsResponse) {
+      recentActions.value = buildRecentProductActions(
+        summary.recentSales,
+        summary.lastReturns,
+        productLogsResponse.data,
+      );
+    }
   } catch (error) {
     console.error('Failed to load dashboard stats', error);
   } finally {
@@ -736,14 +634,21 @@ const viewLongStorage = () => {
 
 onMounted(() => {
   loadStats();
-  
-  // Обновляем статистику каждые 5 минут
-  setInterval(() => {
+
+  refreshTimer = setInterval(() => {
     if (!loading.value) {
       loadStats();
     }
-  }, 5 * 60 * 1000);
+  }, REFRESH_MS);
   window.addEventListener('resize', scrollChartToRight);
+});
+
+onUnmounted(() => {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+  window.removeEventListener('resize', scrollChartToRight);
 });
 </script>
 

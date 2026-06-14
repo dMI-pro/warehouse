@@ -35,6 +35,7 @@ import type {
   CreateUserDto,
   UpdateUserDto,
   MediaItem,
+  DashboardSummary,
 } from '@/types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -379,9 +380,12 @@ class ApiService {
     page?: number;
     limit?: number;
   }): Promise<Return[]> {
-    // Note: Backend returns Return[], not PaginatedResponse<Return> yet based on service
-    // But usually we want consistency. My backend service returns Return[].
     const response = await this.api.get<Return[]>('/returns', { params });
+    return response.data;
+  }
+
+  async getDashboardSummary(params?: { chartDays?: number }): Promise<DashboardSummary> {
+    const response = await this.api.get<DashboardSummary>('/dashboard/summary', { params });
     return response.data;
   }
 
