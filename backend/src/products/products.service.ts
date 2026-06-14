@@ -175,6 +175,7 @@ export class ProductsService {
       warehouse,
       committee,
       inStock,
+      sortBy = 'createdAt',
       page = 1,
       limit = 10,
     } = query;
@@ -211,6 +212,15 @@ export class ProductsService {
       where.committeeId = committee;
     }
 
+    if (sortBy === 'arrivalDate') {
+      where.arrivalDate = { not: null };
+    }
+
+    const orderBy =
+      sortBy === 'arrivalDate'
+        ? { arrivalDate: 'desc' as const }
+        : { createdAt: 'desc' as const };
+
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
@@ -226,9 +236,7 @@ export class ProductsService {
           committee: true,
           transactionType: true,
         },
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy,
       }),
       this.prisma.product.count({ where }),
     ]);

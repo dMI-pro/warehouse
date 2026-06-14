@@ -2,11 +2,17 @@ import {
   IsOptional,
   IsString,
   IsInt,
+  IsEnum,
   Min,
   Max,
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+
+export enum ProductSortBy {
+  CREATED_AT = 'createdAt',
+  ARRIVAL_DATE = 'arrivalDate',
+}
 
 export class QueryProductsDto {
   @IsString()
@@ -32,6 +38,10 @@ export class QueryProductsDto {
   @IsOptional()
   @Type(() => Boolean)
   inStock?: boolean;
+
+  @IsEnum(ProductSortBy)
+  @IsOptional()
+  sortBy?: ProductSortBy = ProductSortBy.CREATED_AT;
 
   @IsInt()
   @Min(1)

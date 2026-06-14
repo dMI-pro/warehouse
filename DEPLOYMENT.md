@@ -167,3 +167,65 @@ docker exec -i antiquar-db psql -U user database_name < backup_20240101.sql
 4. Используйте сильные пароли для БД
 5. Ограничьте доступ к административным панелям
 
+## CI/CD для VPS (ветка staging)
+
+Ниже схема для автоматического деплоя при каждом `push` в `staging`:
+
+1. GitHub Actions запускается на событие `push` в `staging`.
+2. Workflow подключается по SSH на VPS.
+3. На VPS выполняется `./deploy.sh staging`.
+4. Скрипт обновляет код и пересобирает контейнеры.
+
+### Что уже добавлено в репозиторий
+
+- Workflow: `.github/workflows/deploy-staging.yml`
+- Скрипт деплоя: `deploy.sh` (обновлен под CI/CD)
+
+### Подготовка VPS (один раз)
+
+1. Убедитесь, что проект уже клонирован на VPS и используется правильный путь (например, `/opt/warehouse`).
+2. Убедитесь, что в папке проекта есть ваши серверные файлы:
+   - `prod.env`
+   - `certs/`
+3. Убедитесь, что пользователь, под которым подключается GitHub Actions, может выполнять:
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d --build
+   ```
+   Обычно это значит, что пользователь входит в группу `docker`.
+
+### Подготовка SSH-ключа для GitHub Actions (один раз)
+
+1. Сгенерируйте отдельную пару ключей для деплоя:
+   ```bash
+   ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/github_actions_deploy
+   ```
+2. Добавьте публичный ключ на VPS в `~/.ssh/authorized_keys` пользователя деплоя.
+3. Приватный ключ (`~/.ssh/github_actions_deploy`) добавьте в GitHub Secrets.
+
+### Секреты в GitHub
+
+В репозитории откройте `Settings -> Secrets and variables -> Actions` и создайте:
+
+- `VPS_HOST` — IP/домен VPS
+- `VPS_USER` — пользователь SSH на VPS
+- `VPS_SSH_KEY` — приватный ключ (многострочный, целиком)
+- `VPS_PORT` — SSH-порт (опционально, по умолчанию `22`)
+- `VPS_PATH` — абсолютный путь к проекту на VPS (например, `/opt/warehouse`)
+
+### Как это использовать
+
+1. Пушите изменения в ветку `staging`.
+2. Откройте вкладку `Actions` в GitHub и проверьте workflow `Deploy Staging`.
+3. Если workflow зеленый, деплой завершен.
+
+Также доступен ручной запуск через `workflow_dispatch` в Actions (кнопка `Run workflow`).
+
+### Что делает `deploy.sh`
+
+Скрипт выполняет:
+
+1. `git fetch origin staging`
+2. `git checkout staging`
+3. `git pull --ff-only origin staging`
+4. `docker compose -f docker-compose.prod.yml up -d --build`
+5. `docker image prune -f`
