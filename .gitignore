@@ -21,3 +21,11 @@ coverage/
 # IDE
 .vscode/
 .idea/
+
+# Backups (large / sensitive)
+backups-new/
+backups/
+minio_backup/
+
+# Local VPS MinIO sync credentials
+scripts-new/vps.minio.env
