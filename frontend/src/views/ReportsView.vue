@@ -39,86 +39,7 @@
 
     <!-- Основной контент -->
     <div class="grid">
-      <!-- Боковая панель с фильтрами -->
-      <div class="col-12 lg:col-3">
-        <Card class="h-full">
-          <template #title>
-            <div class="flex align-items-center gap-2">
-              <i class="pi pi-filter text-primary"></i>
-              <span>Фильтры</span>
-            </div>
-          </template>
-          <template #content>
-            <div class="filters-section">
-              <div class="grid formgrid">
-                <div class="col-12 mb-3">
-                  <label for="startDate" class="block mb-2 font-medium">
-                    <i class="pi pi-calendar mr-1"></i>
-                    Дата начала
-                  </label>
-                  <Calendar
-                    id="startDate"
-                    v-model="filters.startDate"
-                    dateFormat="dd.mm.yy"
-                    showIcon
-                    :showButtonBar="true"
-                    class="w-full"
-                    :class="{ 'p-invalid': dateRangeError }"
-                  />
-                </div>
-                
-                <div class="col-12 mb-3">
-                  <label for="endDate" class="block mb-2 font-medium">
-                    <i class="pi pi-calendar mr-1"></i>
-                    Дата окончания
-                  </label>
-                  <Calendar
-                    id="endDate"
-                    v-model="filters.endDate"
-                    dateFormat="dd.mm.yy"
-                    showIcon
-                    :showButtonBar="true"
-                    class="w-full"
-                    :class="{ 'p-invalid': dateRangeError }"
-                  />
-                </div>
-                
-                <div class="col-12 mb-2">
-                  <small v-if="dateRangeError" class="p-error block">
-                    <i class="pi pi-exclamation-circle mr-1"></i>
-                    {{ dateRangeError }}
-                  </small>
-                </div>
-                
-                <div class="col-12 mb-2">
-                  <Button
-                    label="Применить"
-                    icon="pi pi-check"
-                    class="w-full"
-                    :loading="isLoading"
-                    severity="success"
-                    @click="generateReport"
-                  />
-                </div>
-                
-                <div class="col-12">
-                  <Button
-                    label="Сбросить"
-                    icon="pi pi-refresh"
-                    severity="secondary"
-                    outlined
-                    class="w-full"
-                    @click="resetFilters"
-                  />
-                </div>
-              </div>
-            </div>
-          </template>
-        </Card>
-      </div>
-
-      <!-- Основная область -->
-      <div class="col-12 lg:col-9">
+      <div class="col-12">
         <!-- Вкладки отчётов -->
         <Card class="mb-4">
           <template #content>
@@ -141,184 +62,287 @@
           </template>
         </Card>
 
-        <!-- Статистика для продаж -->
-        <div v-if="reportType === 'sales' && normalizedReportData.length" class="grid mb-4">
-          <div class="col-12">
-            <div class="grid">
-              <div class="col-6 md:col-3">
-                <Card class="h-full">
-                  <template #content>
-                    <div class="flex flex-column">
-                      <div class="flex align-items-center gap-2 mb-2">
-                        <div class="p-2 bg-blue-100 border-round">
-                          <i class="pi pi-wallet text-blue-600"></i>
-                        </div>
-                        <div class="flex-1">
-                          <div class="text-sm text-color-secondary">Выручка</div>
-                          <div class="text-xl font-bold">{{ formatPrice(calculatedStats.totalRevenue) }}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </template>
-                </Card>
+        <!-- Статистика -->
+        <Card v-if="reportType === 'sales'" class="mb-4 section-card">
+          <template #title>
+            <div class="section-header">
+              <div class="flex align-items-center gap-2">
+                <i class="pi pi-chart-bar text-primary"></i>
+                <span>Статистика</span>
               </div>
-              <div class="col-6 md:col-3">
-                <Card class="h-full">
-                  <template #content>
-                    <div class="flex flex-column">
-                      <div class="flex align-items-center gap-2 mb-2">
-                        <div class="p-2 bg-green-100 border-round">
-                          <i class="pi pi-chart-line text-green-600"></i>
-                        </div>
-                        <div class="flex-1">
-                          <div class="text-sm text-color-secondary">Прибыль</div>
-                          <div class="text-xl font-bold text-green-600">{{ formatPrice(calculatedStats.totalProfit) }}</div>
+              <Button
+                :label="statsCollapsed ? 'Развернуть' : 'Свернуть'"
+                :icon="statsCollapsed ? 'pi pi-chevron-down' : 'pi pi-chevron-up'"
+                severity="secondary"
+                outlined
+                size="small"
+                @click="toggleStatsSection"
+              />
+            </div>
+          </template>
+          <template #content>
+            <div v-if="!statsCollapsed">
+              <div v-if="normalizedReportData.length" class="grid">
+                <div class="col-6 md:col-3">
+                  <Card class="h-full">
+                    <template #content>
+                      <div class="flex flex-column">
+                        <div class="flex align-items-center gap-2 mb-2">
+                          <div class="p-2 bg-blue-100 border-round">
+                            <i class="pi pi-wallet text-blue-600"></i>
+                          </div>
+                          <div class="flex-1">
+                            <div class="text-sm text-color-secondary">Выручка</div>
+                            <div class="text-xl font-bold">{{ formatPrice(calculatedStats.totalRevenue) }}</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </template>
-                </Card>
+                    </template>
+                  </Card>
+                </div>
+                <div class="col-6 md:col-3">
+                  <Card class="h-full">
+                    <template #content>
+                      <div class="flex flex-column">
+                        <div class="flex align-items-center gap-2 mb-2">
+                          <div class="p-2 bg-green-100 border-round">
+                            <i class="pi pi-chart-line text-green-600"></i>
+                          </div>
+                          <div class="flex-1">
+                            <div class="text-sm text-color-secondary">Прибыль</div>
+                            <div class="text-xl font-bold text-green-600">{{ formatPrice(calculatedStats.totalProfit) }}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </Card>
+                </div>
+                <div class="col-6 md:col-3">
+                  <Card class="h-full">
+                    <template #content>
+                      <div class="flex flex-column">
+                        <div class="flex align-items-center gap-2 mb-2">
+                          <div class="p-2 bg-purple-100 border-round">
+                            <i class="pi pi-receipt text-purple-600"></i>
+                          </div>
+                          <div class="flex-1">
+                            <div class="text-sm text-color-secondary">Чеков</div>
+                            <div class="text-xl font-bold">{{ calculatedStats.totalInvoices }}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </Card>
+                </div>
+                <div class="col-6 md:col-3">
+                  <Card class="h-full">
+                    <template #content>
+                      <div class="flex flex-column">
+                        <div class="flex align-items-center gap-2 mb-2">
+                          <div class="p-2 bg-orange-100 border-round">
+                            <i class="pi pi-shopping-bag text-orange-600"></i>
+                          </div>
+                          <div class="flex-1">
+                            <div class="text-sm text-color-secondary">Товаров</div>
+                            <div class="text-xl font-bold">{{ calculatedStats.totalItemsSold }}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </Card>
+                </div>
               </div>
-              <div class="col-6 md:col-3">
-                <Card class="h-full">
-                  <template #content>
-                    <div class="flex flex-column">
-                      <div class="flex align-items-center gap-2 mb-2">
-                        <div class="p-2 bg-purple-100 border-round">
-                          <i class="pi pi-receipt text-purple-600"></i>
-                        </div>
-                        <div class="flex-1">
-                          <div class="text-sm text-color-secondary">Чеков</div>
-                          <div class="text-xl font-bold">{{ calculatedStats.totalInvoices }}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </template>
-                </Card>
-              </div>
-              <div class="col-6 md:col-3">
-                <Card class="h-full">
-                  <template #content>
-                    <div class="flex flex-column">
-                      <div class="flex align-items-center gap-2 mb-2">
-                        <div class="p-2 bg-orange-100 border-round">
-                          <i class="pi pi-shopping-bag text-orange-600"></i>
-                        </div>
-                        <div class="flex-1">
-                          <div class="text-sm text-color-secondary">Товаров</div>
-                          <div class="text-xl font-bold">{{ calculatedStats.totalItemsSold }}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </template>
-                </Card>
+              <div v-else class="text-color-secondary text-sm">
+                После загрузки данных здесь появятся показатели по продажам.
               </div>
             </div>
-          </div>
-        </div>
+          </template>
+        </Card>
+
+        <!-- Фильтры -->
+        <Card class="mb-4 section-card">
+          <template #title>
+            <div class="section-header">
+              <div class="flex align-items-center gap-2">
+                <i class="pi pi-filter text-primary"></i>
+                <span>Фильтры</span>
+              </div>
+              <Button
+                :label="filtersCollapsed ? 'Развернуть' : 'Свернуть'"
+                :icon="filtersCollapsed ? 'pi pi-chevron-down' : 'pi pi-chevron-up'"
+                severity="secondary"
+                outlined
+                size="small"
+                @click="toggleFiltersSection"
+              />
+            </div>
+          </template>
+          <template #content>
+            <div v-if="!filtersCollapsed" class="filters-section">
+              <div class="grid formgrid filters-grid">
+                <div class="col-12 md:col-6 xl:col-3">
+                  <label for="startDate" class="block mb-2 font-medium">
+                    <i class="pi pi-calendar mr-1"></i>
+                    Дата начала
+                  </label>
+                  <Calendar
+                    id="startDate"
+                    v-model="filters.startDate"
+                    dateFormat="dd.mm.yy"
+                    showIcon
+                    :showButtonBar="true"
+                    class="w-full"
+                    :class="{ 'p-invalid': dateRangeError }"
+                  />
+                </div>
+
+                <div class="col-12 md:col-6 xl:col-3">
+                  <label for="endDate" class="block mb-2 font-medium">
+                    <i class="pi pi-calendar mr-1"></i>
+                    Дата окончания
+                  </label>
+                  <Calendar
+                    id="endDate"
+                    v-model="filters.endDate"
+                    dateFormat="dd.mm.yy"
+                    showIcon
+                    :showButtonBar="true"
+                    class="w-full"
+                    :class="{ 'p-invalid': dateRangeError }"
+                  />
+                </div>
+
+                <div class="col-12 xl:col-3 flex align-items-end">
+                  <Button
+                    label="Применить"
+                    icon="pi pi-check"
+                    class="w-full"
+                    :loading="isLoading"
+                    severity="success"
+                    @click="generateReport"
+                  />
+                </div>
+
+                <div class="col-12 xl:col-3 flex align-items-end">
+                  <Button
+                    label="Сбросить"
+                    icon="pi pi-refresh"
+                    severity="secondary"
+                    outlined
+                    class="w-full"
+                    @click="resetFilters"
+                  />
+                </div>
+
+                <div v-if="dateRangeError" class="col-12">
+                  <small class="p-error block">
+                    <i class="pi pi-exclamation-circle mr-1"></i>
+                    {{ dateRangeError }}
+                  </small>
+                </div>
+              </div>
+            </div>
+          </template>
+        </Card>
 
         <!-- Таблица данных -->
-        <div class="grid">
-          <div class="col-12">
-            <Card>
-              <template #title>
-                <div class="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-2">
-                  <div class="flex align-items-center gap-2">
-                    <i class="pi pi-table text-primary"></i>
-                    <span class="font-bold">{{ getTableTitle() }}</span>
-                    <Tag v-if="normalizedReportData.length" :value="normalizedReportData.length" severity="info" rounded />
-                  </div>
-                  <span class="text-color-secondary text-sm">
-                    {{ getTableSubtitle() }}
-                  </span>
-                </div>
-              </template>
-              <template #content>
-                <DataTable
-                  :value="normalizedReportData"
-                  :loading="isLoading"
-                  :paginator="true"
-                  v-model:rows="rows"
-                  :rowsPerPageOptions="[10, 15, 30, 50]"
-                  paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
-                  currentPageReportTemplate="{first} - {last} из {totalRecords}"
-                  :emptyMessage="isLoading ? 'Загрузка...' : 'Нет данных'"
-                  class="report-table p-datatable-sm"
-                  stripedRows
-                  showGridlines
-                >
-                  <Column
-                    v-for="column in tableColumns"
-                    :key="column.field"
-                    :field="column.field"
-                    :header="column.header"
-                    :sortable="column.sortable"
-                    :style="{ 'min-width': column.minWidth }"
-                  >
-                    <template #body="{ data }">
-                      <template v-if="column.format === 'price'">
-                        <Tag :value="formatPrice(data[column.field])" severity="success" class="font-semibold" />
-                      </template>
-                      <template v-else-if="column.format === 'date'">
-                        <span>{{ formatDate(data[column.field]) }}</span>
-                      </template>
-                      <template v-else-if="column.field === 'quantity'">
-                        <Badge :value="data[column.field]" severity="info" />
-                      </template>
-                      <template v-else-if="column.field === 'reason'">
-                        <div class="max-w-20rem truncate-text" :title="data[column.field]">
-                          {{ data[column.field] }}
-                        </div>
-                      </template>
-                      <template v-else>
-                        {{ data[column.field] }}
-                      </template>
-                    </template>
-                  </Column>
+        <Card class="mb-4">
+          <template #title>
+            <div class="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-2">
+              <div class="flex align-items-center gap-2">
+                <i class="pi pi-table text-primary"></i>
+                <span class="font-bold">{{ getTableTitle() }}</span>
+                <Tag v-if="normalizedReportData.length" :value="normalizedReportData.length" severity="info" rounded />
+              </div>
+              <span class="text-color-secondary text-sm">
+                {{ getTableSubtitle() }}
+              </span>
+            </div>
+          </template>
+          <template #content>
+            <DataTable
+              :value="normalizedReportData"
+              :loading="isLoading"
+              :paginator="true"
+              v-model:rows="rows"
+              :rowsPerPageOptions="[10, 15, 30, 50]"
+              paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
+              currentPageReportTemplate="{first} - {last} из {totalRecords}"
+              :emptyMessage="isLoading ? 'Загрузка...' : 'Нет данных'"
+              class="report-table p-datatable-sm"
+              stripedRows
+              showGridlines
+            >
+              <Column
+                v-for="column in tableColumns"
+                :key="column.field"
+                :field="column.field"
+                :header="column.header"
+                :sortable="column.sortable"
+                :style="{ 'min-width': column.minWidth }"
+              >
+                <template #body="{ data }">
+                  <template v-if="column.format === 'price'">
+                    <Tag :value="formatPrice(data[column.field])" severity="success" class="font-semibold" />
+                  </template>
+                  <template v-else-if="column.format === 'date'">
+                    <span>{{ formatDate(data[column.field]) }}</span>
+                  </template>
+                  <template v-else-if="column.field === 'quantity'">
+                    <Badge :value="data[column.field]" severity="info" />
+                  </template>
+                  <template v-else-if="column.field === 'reason'">
+                    <div class="max-w-20rem truncate-text" :title="data[column.field]">
+                      {{ data[column.field] }}
+                    </div>
+                  </template>
+                  <template v-else>
+                    {{ data[column.field] }}
+                  </template>
+                </template>
+              </Column>
 
-                  <Column header="Действия" :exportable="false" style="min-width: 120px">
-                    <template #body="{ data }">
-                      <div class="flex gap-1">
-                        <Button 
-                          v-if="canEditItem(data)"
-                          icon="pi pi-pencil"
-                          severity="info"
-                          size="small"
-                          rounded
-                          outlined
-                          v-tooltip.top="'Редактировать'"
-                          @click="editItem(data)"
-                        />
-                        
-                        <Button
-                          v-if="canDeleteItem(data)"
-                          icon="pi pi-trash"
-                          size="small"
-                          rounded
-                          outlined
-                          severity="danger"
-                          v-tooltip.top="'Удалить'"
-                          @click="deleteItem(data)" 
-                        />
-                        
-                        <Button
-                          v-if="!canEditItem(data) && !canDeleteItem(data)"
-                          icon="pi pi-eye"
-                          size="small"
-                          rounded
-                          outlined
-                          severity="secondary"
-                          v-tooltip.top="'Просмотреть'"
-                          @click="viewItem(data)"
-                        />
-                      </div>
-                    </template>
-                  </Column>
-                </DataTable>
-              </template>
-            </Card>
-          </div>
-        </div>
+              <Column header="Действия" :exportable="false" style="min-width: 120px">
+                <template #body="{ data }">
+                  <div class="flex gap-1">
+                    <Button
+                      v-if="canEditItem(data)"
+                      icon="pi pi-pencil"
+                      severity="info"
+                      size="small"
+                      rounded
+                      outlined
+                      v-tooltip.top="'Редактировать'"
+                      @click="editItem(data)"
+                    />
+
+                    <Button
+                      v-if="canDeleteItem(data)"
+                      icon="pi pi-trash"
+                      size="small"
+                      rounded
+                      outlined
+                      severity="danger"
+                      v-tooltip.top="'Удалить'"
+                      @click="deleteItem(data)"
+                    />
+
+                    <Button
+                      v-if="!canEditItem(data) && !canDeleteItem(data)"
+                      icon="pi pi-eye"
+                      size="small"
+                      rounded
+                      outlined
+                      severity="secondary"
+                      v-tooltip.top="'Просмотреть'"
+                      @click="viewItem(data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+            </DataTable>
+          </template>
+        </Card>
 
         <!-- График -->
         <div v-if="(reportType === 'sales' || reportType === 'returns') && normalizedReportData.length" class="grid mb-4">
@@ -336,7 +360,6 @@
             </Card>
           </div>
         </div>
-
       </div>
     </div>
 
@@ -444,7 +467,6 @@ import Card from 'primevue/card';
 import Button from 'primevue/button';
 import Calendar from 'primevue/calendar';
 import Dropdown from 'primevue/dropdown';
-import Divider from 'primevue/divider';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Dialog from 'primevue/dialog';
@@ -606,9 +628,28 @@ const editForm = reactive<EditForm>({
   date: null,
 });
 
+const statsCollapsed = ref(true);
+const filtersCollapsed = ref(true);
 const availableQuantity = ref<number>(0);
 const quantityInputRef = ref<InstanceType<typeof QuantityInput> | null>(null);
 const requestQuantity = ref<number>(0);
+
+const resizeChartAfterLayoutChange = async () => {
+  await nextTick();
+  if (mainChart) {
+    mainChart.resize();
+  }
+};
+
+const toggleStatsSection = async () => {
+  statsCollapsed.value = !statsCollapsed.value;
+  await resizeChartAfterLayoutChange();
+};
+
+const toggleFiltersSection = async () => {
+  filtersCollapsed.value = !filtersCollapsed.value;
+  await resizeChartAfterLayoutChange();
+};
 
 // Заголовки таблиц
 const getTableTitle = () => {
@@ -809,16 +850,6 @@ const formatDate = (dateString: string) => {
     });
   } catch {
     return 'Ошибка даты';
-  }
-};
-
-const formatDateShort = (dateString: string) => {
-  try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return '';
-    return date.toLocaleDateString('ru-RU');
-  } catch {
-    return '';
   }
 };
 
@@ -1500,6 +1531,26 @@ onBeforeUnmount(() => {
   color: white !important;
 }
 
+.section-card :deep(.p-card-body) {
+  gap: 1rem;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.filters-section {
+  padding-top: 0.25rem;
+}
+
+.filters-grid {
+  align-items: end;
+}
+
 /* График */
 .chart-container {
   width: 100%;
@@ -1544,6 +1595,10 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+  .section-header {
+    align-items: stretch;
+  }
+
   .chart-container {
     height: 300px;
   }
