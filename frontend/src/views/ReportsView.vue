@@ -260,10 +260,7 @@
                         <Tag :value="formatPrice(data[column.field])" severity="success" class="font-semibold" />
                       </template>
                       <template v-else-if="column.format === 'date'">
-                        <div class="flex flex-column">
-                          <span>{{ formatDate(data[column.field]) }}</span>
-                          <small class="text-color-secondary">{{ formatDateShort(data[column.field]) }}</small>
-                        </div>
+                        <span>{{ formatDate(data[column.field]) }}</span>
                       </template>
                       <template v-else-if="column.field === 'quantity'">
                         <Badge :value="data[column.field]" severity="info" />
@@ -475,6 +472,7 @@ const toast = useToast();
 interface NormalizedSale {
   id: number;
   productName: string;
+  committee: string;
   quantity: number;
   salePrice: number;
   purchasePrice: number;
@@ -498,6 +496,7 @@ interface NormalizedProduct {
 interface NormalizedReturn {
   id: number;
   productName: string;
+  committee: string;
   quantity: number;
   reason: string;
   returnedBy: string;
@@ -649,6 +648,7 @@ const normalizedReportData = computed(() => {
       return {
         id: sale.id,
         productName: sale.product?.name || 'Неизвестный товар',
+        committee: sale.product?.committee?.name || '-',
         quantity: quantity,
         salePrice: salePrice,
         purchasePrice: purchasePrice,
@@ -673,6 +673,7 @@ const normalizedReportData = computed(() => {
     return returnsStore.returns.map((ret): NormalizedReturn => ({
       id: ret.id,
       productName: ret.product?.name || 'Неизвестный товар',
+      committee: ret.product?.committee?.name || '-',
       quantity: ret.quantity,
       reason: ret.reason || '-',
       returnedBy: ret.user?.fullName || 'Неизвестно',
@@ -688,6 +689,7 @@ const normalizedReportData = computed(() => {
       return {
         id: sale.id,
         productName: sale.product?.name || 'Неизвестный товар',
+        committee: sale.product?.committee?.name || '-',
         quantity: quantity,
         salePrice: salePrice,
         purchasePrice: 0,
@@ -732,13 +734,14 @@ const calculatedStats = computed<CalculatedStats>(() => {
 const tableColumns = computed<ReportColumn[]>(() => {
   if (reportType.value === 'sales') {
     return [
-      { field: 'id', header: 'ID чека', sortable: true, minWidth: '100px' },
+      { field: 'id', header: 'ID чека', sortable: true, minWidth: '80px' },
       { field: 'productName', header: 'Товар', sortable: true, minWidth: '200px' },
       { field: 'quantity', header: 'Кол-во', sortable: true, minWidth: '100px' },
       { field: 'totalAmount', header: 'Сумма', sortable: true, format: 'price', minWidth: '120px' },
       { field: 'totalProfit', header: 'Прибыль', sortable: true, format: 'price', minWidth: '120px' },
-      { field: 'seller', header: 'Продавец', sortable: true, minWidth: '150px' },
-      { field: 'date', header: 'Дата', sortable: true, format: 'date', minWidth: '180px' },
+      { field: 'seller', header: 'Кто оформил', sortable: true, minWidth: '150px' },
+      { field: 'committee', header: 'Комитет', sortable: true, minWidth: '160px' },
+      { field: 'date', header: 'Дата продажи', sortable: true, format: 'date', minWidth: '180px' },
     ];
   } else if (reportType.value === 'stock') {
     return [
@@ -751,21 +754,23 @@ const tableColumns = computed<ReportColumn[]>(() => {
     ];
   } else if (reportType.value === 'returns') {
     return [
-      { field: 'id', header: 'ID возврата', sortable: true, minWidth: '120px' },
+      { field: 'id', header: 'ID возврата', sortable: true, minWidth: '80px' },
       { field: 'productName', header: 'Товар', sortable: true, minWidth: '200px' },
       { field: 'quantity', header: 'Кол-во', sortable: true, minWidth: '100px' },
       { field: 'reason', header: 'Причина', sortable: true, minWidth: '250px' },
-      { field: 'returnedBy', header: 'Кто вернул', sortable: true, minWidth: '150px' },
-      { field: 'date', header: 'Дата', sortable: true, format: 'date', minWidth: '180px' },
+      { field: 'returnedBy', header: 'Кто оформил', sortable: true, minWidth: '150px' },
+      { field: 'committee', header: 'Комитет', sortable: true, minWidth: '160px' },
+      { field: 'date', header: 'Дата возврата', sortable: true, format: 'date', minWidth: '180px' },
     ];
   } else {
     return [
       { field: 'id', header: 'ID', sortable: true, minWidth: '80px' },
       { field: 'productName', header: 'Товар', sortable: true, minWidth: '200px' },
+      { field: 'committee', header: 'Комитет', sortable: true, minWidth: '160px' },
       { field: 'quantity', header: 'Кол-во', sortable: true, minWidth: '100px' },
       { field: 'totalAmount', header: 'Сумма', sortable: true, format: 'price', minWidth: '120px' },
       { field: 'seller', header: 'Продавец', sortable: true, minWidth: '150px' },
-      { field: 'date', header: 'Дата', sortable: true, format: 'date', minWidth: '180px' },
+      { field: 'date', header: 'Дата продажи', sortable: true, format: 'date', minWidth: '180px' },
     ];
   }
 });

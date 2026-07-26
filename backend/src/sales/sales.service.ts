@@ -71,6 +71,7 @@ export class SalesService {
           product: {
             include: {
               category: true,
+              committee: true,
             },
           },
           user: {
@@ -162,6 +163,7 @@ export class SalesService {
           product: {
             include: {
               category: true,
+              committee: true,
             },
           },
           user: {
@@ -197,6 +199,7 @@ export class SalesService {
         product: {
           include: {
             category: true,
+            committee: true,
           },
         },
         user: {
@@ -318,6 +321,7 @@ export class SalesService {
           product: {
             include: {
               category: true,
+              committee: true,
             },
           },
           user: {

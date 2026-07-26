@@ -67,7 +67,11 @@ export class ReturnsService {
           returnedBy: userId,
         },
         include: {
-          product: true,
+          product: {
+            include: {
+              committee: true,
+            },
+          },
           user: true,
         },
       });
@@ -110,7 +114,11 @@ export class ReturnsService {
     const findManyArgs: Prisma.ReturnFindManyArgs = {
       where,
       include: {
-        product: true,
+        product: {
+          include: {
+            committee: true,
+          },
+        },
         user: true,
       },
       orderBy: {
@@ -130,7 +138,11 @@ export class ReturnsService {
     const returnRecord = await this.prisma.return.findUnique({
       where: { id },
       include: {
-        product: true,
+        product: {
+          include: {
+            committee: true,
+          },
+        },
         user: true,
       },
     });
@@ -200,7 +212,11 @@ export class ReturnsService {
             : existingReturn.returnedAt,
         },
         include: {
-          product: true,
+          product: {
+            include: {
+              committee: true,
+            },
+          },
           user: true,
         },
       });
@@ -210,16 +226,23 @@ export class ReturnsService {
 
     if (userId) {
       const { existingReturn, updatedReturn } = result;
-      const oldValues: any = {};
-      const newValues: any = {};
+      const oldValues: Record<string, unknown> = {};
+      const newValues: Record<string, unknown> = {};
+      const existingReturnRecord = existingReturn as unknown as Record<
+        string,
+        unknown
+      >;
+      const updatedReturnRecord = updatedReturn as unknown as Record<
+        string,
+        unknown
+      >;
 
       Object.keys(updateReturnDto).forEach((key) => {
-        const k = key as keyof UpdateReturnDto;
-        const val1 = (existingReturn as any)[k];
-        const val2 = (updatedReturn as any)[k];
+        const val1 = existingReturnRecord[key];
+        const val2 = updatedReturnRecord[key];
         if (JSON.stringify(val1) !== JSON.stringify(val2)) {
-          oldValues[k] = val1;
-          newValues[k] = val2;
+          oldValues[key] = val1;
+          newValues[key] = val2;
         }
       });
 
