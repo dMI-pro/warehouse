@@ -1,408 +1,135 @@
-# Warehouse Management System
+# Склад
 
-Система управления складом с полным функционалом для управления товарами, продажами, пользователями и отчетностью.
+Учёт товаров, продажи и возвраты, справочники, отчёты и журнал действий. Роли: гость, продавец, менеджер, администратор.
 
-## 🚀 Быстрый старт
+Стек: NestJS + Prisma + PostgreSQL, Vue 3 + Vite + PrimeVue, MinIO для изображений.
 
-### Предварительные требования
+Подробности: [руководство пользователя](user-manual-final.md), [деплой](DEPLOYMENT.md).
 
-- Node.js 20.19.0+ или 22.12.0+
-- Docker и Docker Compose (для запуска через Docker)
-- PostgreSQL 15+ (если запускаете без Docker)
+## Запуск через Docker
 
-### Запуск через Docker (рекомендуется)
+Нужны Docker, Docker Compose и Node.js 20.19+ или 22.12+.
 
-1. **Клонируйте репозиторий:**
-   ```bash
-   git clone <repository-url>
-   cd warehouse
-   ```
+```bash
+git clone <repository-url>
+cd warehouse
+```
 
-2. **Запустите все сервисы:**
-   ```bash
-   make up
-   ```
-   Или вручную:
-   ```bash
-   docker-compose up -d
-   ```
+Скопируйте `.env` по образцу проекта и заполните `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `JWT_SECRET` и параметры MinIO.
 
-3. **Примените миграции базы данных:**
-   ```bash
-   make migrate
-   ```
-   Или вручную:
-   ```bash
-   docker exec antiquar-backend npx prisma migrate dev
-   ```
+```bash
+make up
+make migrate
+make seed   # тестовые данные, по желанию
+```
 
-4. **Заполните базу данных тестовыми данными (опционально):**
-   ```bash
-   make seed
-   ```
+- Фронтенд: http://localhost:5173
+- API: http://localhost:3000
+- MinIO: http://localhost:9000
 
-5. **Откройте приложение:**
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:3000
+Без Makefile: `docker-compose up -d`, миграции — `docker exec antiquar-backend npx prisma migrate dev`.
 
-### Запуск без Docker
+## Запуск без Docker
 
-#### Backend
+PostgreSQL 15+ должен быть запущен отдельно.
 
-1. **Перейдите в папку backend:**
-   ```bash
-   cd backend
-   ```
-
-2. **Установите зависимости:**
-   ```bash
-   npm install
-   ```
-
-3. **Настройте переменные окружения:**
-   Создайте файл `.env` в папке `backend`:
-   ```env
-   DATABASE_URL="postgresql://user:password@localhost:5432/warehouse_db"
-   JWT_SECRET="your-secret-key-change-in-production-min-32-chars"
-   JWT_EXPIRES_IN="1h"
-   PORT=3000
-   NODE_ENV=development
-   ```
-
-4. **Примените миграции:**
-   ```bash
-   npx prisma generate
-   npx prisma migrate dev
-   ```
-
-5. **Запустите сервер:**
-   ```bash
-   npm run start:dev
-   ```
-
-#### Frontend
-
-1. **Перейдите в папку frontend:**
-   ```bash
-   cd frontend
-   ```
-
-2. **Установите зависимости:**
-   ```bash
-   npm install
-   ```
-
-3. **Настройте переменные окружения:**
-   Создайте файл `.env` в папке `frontend`:
-   ```env
-   VITE_API_URL=http://localhost:3000
-   ```
-
-4. **Запустите dev сервер:**
-   ```bash
-   npm run dev
-   ```
-
-## 📋 Доступные команды
-
-### Docker команды (Makefile)
-
-- `make up` - Запустить все сервисы
-- `make down` - Остановить все сервисы
-- `make logs` - Показать логи
-- `make restart` - Перезапустить сервисы
-- `make clean` - Остановить и удалить контейнеры и volumes
-- `make migrate` - Применить миграции базы данных
-- `make seed` - Заполнить базу тестовыми данными
-
-### Backend команды
-
-- `npm run start:dev` - Запустить в режиме разработки с hot-reload
-- `npm run build` - Собрать для production
-- `npm run start:prod` - Запустить production сборку
-- `npm run lint` - Проверить код линтером
-- `npm run test` - Запустить тесты
-- `npm run test:e2e` - Запустить E2E тесты
-
-### Frontend команды
-
-- `npm run dev` - Запустить dev сервер
-- `npm run build` - Собрать для production
-- `npm run preview` - Предпросмотр production сборки
-- `npm run test:unit` - Запустить unit тесты
-- `npm run type-check` - Проверить типы TypeScript
-
-## 🧪 Тестирование
-
-### Backend тесты
+**Backend**
 
 ```bash
 cd backend
-npm run test
-npm run test:watch  # С watch режимом
-npm run test:cov    # С покрытием кода
+npm install
 ```
 
-### Frontend тесты
-
-```bash
-cd frontend
-npm run test:unit
-```
-
-### E2E тесты
-
-```bash
-cd backend
-npm run test:e2e
-```
-
-## 🏗️ Структура проекта
-
-```
-warehouse/
-├── backend/              # NestJS backend
-│   ├── src/
-│   │   ├── auth/        # Модуль аутентификации
-│   │   ├── users/       # Модуль пользователей
-│   │   ├── products/    # Модуль товаров
-│   │   ├── categories/  # Модуль категорий
-│   │   ├── sales/       # Модуль продаж
-│   │   └── common/      # Общие утилиты и декораторы
-│   ├── prisma/          # Prisma схема и миграции
-│   └── test/            # Тесты
-├── frontend/            # Vue 3 frontend
-│   ├── src/
-│   │   ├── views/       # Страницы приложения
-│   │   ├── components/  # Компоненты
-│   │   ├── stores/      # Pinia stores
-│   │   ├── services/    # API сервисы
-│   │   ├── utils/       # Утилиты
-│   │   └── types/       # TypeScript типы
-│   └── __tests__/       # Тесты
-└── docker-compose.yml   # Docker конфигурация
-```
-
-## 🔐 Аутентификация и роли
-
-Система поддерживает следующие роли:
-
-- **GUEST** - Гость (базовый доступ)
-- **SELLER** - Продавец (может продавать товары)
-- **MANAGER** - Менеджер (может управлять товарами, категориями, видеть отчеты)
-- **ADMIN** - Администратор (полный доступ, включая управление пользователями)
-
-## 📦 Основной функционал
-
-### Товары
-- Просмотр списка товаров с фильтрацией и поиском
-- Добавление и редактирование товаров
-- Загрузка изображений с автоматическим сжатием
-- Управление количеством и ценами
-- Продажа товаров
-
-### Категории
-- Иерархическая структура категорий
-- Создание, редактирование и удаление категорий
-
-### Продажи
-- Оформление продаж
-- История продаж
-- Статистика продаж
-
-### Отчеты
-- Графики продаж по датам
-- Топ товаров
-- Выручка и статистика
-- Экспорт данных в CSV
-
-### Пользователи
-- Управление пользователями (только для админов)
-- Назначение ролей
-
-## 🛠️ Разработка
-
-### Добавление нового модуля
-
-1. Создайте модуль в `backend/src/`
-2. Добавьте контроллер, сервис и DTO
-3. Зарегистрируйте модуль в `app.module.ts`
-4. Создайте миграцию Prisma при необходимости
-
-### Добавление новой страницы
-
-1. Создайте компонент в `frontend/src/views/`
-2. Добавьте маршрут в `frontend/src/router/index.ts`
-3. Добавьте пункт меню в `frontend/src/layouts/MainLayout.vue`
-
-## 🐛 Решение проблем
-
-### Проблемы с CORS
-
-Убедитесь, что в `backend/src/main.ts` правильно настроены разрешенные origins. Для разработки добавьте `http://localhost:5173`.
-
-### Проблемы с базой данных
-
-1. Проверьте, что PostgreSQL запущен
-2. Убедитесь, что `DATABASE_URL` правильный
-3. Примените миграции: `make migrate`
-
-### Проблемы с загрузкой изображений
-
-1. Проверьте, что папка `backend/uploads/products` существует и доступна для записи
-2. Убедитесь, что размер файла не превышает 5MB
-3. Проверьте формат файла (поддерживаются: jpg, jpeg, png, gif, webp)
-
-## 📝 Переменные окружения
-
-### Backend (.env)
+В `backend/.env`:
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/warehouse_db
-JWT_SECRET=your-secret-key-min-32-characters
-JWT_EXPIRES_IN=1h
+DATABASE_URL="postgresql://user:password@localhost:5432/warehouse_db"
+JWT_SECRET="не короче 32 символов"
+JWT_EXPIRES_IN="1h"
 PORT=3000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
 ```
 
-### Frontend (.env)
+```bash
+npx prisma generate
+npx prisma migrate dev
+npm run start:dev
+```
+
+**Frontend**
+
+```bash
+cd frontend
+npm install
+```
+
+В `frontend/.env`:
 
 ```env
 VITE_API_URL=http://localhost:3000
 ```
 
-## 🚀 Production деплой
+```bash
+npm run dev
+```
 
-### Подготовка окружения (VPS)
-1. Установите Docker и Docker Compose
-2. Склонируйте репозиторий:
-   ```bash
-   git clone <repository-url>
-   cd warehouse
-   ```
-3. Инициализируйте prod.env:
-   ```bash
-   ./init-prod-env.sh
-   ```
-   Заполните prod.env (DB_USER/DB_PASSWORD/DB_NAME, JWT_SECRET, FRONTEND_URL, MINIO_*).
-4. Запустите production инфраструктуру:
-   ```bash
-   docker compose -f docker-compose.prod.yml up -d --build
-   ```
-5. Проверка:
-   - Frontend: http://<your-domain>/
-   - API: http://<your-domain>/api/health
-6. Обновление (деплой):
-   ```bash
-   ./deploy.sh
-   ```
+## Команды
 
-## 📄 Лицензия
+Docker (`Makefile`): `make up`, `make down`, `make logs`, `make restart`, `make clean`, `make migrate`, `make seed`, `make backup`, `make restore FILE=path.sql`.
 
-MIT
+Backend: `npm run start:dev`, `npm run build`, `npm run start:prod`, `npm run lint`, `npm run test`, `npm run test:e2e`.
 
-## 👥 Авторы
+Frontend: `npm run dev`, `npm run build`, `npm run preview`, `npm run test:unit`, `npm run type-check`.
 
-Warehouse Management Team
+## Что умеет система
 
----
+- Товары: список, фильтры, CRUD, фото (сжатие в WebP, MinIO), остатки и цены.
+- Продажи и возвраты с историей и влиянием на остатки.
+- Справочники: категории, склады, комитеты, типы транзакций, статусы пользователей.
+- Отчёты: графики, топ товаров, выручка, выгрузка.
+- Пользователи и роли (админ), журнал действий.
 
-## 📘 Инструкция пользователя
+Доступ по ролям задаётся и на API, и на маршрутах фронтенда.
 
-### Ролевые модели и доступ
-- Гость (GUEST): базовый доступ, просмотр ограниченных публичных страниц (если включено).
-- Продавец (SELLER): оформляет продажи, видит историю своих действий.
-- Менеджер (MANAGER): управляет товарами, категориями, складами, комитетами; видит отчеты.
-- Администратор (ADMIN): полный доступ, включая управление пользователями, журнал действий и системные настройки.
+## Структура
 
-### Навигация и страницы
-- Главная: обзор статистики, график продаж, блоки «Последние продажи», «Новые поступления», «Последние возвраты», «Последние действия».
-- Товары: список, фильтры, создание/редактирование, загрузка изображений, изменение порядка изображений.
-- Настройки: категории, склады, комитеты, типы транзакций, статусы пользователей, дополнительные поля, шаблоны экспорта, системные настройки.
-- Комитеты: детальная страница комитета со статистикой.
-- Отчеты: агрегированная отчетность по продажам и возвратам, визуализация.
-- Журнал действий: аудит всех операций с деталями и фильтрами.
-- Пользователи: управление учетными записями, ролями и статусами (только админ).
+```
+warehouse/
+├── backend/          # NestJS, Prisma
+├── frontend/         # Vue 3
+├── docker-compose.yml
+├── docker-compose.prod.yml
+└── deploy.sh
+```
 
-Доступ по ролям:
-- SELLER: Главная, Товары (просмотр), Продажи (оформление), Отчеты (просмотр ограниченно).
-- MANAGER: Все выше + создание/редактирование товаров, категорий, складов, комитетов, отчетов.
-- ADMIN: Полный доступ ко всем страницам и настройкам, включая «Пользователи» и «Журнал действий».
+## Продакшен
 
-### Типичные сценарии
-- Добавить товар: Товары → «Добавить», заполнить поля, при необходимости загрузить изображения (сжатие и конвертация в webp выполняются автоматически).
-- Продать товар: Продажи → выбрать товар → указать количество → подтвердить; запись появится в «Последние продажи» и «Журнал действий».
-- Оформить возврат: Возвраты → выбрать товар/продажу → указать количество → подтвердить; запись появится в «Последние возвраты» и «Журнал действий».
-- Управление комитетами: Настройки → Коммитеты → «Добавить/Редактировать», доступно для MANAGER/ADMIN.
-- Просмотреть аудит: Журнал действий → фильтры по пользователю, типу действия, дате → «Показать» для подробностей изменений.
+На VPS: Docker, `prod.env` (`./init-prod-env.sh`), затем:
 
-### Особенности интерфейса
-- Верхнее меню закреплено и подсвечивает активный раздел, включая вложенные маршруты (например, детальная страница товара подсвечивает «Товары», переход на вкладку комитетов в Настройках).
-- Таблицы в виджетах имеют компактный скролл и усечение текста для удобного чтения.
-- История товара включает добавление/удаление/перестановку изображений, изменения цены/количества и др.
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
 
----
+Обновление: `./deploy.sh` или push в ветку `staging` (GitHub Actions, `.github/workflows/deploy-staging.yml`). Нужны секреты `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_PATH`.
 
-## 📑 Техническое задание (ретроспектива)
+Фронт: `https://<домен>/`, проверка API: `https://<домен>/api/health`. Полная инструкция — в `DEPLOYMENT.md`.
 
-### Цель
-Разработать систему управления складом с поддержкой ролевой модели, аудита операций, загрузки изображений товаров, продаж/возвратов, отчетности и админ-функций.
+## Если что-то не поднимается
 
-### Требования
-- Архитектура: Backend на NestJS + Prisma, Frontend на Vue 3 + Vite + PrimeVue, Pinia и Vue Router.
-- Роли: GUEST, SELLER, MANAGER, ADMIN. Глобальный JwtAuthGuard, granular RolesGuard по контроллерам.
-- Аудит: логировать операции создания/обновления/удаления, продажи, возвраты, изображения (добавление/удаление/перестановка), с пользователем, временем, IP/UA.
-- Товары: CRUD, категории, склады, комитеты, типы транзакций, статусы пользователей, дополнительные поля.
-- Изображения: загрузка с автоматической компрессией (конвертация в webp), хранение в MinIO, публичные URL через сервис.
-- Продажи/Возвраты: фиксация, отчетность и графики; отображение на главной.
-- Отчеты: агрегированные метрики, динамика продаж, фильтры по диапазону дат, экспорт CSV.
-- Пользователи: управление ролями, статусами, история действий (для ADMIN).
-- UI/UX: закрепленное меню, подсветка активного маршрута, удобные виджеты на главной, адаптивная сетка.
+- CORS: в `backend/src/main.ts` должен быть origin фронтенда (`http://localhost:5173` в разработке).
+- БД: PostgreSQL запущен, `DATABASE_URL` верный, миграции применены (`make migrate`).
+- Картинки: MinIO доступен, креды в `.env` совпадают с контейнером.
 
-### Нефункциональные
-- Безопасность: helmet, валидация DTO, ограничение CORS, хранение секретов в .env, JWT.
-- Производительность: разделение бандла, асинхронные загрузки, оптимизация графиков, ограничение выборок.
-- Поддержка: типобезопасность (vue-tsc), unit-тесты (Vitest/Jest), линтеры (ESLint).
+## Что ещё планируется
 
-### Минимальные API (примерно)
-- /auth — аутентификация (JWT).
-- /products — CRUD, изображения: POST/DELETE/reorder.
-- /sales — CRUD продаж, агрегаты.
-- /returns — CRUD возвратов, агрегаты.
-- /categories, /warehouses, /committees, /transaction-types, /user-statuses — справочники.
-- /audit-log — просмотр журнала с фильтрами.
-- /users — управление пользователями (ADMIN).
-
-### Фронтенд страницы
-- Dashboard, Products, Product Details, Reports, Settings (tabs), Committees Details, Audit Log, Users.
-
----
-
-## 🔒 Рекомендации по безопасности
-
-Текущие меры:
-- JwtAuthGuard глобально; RolesGuard на контроллерах.
-- Helmet с CSP; CORS с ограничением origin; глобальная ValidationPipe с whitelist/forbidNonWhitelisted.
-- Проверка расширений при загрузке изображений и автоматическая конверсия в webp.
-
-Рекомендации:
-- Обновить Node.js до 20.19+ или 22.12+ (см. [frontend/package.json](file:///c:/Users/User/Desktop/Project/warehouse/frontend/package.json#L6-L12)) — требование Vite.
-- Добавить ограничение размера файла и проверку mimetype на сервере (до/после компрессии).
-- Включить rate limiting для auth и мутирующих эндпоинтов.
-- Хэширование паролей (bcryptjs) и политика сложности; ротация JWT-секрета; минимальная длина 32+ символов.
-- Логи IP/UA только при согласии; маскировать чувствительные данные в логах.
-- Рассмотреть CSRF для state-changing запросов (если приложение используется в среде с формами).
-- HSTS и secure cookies в production; строгая настройка CSP для внешних ресурсов.
-- Валидация параметров запроса и тела везде, где есть пользовательский ввод.
-- Разграничить публичную раздачу файлов: MinIO bucket с ограничениями, префиксы.
-
-Список страниц/ролей, ссылки на исходники:
-- Меню и подсветка: [MainLayout.vue](file:///c:/Users/User/Desktop/Project/warehouse/frontend/src/layouts/MainLayout.vue)
-- Главная и виджеты: [DashboardView.vue](file:///c:/Users/User/Desktop/Project/warehouse/frontend/src/views/DashboardView.vue)
-- Детали товара и история: [ProductDetailsView.vue](file:///c:/Users/User/Desktop/Project/warehouse/frontend/src/views/ProductDetailsView.vue)
-- Настройки/вкладки: [SettingsView.vue](file:///c:/Users/User/Desktop/Project/warehouse/frontend/src/views/SettingsView.vue)
-- Комитет: [CommitteeDetailsView.vue](file:///c:/Users/User/Desktop/Project/warehouse/frontend/src/views/CommitteeDetailsView.vue)
-- Отчеты: [ReportsView.vue](file:///c:/Users/User/Desktop/Project/warehouse/frontend/src/views/ReportsView.vue)
-- Журнал действий: [AuditLogView.vue](file:///c:/Users/User/Desktop/Project/warehouse/frontend/src/views/AuditLogView.vue)
-- Пользователи: [UsersView.vue](file:///c:/Users/User/Desktop/Project/warehouse/frontend/src/views/UsersView.vue)
+- Swagger по API, чтобы не собирать эндпоинты вручную.
+- Импорт и экспорт товаров, операций и отчётов в CSV/XLSX.
+- Более гибкие отчёты: свои метрики, сохранённые фильтры, регулярные выгрузки.
+- Права не только по ролям, а точечно по операциям и полям.
+- Перевод интерфейса и справочников.
+- Health-check, метрики и нормальные логи на сервере.
+- Массовые действия в каталоге и более удобная работа с длинными списками.
+- Кэш справочников на сервере и меньше лишних запросов с клиента.
+- Линт, типы и тесты в CI, не только деплой staging.
+- Жёстче политика паролей и отдельный учёт входов и выходов.
