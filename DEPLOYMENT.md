@@ -24,7 +24,12 @@
    JWT_EXPIRES_IN=1h
    PORT=3000
    NODE_ENV=production
-   FRONTEND_URL=https://your-frontend-domain.com
+   FRONTEND_URL=https://tsehh.ru
+   JWT_SECRET=your-very-secure-secret-key-minimum-32-characters-long
+   JWT_EXPIRATION=7d
+   PORT=3000
+   NODE_ENV=production
+   MINIO_PUBLIC_URL=https://tsehh.ru/minio
    ```
 
 3. **Сборка проекта:**
@@ -60,7 +65,7 @@
    ```nginx
    server {
        listen 80;
-       server_name your-domain.com;
+       server_name tsehh.ru www.tsehh.ru;
 
        root /path/to/warehouse/frontend/dist;
        index index.html;
@@ -183,15 +188,15 @@ docker exec -i antiquar-db psql -U user database_name < backup_20240101.sql
 
 ### Подготовка VPS (один раз)
 
-1. Убедитесь, что проект уже клонирован на VPS и используется правильный путь (например, `/opt/warehouse`).
+1. Убедитесь, что проект уже клонирован на VPS и используется правильный путь (например, `/var/www/warehouse`).
 2. Убедитесь, что в папке проекта есть ваши серверные файлы:
-   - `prod.env`
-   - `certs/`
-3. Убедитесь, что пользователь, под которым подключается GitHub Actions, может выполнять:
+   - `prod.env` с `FRONTEND_URL=https://tsehh.ru` и `MINIO_PUBLIC_URL=https://tsehh.ru/minio`
+   - `certs/` (SSL для `tsehh.ru` / `www.tsehh.ru`: `./setup-ssl.sh tsehh.ru you@email.com`)
+3. DNS A-записи `tsehh.ru` и `www.tsehh.ru` должны указывать на IP VPS.
+4. Пользователь деплоя должен уметь запускать Docker Compose (обычно группа `docker`):
    ```bash
    docker compose -f docker-compose.prod.yml up -d --build
    ```
-   Обычно это значит, что пользователь входит в группу `docker`.
 
 ### Подготовка SSH-ключа для GitHub Actions (один раз)
 

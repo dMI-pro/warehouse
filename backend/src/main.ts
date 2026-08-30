@@ -58,19 +58,32 @@ async function bootstrap() {
     }),
   );
 
-  // Включение CORS для фронтенда и API клиентов
+  // CORS: в production — из FRONTEND_URL (+ www и http/https), в dev — localhost
+  const buildOriginsFromFrontendUrl = (url: string): string[] => {
+    const trimmed = url.trim().replace(/\/$/, '');
+    const origins = new Set<string>([trimmed]);
+    try {
+      const parsed = new URL(trimmed);
+      const host = parsed.hostname;
+      const altHost = host.startsWith('www.') ? host.slice(4) : `www.${host}`;
+      for (const scheme of ['https', 'http'] as const) {
+        origins.add(`${scheme}://${host}`);
+        origins.add(`${scheme}://${altHost}`);
+      }
+    } catch {
+      // ignore invalid FRONTEND_URL
+    }
+    return [...origins];
+  };
+
+  const frontendUrl = process.env.FRONTEND_URL?.trim();
   const allowedOrigins =
     process.env.NODE_ENV === 'production'
-      ? process.env.FRONTEND_URL
-        ? [
-            process.env.FRONTEND_URL.trim(),
-            'http://smagrarom.ru',
-            'https://smagrarom.ru',
-          ]
+      ? frontendUrl
+        ? buildOriginsFromFrontendUrl(frontendUrl)
         : ['http://localhost:5173']
       : [
-          'http://smagrarom.ru',
-          'https://smagrarom.ru',
+          ...(frontendUrl ? buildOriginsFromFrontendUrl(frontendUrl) : []),
           'http://localhost:5173',
           'http://localhost:3000',
           'http://localhost:3001',

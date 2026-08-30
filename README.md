@@ -125,7 +125,9 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 Обновление: `./deploy.sh` или push в ветку `staging` (GitHub Actions, `.github/workflows/deploy-staging.yml`). Нужны секреты `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_PATH`.
 
-Фронт: `https://<домен>/`, проверка API: `https://<домен>/api/health`. Полная инструкция — в `DEPLOYMENT.md`.
+Фронт: `https://tsehh.ru/`, проверка API: `https://tsehh.ru/api/health`. Полная инструкция — в `DEPLOYMENT.md`.
+
+На VPS в `prod.env` обязательно: `FRONTEND_URL=https://tsehh.ru` и `MINIO_PUBLIC_URL=https://tsehh.ru/minio`. SSL: `./setup-ssl.sh tsehh.ru you@email.com` (или DNS-вариант `setup-ssl-dns.sh`), сертификаты в `certs/`.
 
 ## Если что-то не поднимается
 

@@ -45,7 +45,7 @@ is_vps() {
         local fe
         fe=$(read_env "$(pwd)/prod.env" FRONTEND_URL)
         case "$fe" in
-            https://*|http://*smagrarom*) return 0 ;;
+            https://*|http://*tsehh*) return 0 ;;
         esac
     fi
     return 1
