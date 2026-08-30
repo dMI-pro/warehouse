@@ -9,6 +9,7 @@ dist/
 prod.env
 certs/
 ssl/
+backup*.sql
 
 # Docker volumes
 postgres_data/
