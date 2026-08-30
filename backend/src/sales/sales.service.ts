@@ -11,6 +11,10 @@ import { UpdateSaleDto } from './dto/update-sale.dto';
 import { QuerySalesDto } from './dto/query-sales.dto';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { Prisma } from '@prisma/client';
+import {
+  sanitizeNestedProduct,
+  type ProductViewer,
+} from '../common/utils/product-visibility.util';
 
 @Injectable()
 export class SalesService {
@@ -21,7 +25,11 @@ export class SalesService {
     // private auditLogService?: AuditLogService,
   ) {}
 
-  async create(createSaleDto: CreateSaleDto, userId: number) {
+  async create(
+    createSaleDto: CreateSaleDto,
+    userId: number,
+    viewer?: ProductViewer,
+  ) {
     // Транзакция: проверка товара с блокировкой строки, создание продажи и уменьшение остатка
     const result = await this.prisma.$transaction(async (tx) => {
       // Используем raw query с SELECT FOR UPDATE для блокировки строки и предотвращения race condition
@@ -120,10 +128,10 @@ export class SalesService {
       });
     }
 
-    return result;
+    return sanitizeNestedProduct(result, viewer);
   }
 
-  async findAll(query: QuerySalesDto) {
+  async findAll(query: QuerySalesDto, viewer?: ProductViewer) {
     const {
       productId,
       soldBy,
@@ -182,7 +190,7 @@ export class SalesService {
     ]);
 
     return {
-      data: sales,
+      data: sales.map((sale) => sanitizeNestedProduct(sale, viewer)),
       meta: {
         total,
         page,
@@ -192,7 +200,7 @@ export class SalesService {
     };
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, viewer?: ProductViewer) {
     const sale = await this.prisma.sale.findUnique({
       where: { id },
       include: {
@@ -216,7 +224,7 @@ export class SalesService {
       throw new NotFoundException(`Sale with ID ${id} not found`);
     }
 
-    return sale;
+    return sanitizeNestedProduct(sale, viewer);
   }
 
   async getStatistics(startDate?: string, endDate?: string) {
@@ -255,7 +263,12 @@ export class SalesService {
     };
   }
 
-  async update(id: number, updateSaleDto: UpdateSaleDto, userId: number) {
+  async update(
+    id: number,
+    updateSaleDto: UpdateSaleDto,
+    userId: number,
+    viewer?: ProductViewer,
+  ) {
     const result = await this.prisma.$transaction(async (tx) => {
       const existingSale = await tx.sale.findUnique({
         where: { id },
@@ -376,7 +389,7 @@ export class SalesService {
       }
     }
 
-    return result.updatedSale;
+    return sanitizeNestedProduct(result.updatedSale, viewer);
   }
 
   async remove(id: number, userId: number) {

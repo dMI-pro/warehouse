@@ -82,7 +82,8 @@ export interface Product {
   name: string;
   sku: string;
   description?: string;
-  purchasePrice: number;
+  /** Only for ADMIN / MANAGER — omitted for SELLER / GUEST by API */
+  purchasePrice?: number;
   salePrice: number;
   quantity: number;
   minStockLevel: number;

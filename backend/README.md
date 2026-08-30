@@ -39,6 +39,13 @@ Backend реализован на NestJS (TypeScript) с использован�
 - RolesGuard для ролевых ограничений; JwtAuthGuard глобально.
 - CORS ограничен списком доверенных origins (см. main.ts).
 - Проверка расширения изображений и конвертация в webp перед загрузкой.
+- Ответы товаров для **SELLER** / **GUEST** без чувствительных полей (`purchasePrice`, `committee`, `transactionType` и их id) — см. `common/utils/product-visibility.util.ts`. То же для вложенного `product` в sales/returns.
+
+### Роли (кратко)
+- **GUEST** — чтение товаров (урезанный JSON).
+- **SELLER** — чтение товаров + продажи/возвраты.
+- **MANAGER** — CRUD товаров (кроме delete), справочники, отчёты, полный JSON товара.
+- **ADMIN** — полный доступ, включая users и audit-log.
 
 ### Переменные окружения (.env)
 ```

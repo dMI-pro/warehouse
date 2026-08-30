@@ -11,6 +11,10 @@ import { UpdateReturnDto } from './dto/update-return.dto';
 import { QueryReturnsDto } from './dto/query-returns.dto';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { Prisma } from '@prisma/client';
+import {
+  sanitizeNestedProduct,
+  type ProductViewer,
+} from '../common/utils/product-visibility.util';
 
 @Injectable()
 export class ReturnsService {
@@ -20,7 +24,11 @@ export class ReturnsService {
     private auditLogService: AuditLogService,
   ) {}
 
-  async create(createReturnDto: CreateReturnDto, userId: number) {
+  async create(
+    createReturnDto: CreateReturnDto,
+    userId: number,
+    viewer?: ProductViewer,
+  ) {
     const { productId, quantity, reason, returnedAt } = createReturnDto;
 
     if (!userId) {
@@ -94,10 +102,10 @@ export class ReturnsService {
       });
     }
 
-    return result;
+    return sanitizeNestedProduct(result, viewer);
   }
 
-  async findAll(query: QueryReturnsDto) {
+  async findAll(query: QueryReturnsDto, viewer?: ProductViewer) {
     const { startDate, endDate, page = 1, limit } = query;
     const where: Prisma.ReturnWhereInput = {};
 
@@ -131,10 +139,11 @@ export class ReturnsService {
       findManyArgs.take = limit;
     }
 
-    return this.prisma.return.findMany(findManyArgs);
+    const returns = await this.prisma.return.findMany(findManyArgs);
+    return returns.map((ret) => sanitizeNestedProduct(ret, viewer));
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, viewer?: ProductViewer) {
     const returnRecord = await this.prisma.return.findUnique({
       where: { id },
       include: {
@@ -151,10 +160,15 @@ export class ReturnsService {
       throw new NotFoundException(`Return with ID ${id} not found`);
     }
 
-    return returnRecord;
+    return sanitizeNestedProduct(returnRecord, viewer);
   }
 
-  async update(id: number, updateReturnDto: UpdateReturnDto, userId: number) {
+  async update(
+    id: number,
+    updateReturnDto: UpdateReturnDto,
+    userId: number,
+    viewer?: ProductViewer,
+  ) {
     const result = await this.prisma.$transaction(async (prisma) => {
       const existingReturn = await prisma.return.findUnique({
         where: { id },
@@ -259,7 +273,7 @@ export class ReturnsService {
       }
     }
 
-    return result.updatedReturn;
+    return sanitizeNestedProduct(result.updatedReturn, viewer);
   }
 
   async remove(id: number, userId: number) {

@@ -71,22 +71,28 @@ export class ProductsController {
     @Body() createProductDto: CreateProductDto,
     @CurrentUser() user: User,
   ) {
-    return this.productsService.create(createProductDto, user.id);
+    return this.productsService.create(createProductDto, user.id, user);
   }
 
   @Get()
-  async findAll(@Query() query: QueryProductsDto) {
-    return this.productsService.findAll(query);
+  async findAll(
+    @Query() query: QueryProductsDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.productsService.findAll(query, user);
   }
 
   @Get('in-stock')
-  async getInStock() {
-    return this.productsService.findInStock();
+  async getInStock(@CurrentUser() user: User) {
+    return this.productsService.findInStock(user);
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.productsService.findOne(id);
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: User,
+  ) {
+    return this.productsService.findOne(id, user);
   }
 
   @Patch(':id')
@@ -96,7 +102,7 @@ export class ProductsController {
     @Body() updateProductDto: UpdateProductDto,
     @CurrentUser() user?: User,
   ) {
-    return this.productsService.update(id, updateProductDto, user?.id);
+    return this.productsService.update(id, updateProductDto, user?.id, user);
   }
 
   @Delete(':id')
@@ -148,7 +154,7 @@ export class ProductsController {
       throw new BadRequestException('Invalid file extension');
     }
 
-    return this.productsService.uploadImage(id, file, user?.id);
+    return this.productsService.uploadImage(id, file, user?.id, user);
   }
 
   @Delete(':id/images')
@@ -161,7 +167,7 @@ export class ProductsController {
     if (!imageUrl) {
       throw new BadRequestException('Image URL is required');
     }
-    return this.productsService.deleteImage(id, imageUrl, user?.id);
+    return this.productsService.deleteImage(id, imageUrl, user?.id, user);
   }
 
   @Patch(':id/images/reorder')
@@ -174,6 +180,6 @@ export class ProductsController {
     if (!images || !Array.isArray(images)) {
       throw new BadRequestException('Images array is required');
     }
-    return this.productsService.reorderImages(id, images, user?.id);
+    return this.productsService.reorderImages(id, images, user?.id, user);
   }
 }

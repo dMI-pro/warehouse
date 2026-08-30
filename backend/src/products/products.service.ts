@@ -14,6 +14,11 @@ import { Prisma } from '@prisma/client';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { MinioService } from '../minio/minio.service';
 import { compressImage } from '../common/utils/image-compression.util';
+import {
+  sanitizeProductForRole,
+  canSeeProductSensitiveFields,
+  type ProductViewer,
+} from '../common/utils/product-visibility.util';
 import * as ExcelJS from 'exceljs';
 import { Parser } from 'json2csv';
 
@@ -42,8 +47,8 @@ export class ProductsService {
     return Array.from(new Set(keys));
   }
 
-  private mapProduct(product: any) {
-    return product;
+  private mapProduct(product: any, viewer?: ProductViewer) {
+    return sanitizeProductForRole(product, viewer);
   }
 
   async getLastSku() {
@@ -54,7 +59,7 @@ export class ProductsService {
     return { sku: lastProduct?.sku || null };
   }
 
-  async create(createProductDto: CreateProductDto, userId: number) {
+  async create(createProductDto: CreateProductDto, userId: number, viewer?: ProductViewer) {
     // Проверка уникальности SKU
     const existingProduct = await this.prisma.product.findUnique({
       where: { sku: createProductDto.sku },
@@ -158,7 +163,7 @@ export class ProductsService {
       });
     }
 
-    const mapped = this.mapProduct(product);
+    const mapped = this.mapProduct(product, viewer);
     if (mapped.images && mapped.images.length > 0) {
       const imgs = (product.images || []).filter(Boolean);
       mapped.images = await Promise.all(
@@ -168,7 +173,7 @@ export class ProductsService {
     return mapped;
   }
 
-  async findAll(query: QueryProductsDto) {
+  async findAll(query: QueryProductsDto, viewer?: ProductViewer) {
     const {
       search,
       category,
@@ -207,8 +212,8 @@ export class ProductsService {
       where.warehouseId = warehouse;
     }
 
-    // Фильтрация по коммитету
-    if (committee) {
+    // Фильтрация по коммитету — только для ролей, которые видят коммитеты
+    if (committee && canSeeProductSensitiveFields(viewer)) {
       where.committeeId = committee;
     }
 
@@ -243,7 +248,7 @@ export class ProductsService {
 
     const data = await Promise.all(
       products.map(async (p) => {
-        const mapped = this.mapProduct(p);
+        const mapped = this.mapProduct(p, viewer);
         if (Array.isArray(mapped.images) && mapped.images.length > 0) {
           const imgs = (p.images || []).filter(Boolean);
           mapped.images = await Promise.all(
@@ -265,7 +270,7 @@ export class ProductsService {
     };
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, viewer?: ProductViewer) {
     const product = await this.prisma.product.findUnique({
       where: { id },
       include: {
@@ -284,7 +289,7 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    const mapped = this.mapProduct(product);
+    const mapped = this.mapProduct(product, viewer);
     if (mapped.images && mapped.images.length > 0) {
       const imgs = (product.images || []).filter(Boolean);
       mapped.images = await Promise.all(
@@ -298,6 +303,7 @@ export class ProductsService {
     id: number,
     updateProductDto: UpdateProductDto,
     userId?: number,
+    viewer?: ProductViewer,
   ) {
     // Проверка существования товара
     const oldProduct = await this.prisma.product.findUnique({
@@ -460,7 +466,7 @@ export class ProductsService {
       }
     }
 
-    const mapped = this.mapProduct(updatedProduct);
+    const mapped = this.mapProduct(updatedProduct, viewer);
     if (mapped.images && mapped.images.length > 0) {
       const imgs = (updatedProduct.images || []).filter(Boolean);
       mapped.images = await Promise.all(
@@ -470,7 +476,7 @@ export class ProductsService {
     return mapped;
   }
 
-  async findInStock() {
+  async findInStock(viewer?: ProductViewer) {
     const products = await this.prisma.product.findMany({
       where: { quantity: { gt: 0 } },
       include: {
@@ -487,7 +493,7 @@ export class ProductsService {
     });
     const data = await Promise.all(
       products.map(async (p) => {
-        const mapped = this.mapProduct(p);
+        const mapped = this.mapProduct(p, viewer);
         if (Array.isArray(mapped.images) && mapped.images.length > 0) {
           const imgs = (p.images || []).filter(Boolean);
           mapped.images = await Promise.all(
@@ -856,7 +862,12 @@ export class ProductsService {
     return { message: 'Product deleted successfully' };
   }
 
-  async uploadImage(id: number, file: Express.Multer.File, userId?: number) {
+  async uploadImage(
+    id: number,
+    file: Express.Multer.File,
+    userId?: number,
+    viewer?: ProductViewer,
+  ) {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
@@ -908,7 +919,7 @@ export class ProductsService {
       });
     }
 
-    const mapped = this.mapProduct(updatedProduct);
+    const mapped = this.mapProduct(updatedProduct, viewer);
     if (mapped.images && mapped.images.length > 0) {
       const imgs = (updatedProduct.images || []).filter(Boolean);
       mapped.images = await Promise.all(
@@ -918,7 +929,12 @@ export class ProductsService {
     return mapped;
   }
 
-  async deleteImage(id: number, imageUrl: string, userId?: number) {
+  async deleteImage(
+    id: number,
+    imageUrl: string,
+    userId?: number,
+    viewer?: ProductViewer,
+  ) {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
@@ -969,7 +985,7 @@ export class ProductsService {
       });
     }
 
-    const mapped = this.mapProduct(updatedProduct);
+    const mapped = this.mapProduct(updatedProduct, viewer);
     if (mapped.images && mapped.images.length > 0) {
       const imgs = (updatedProduct.images || []).filter(Boolean);
       mapped.images = await Promise.all(
@@ -979,7 +995,12 @@ export class ProductsService {
     return mapped;
   }
 
-  async reorderImages(id: number, imageUrls: string[], userId?: number) {
+  async reorderImages(
+    id: number,
+    imageUrls: string[],
+    userId?: number,
+    viewer?: ProductViewer,
+  ) {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundException(`Product ${id} not found`);
 
@@ -1017,7 +1038,7 @@ export class ProductsService {
       });
     }
 
-    const mapped = this.mapProduct(updatedProduct);
+    const mapped = this.mapProduct(updatedProduct, viewer);
     if (mapped.images && mapped.images.length > 0) {
       mapped.images = await Promise.all(
         updatedProduct.images.map((img: string) =>

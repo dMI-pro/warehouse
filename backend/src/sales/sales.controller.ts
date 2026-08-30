@@ -28,13 +28,16 @@ export class SalesController {
   @Post()
   @Roles(Role.SELLER, Role.MANAGER, Role.ADMIN)
   async create(@Body() createSaleDto: CreateSaleDto, @CurrentUser() user: any) {
-    return this.salesService.create(createSaleDto, user.id);
+    return this.salesService.create(createSaleDto, user.id, user);
   }
 
   @Get()
   @Roles(Role.SELLER, Role.MANAGER, Role.ADMIN)
-  async findAll(@Query() query: QuerySalesDto) {
-    return this.salesService.findAll(query);
+  async findAll(
+    @Query() query: QuerySalesDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.salesService.findAll(query, user);
   }
 
   @Get('statistics')
@@ -48,8 +51,11 @@ export class SalesController {
 
   @Get(':id')
   @Roles(Role.MANAGER, Role.ADMIN)
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.salesService.findOne(id);
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: any,
+  ) {
+    return this.salesService.findOne(id, user);
   }
 
   @Patch(':id')
@@ -59,7 +65,7 @@ export class SalesController {
     @Body() updateSaleDto: UpdateSaleDto,
     @CurrentUser() user: any,
   ) {
-    return this.salesService.update(id, updateSaleDto, user.id);
+    return this.salesService.update(id, updateSaleDto, user.id, user);
   }
 
   @Delete(':id')
