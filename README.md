@@ -4,7 +4,7 @@
 
 Стек: NestJS + Prisma + PostgreSQL, Vue 3 + Vite + PrimeVue, MinIO для изображений.
 
-Подробности: [руководство пользователя](user-manual-final.md), [деплой](DEPLOYMENT.md).
+Подробности: [руководство пользователя](docs/user-manual-final.md), [деплой](DEPLOYMENT.md).
 
 ## Запуск через Docker
 
@@ -98,6 +98,7 @@ Frontend: `npm run dev`, `npm run build`, `npm run preview`, `npm run test:unit`
 warehouse/
 ├── backend/          # NestJS, Prisma
 ├── frontend/         # Vue 3
+├── docs/             # аудиты, ТЗ, руководства
 ├── docker-compose.yml
 ├── docker-compose.prod.yml
 └── deploy.sh
