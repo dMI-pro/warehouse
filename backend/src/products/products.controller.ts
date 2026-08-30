@@ -24,7 +24,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
-import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { User } from '@prisma/client';
 import { extname } from 'path';
@@ -35,7 +34,7 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get('export')
-  @Public() // Allow public access or use @Roles if needed. The frontend opens this in a new tab.
+  @Roles(Role.MANAGER, Role.ADMIN)
   async export(
     @Query('format') format: 'xlsx' | 'csv' = 'xlsx',
     @Res() res: Response,
@@ -76,7 +75,6 @@ export class ProductsController {
   }
 
   @Get()
-  @Public()
   async findAll(@Query() query: QueryProductsDto) {
     return this.productsService.findAll(query);
   }
@@ -87,7 +85,6 @@ export class ProductsController {
   }
 
   @Get(':id')
-  @Public()
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productsService.findOne(id);
   }

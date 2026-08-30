@@ -212,6 +212,18 @@ class ApiService {
     return response.data;
   }
 
+  async exportProducts(format: 'xlsx' | 'csv' = 'xlsx'): Promise<{ blob: Blob; filename: string }> {
+    const response = await this.api.get<Blob>('/products/export', {
+      params: { format },
+      responseType: 'blob',
+    });
+    const date = new Date().toISOString().split('T')[0];
+    const disposition = response.headers['content-disposition'] as string | undefined;
+    const filenameMatch = disposition?.match(/filename="?([^"]+)"?/i);
+    const filename = filenameMatch?.[1] ?? `products_all_${date}.${format}`;
+    return { blob: response.data, filename };
+  }
+
   // Categories endpoints
   async getCategories(): Promise<Category[]> {
     const response = await this.api.get<Category[]>('/categories');
