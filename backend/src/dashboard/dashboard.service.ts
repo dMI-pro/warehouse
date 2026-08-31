@@ -1,0 +1,187 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { QueryDashboardDto } from './dto/query-dashboard.dto';
+
+@Injectable()
+export class DashboardService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getSummary(query: QueryDashboardDto) {
+    const chartDays = query.chartDays ?? 30;
+    const monthStart = new Date();
+    monthStart.setMonth(monthStart.getMonth() - 1);
+    const monthEnd = new Date();
+
+    const chartStart = new Date();
+    chartStart.setHours(0, 0, 0, 0);
+    chartStart.setDate(chartStart.getDate() - (chartDays - 1));
+
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const [
+      productStats,
+      soldMonthAgg,
+      returnedMonthAgg,
+      newArrivals,
+      lowStockProducts,
+      longStorageProducts,
+      recentSales,
+      lastReturns,
+      salesChartRows,
+    ] = await Promise.all([
+      this.getProductStats(),
+      this.prisma.sale.aggregate({
+        where: { soldAt: { gte: monthStart, lte: monthEnd } },
+        _sum: { quantity: true },
+      }),
+      this.prisma.return.aggregate({
+        where: { returnedAt: { gte: monthStart, lte: monthEnd } },
+        _sum: { quantity: true },
+      }),
+      this.prisma.product.findMany({
+        where: { arrivalDate: { not: null } },
+        orderBy: { arrivalDate: 'desc' },
+        take: 5,
+        select: {
+          name: true,
+          quantity: true,
+          arrivalDate: true,
+        },
+      }),
+      this.prisma.$queryRaw<
+        Array<{
+          id: number;
+          name: string;
+          quantity: number;
+          minStockLevel: number;
+          arrivalDate: Date | null;
+          createdAt: Date;
+        }>
+      >`
+        SELECT id, name, quantity, "minStockLevel", "arrivalDate", "createdAt"
+        FROM products
+        WHERE "minStockLevel" > 0 AND quantity < "minStockLevel"
+        ORDER BY name ASC
+      `,
+      this.prisma.product.findMany({
+        where: {
+          quantity: { gt: 0 },
+          OR: [
+            { arrivalDate: { lt: ninetyDaysAgo } },
+            {
+              AND: [{ arrivalDate: null }, { createdAt: { lt: ninetyDaysAgo } }],
+            },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          quantity: true,
+          minStockLevel: true,
+          arrivalDate: true,
+          createdAt: true,
+        },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.sale.findMany({
+        take: 5,
+        orderBy: { soldAt: 'desc' },
+        include: {
+          product: { select: { name: true } },
+          user: {
+            select: { id: true, username: true, fullName: true },
+          },
+        },
+      }),
+      this.prisma.return.findMany({
+        take: 5,
+        orderBy: { returnedAt: 'desc' },
+        include: {
+          product: { select: { name: true } },
+          user: {
+            select: { id: true, username: true, fullName: true },
+          },
+        },
+      }),
+      this.prisma.$queryRaw<Array<{ date: Date; amount: number }>>`
+        SELECT DATE("soldAt") AS date,
+               SUM("salePrice" * quantity)::float AS amount
+        FROM sales
+        WHERE "soldAt" >= ${chartStart}
+        GROUP BY DATE("soldAt")
+        ORDER BY date ASC
+      `,
+    ]);
+
+    const soldItemsCount = soldMonthAgg._sum.quantity ?? 0;
+    const returnedItemsCount = returnedMonthAgg._sum.quantity ?? 0;
+
+    return {
+      stats: {
+        totalPositions: productStats.total_positions,
+        totalItemsQuantity:
+          productStats.total_quantity + soldItemsCount + returnedItemsCount,
+        activePositions: productStats.active_positions,
+        activeItemsCount: productStats.active_items,
+        soldItemsCount,
+        returnedItemsCount,
+        totalValue: productStats.total_value,
+      },
+      newArrivals: newArrivals.map((product) => ({
+        name: product.name,
+        quantity: product.quantity,
+        arrivalDate: product.arrivalDate,
+      })),
+      lowStockProducts,
+      longStorageProducts,
+      recentSales: recentSales.map((sale) => ({
+        productName: sale.product?.name || 'Неизвестный товар',
+        quantity: sale.quantity,
+        amount: Number(sale.salePrice) * sale.quantity,
+        time: sale.soldAt,
+        userName: sale.user?.fullName || sale.user?.username || 'Система',
+      })),
+      lastReturns: lastReturns.map((ret) => ({
+        productName: ret.product?.name || 'Товар',
+        quantity: ret.quantity,
+        time: ret.returnedAt,
+        userName: ret.user?.fullName || ret.user?.username || 'Система',
+      })),
+      salesChart: salesChartRows.map((row) => ({
+        date: row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date),
+        amount: Number(row.amount) || 0,
+      })),
+    };
+  }
+
+  private async getProductStats() {
+    const [row] = await this.prisma.$queryRaw<
+      Array<{
+        total_positions: number;
+        total_quantity: number;
+        active_positions: number;
+        active_items: number;
+        total_value: number;
+      }>
+    >`
+      SELECT
+        COUNT(*)::int AS total_positions,
+        COALESCE(SUM(quantity), 0)::int AS total_quantity,
+        COUNT(*) FILTER (WHERE quantity > 0)::int AS active_positions,
+        COALESCE(SUM(quantity) FILTER (WHERE quantity > 0), 0)::int AS active_items,
+        COALESCE(SUM("salePrice" * quantity), 0)::float AS total_value
+      FROM products
+    `;
+
+    return (
+      row ?? {
+        total_positions: 0,
+        total_quantity: 0,
+        active_positions: 0,
+        active_items: 0,
+        total_value: 0,
+      }
+    );
+  }
+}

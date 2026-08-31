@@ -35,6 +35,7 @@ import type {
   CreateUserDto,
   UpdateUserDto,
   MediaItem,
+  DashboardSummary,
 } from '@/types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -211,6 +212,18 @@ class ApiService {
     return response.data;
   }
 
+  async exportProducts(format: 'xlsx' | 'csv' = 'xlsx'): Promise<{ blob: Blob; filename: string }> {
+    const response = await this.api.get<Blob>('/products/export', {
+      params: { format },
+      responseType: 'blob',
+    });
+    const date = new Date().toISOString().split('T')[0];
+    const disposition = response.headers['content-disposition'] as string | undefined;
+    const filenameMatch = disposition?.match(/filename="?([^"]+)"?/i);
+    const filename = filenameMatch?.[1] ?? `products_all_${date}.${format}`;
+    return { blob: response.data, filename };
+  }
+
   // Categories endpoints
   async getCategories(): Promise<Category[]> {
     const response = await this.api.get<Category[]>('/categories');
@@ -379,9 +392,12 @@ class ApiService {
     page?: number;
     limit?: number;
   }): Promise<Return[]> {
-    // Note: Backend returns Return[], not PaginatedResponse<Return> yet based on service
-    // But usually we want consistency. My backend service returns Return[].
     const response = await this.api.get<Return[]>('/returns', { params });
+    return response.data;
+  }
+
+  async getDashboardSummary(params?: { chartDays?: number }): Promise<DashboardSummary> {
+    const response = await this.api.get<DashboardSummary>('/dashboard/summary', { params });
     return response.data;
   }
 

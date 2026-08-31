@@ -14,6 +14,7 @@ import {
 import { ReturnsService } from './returns.service';
 import { CreateReturnDto } from './dto/create-return.dto';
 import { UpdateReturnDto } from './dto/update-return.dto';
+import { QueryReturnsDto } from './dto/query-returns.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -28,19 +29,19 @@ export class ReturnsController {
   @Post()
   @Roles(Role.SELLER, Role.MANAGER, Role.ADMIN)
   create(@Body() createReturnDto: CreateReturnDto, @CurrentUser() user: any) {
-    return this.returnsService.create(createReturnDto, user.id);
+    return this.returnsService.create(createReturnDto, user.id, user);
   }
 
   @Get()
   @Roles(Role.SELLER, Role.MANAGER, Role.ADMIN)
-  findAll(@Query() query: any) {
-    return this.returnsService.findAll(query);
+  findAll(@Query() query: QueryReturnsDto, @CurrentUser() user: any) {
+    return this.returnsService.findAll(query, user);
   }
 
   @Get(':id')
   @Roles(Role.MANAGER, Role.ADMIN)
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.returnsService.findOne(id);
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: any) {
+    return this.returnsService.findOne(id, user);
   }
 
   @Patch(':id')
@@ -50,7 +51,7 @@ export class ReturnsController {
     @Body() updateReturnDto: UpdateReturnDto,
     @CurrentUser() user: any,
   ) {
-    return this.returnsService.update(id, updateReturnDto, user.id);
+    return this.returnsService.update(id, updateReturnDto, user.id, user);
   }
 
   @Delete(':id')

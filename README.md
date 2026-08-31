@@ -4,7 +4,7 @@
 
 Стек: NestJS + Prisma + PostgreSQL, Vue 3 + Vite + PrimeVue, MinIO для изображений.
 
-Подробности: [руководство пользователя](user-manual-final.md), [деплой](DEPLOYMENT.md).
+Подробности: [руководство пользователя](docs/user-manual-final.md), [деплой](DEPLOYMENT.md).
 
 ## Запуск через Docker
 
@@ -92,12 +92,24 @@ Frontend: `npm run dev`, `npm run build`, `npm run preview`, `npm run test:unit`
 
 Доступ по ролям задаётся и на API, и на маршрутах фронтенда.
 
+### Роли
+
+| Роль | Товары (UI + API) | Продажи | Возвраты | Отчёты / настройки | Пользователи / аудит |
+|------|-------------------|---------|----------|--------------------|----------------------|
+| **GUEST** | Просмотр списка и карточки без цены закупки, коммитета и типа транзакции | — | — | — | — |
+| **SELLER** | Как гость + оформление продажи | Создание, список | Создание, список | — | — |
+| **MANAGER** | Полные поля товара, CRUD (кроме удаления), экспорт | Полный доступ | Полный доступ | Да | — |
+| **ADMIN** | Как менеджер + удаление товаров | Полный доступ | Полный доступ | Да | Да |
+
+Для **SELLER** и **GUEST** API не отдаёт `purchasePrice`, `committee` / `committeeId`, `transactionType` / `transactionTypeId` в ответах товаров (и во вложенном `product` у продаж/возвратов). Колонка «Цена закупки» в таблице товаров не показывается ни одной роли — поле есть только в формах admin/manager.
+
 ## Структура
 
 ```
 warehouse/
 ├── backend/          # NestJS, Prisma
 ├── frontend/         # Vue 3
+├── docs/             # аудиты, ТЗ, руководства
 ├── docker-compose.yml
 ├── docker-compose.prod.yml
 └── deploy.sh
@@ -113,7 +125,9 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 Обновление: `./deploy.sh` или push в ветку `staging` (GitHub Actions, `.github/workflows/deploy-staging.yml`). Нужны секреты `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `VPS_PATH`.
 
-Фронт: `https://<домен>/`, проверка API: `https://<домен>/api/health`. Полная инструкция — в `DEPLOYMENT.md`.
+Фронт: `https://tsehh.ru/`, проверка API: `https://tsehh.ru/api/health`. Полная инструкция — в `DEPLOYMENT.md`.
+
+На VPS в `prod.env` обязательно: `FRONTEND_URL=https://tsehh.ru` и `MINIO_PUBLIC_URL=https://tsehh.ru/minio`. SSL: `./setup-ssl.sh tsehh.ru you@email.com` (или DNS-вариант `setup-ssl-dns.sh`), сертификаты в `certs/`.
 
 ## Если что-то не поднимается
 

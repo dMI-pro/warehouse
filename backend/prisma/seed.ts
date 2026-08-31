@@ -36,12 +36,19 @@ async function main() {
   });
   console.log('✅ User statuses created/verified');
 
+  const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (!seedAdminPassword || seedAdminPassword.trim().length < 12) {
+    throw new Error(
+      'SEED_ADMIN_PASSWORD is required and must be at least 12 characters. Set it in .env / prod.env before running seed.',
+    );
+  }
+
   console.log('👤 Creating super admin...');
   const superAdmin = await prisma.user.create({
     data: {
       email: 'superadmin@company.com',
       username: 'nachalnik',
-      password: await bcrypt.hash('REDACTED_SEED_PASSWORD', 10),
+      password: await bcrypt.hash(seedAdminPassword, 10),
       role: 'ADMIN',
       fullName: 'Super Admin',
       isSuperAdmin: true,

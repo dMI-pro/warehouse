@@ -38,7 +38,7 @@ VPS_HOST="${VPS_HOST%/}"
 if [ -z "$VPS_HOST" ] || [ -z "$VPS_KEY" ] || [ -z "$VPS_SECRET" ]; then
     echo "Error: VPS MinIO credentials missing."
     echo "Create $VPS_ENV with:"
-    echo "  VPS_MINIO_ENDPOINT=https://smagrarom.ru:9000"
+    echo "  VPS_MINIO_ENDPOINT=https://tsehh.ru:9000"
     echo "  VPS_MINIO_ACCESS_KEY=..."
     echo "  VPS_MINIO_SECRET_KEY=..."
     echo "  VPS_MINIO_BUCKET=antiquar-products"

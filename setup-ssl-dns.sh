@@ -3,7 +3,7 @@ set -e
 
 if [ -z "$1" ] || [ -z "$2" ]; then
   echo "Usage: ./setup-ssl.sh <domain> <email>"
-  echo "Example: ./setup-ssl.sh mywarehouse.com admin@mywarehouse.com"
+  echo "Example: ./setup-ssl.sh tsehh.ru admin@tsehh.ru"
   exit 1
 fi
 

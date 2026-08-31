@@ -1024,8 +1024,6 @@ const getTransactionTypeSeverity = (transactionTypeName?: string) => {
   return 'secondary';
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-
 const openProductDetails = (id: number) => {
   router.push({ name: 'product-details', params: { id } });
 };
@@ -1737,10 +1735,19 @@ const toggleInStock = async () => {
   await productsStore.fetchProducts({ page: 1 });
 };
 
-const exportAllProducts = (format: 'xlsx' | 'csv') => {
-    const exportUrl = `${API_BASE_URL}/products/export?format=${format}`;
-    window.open(exportUrl, '_blank');
-    toast.add({ severity: 'info', summary: 'Экспорт запущен', detail: `Формируется файл ${format.toUpperCase()}, скачивание начнется автоматически.`, life: 5000 });
+const exportAllProducts = async (format: 'xlsx' | 'csv') => {
+  try {
+    toast.add({
+      severity: 'info',
+      summary: 'Экспорт запущен',
+      detail: `Формируется файл ${format.toUpperCase()}, скачивание начнется автоматически.`,
+      life: 5000,
+    });
+    const { blob, filename } = await apiService.exportProducts(format);
+    saveAs(blob, filename);
+  } catch (error) {
+    handleApiError(error, toast);
+  }
 };
 </script>
 

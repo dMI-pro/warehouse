@@ -24,7 +24,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
-import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { User } from '@prisma/client';
 import { extname } from 'path';
@@ -35,7 +34,7 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get('export')
-  @Public() // Allow public access or use @Roles if needed. The frontend opens this in a new tab.
+  @Roles(Role.MANAGER, Role.ADMIN)
   async export(
     @Query('format') format: 'xlsx' | 'csv' = 'xlsx',
     @Res() res: Response,
@@ -72,24 +71,28 @@ export class ProductsController {
     @Body() createProductDto: CreateProductDto,
     @CurrentUser() user: User,
   ) {
-    return this.productsService.create(createProductDto, user.id);
+    return this.productsService.create(createProductDto, user.id, user);
   }
 
   @Get()
-  @Public()
-  async findAll(@Query() query: QueryProductsDto) {
-    return this.productsService.findAll(query);
+  async findAll(
+    @Query() query: QueryProductsDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.productsService.findAll(query, user);
   }
 
   @Get('in-stock')
-  async getInStock() {
-    return this.productsService.findInStock();
+  async getInStock(@CurrentUser() user: User) {
+    return this.productsService.findInStock(user);
   }
 
   @Get(':id')
-  @Public()
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.productsService.findOne(id);
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: User,
+  ) {
+    return this.productsService.findOne(id, user);
   }
 
   @Patch(':id')
@@ -99,7 +102,7 @@ export class ProductsController {
     @Body() updateProductDto: UpdateProductDto,
     @CurrentUser() user?: User,
   ) {
-    return this.productsService.update(id, updateProductDto, user?.id);
+    return this.productsService.update(id, updateProductDto, user?.id, user);
   }
 
   @Delete(':id')
@@ -151,7 +154,7 @@ export class ProductsController {
       throw new BadRequestException('Invalid file extension');
     }
 
-    return this.productsService.uploadImage(id, file, user?.id);
+    return this.productsService.uploadImage(id, file, user?.id, user);
   }
 
   @Delete(':id/images')
@@ -164,7 +167,7 @@ export class ProductsController {
     if (!imageUrl) {
       throw new BadRequestException('Image URL is required');
     }
-    return this.productsService.deleteImage(id, imageUrl, user?.id);
+    return this.productsService.deleteImage(id, imageUrl, user?.id, user);
   }
 
   @Patch(':id/images/reorder')
@@ -177,6 +180,6 @@ export class ProductsController {
     if (!images || !Array.isArray(images)) {
       throw new BadRequestException('Images array is required');
     }
-    return this.productsService.reorderImages(id, images, user?.id);
+    return this.productsService.reorderImages(id, images, user?.id, user);
   }
 }

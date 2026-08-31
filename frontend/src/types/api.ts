@@ -82,7 +82,8 @@ export interface Product {
   name: string;
   sku: string;
   description?: string;
-  purchasePrice: number;
+  /** Only for ADMIN / MANAGER — omitted for SELLER / GUEST by API */
+  purchasePrice?: number;
   salePrice: number;
   quantity: number;
   minStockLevel: number;
@@ -288,6 +289,26 @@ export interface UpdateReturnDto {
   quantity: number;
   reason?: string;
   returnedAt?: string;
+}
+
+export interface DashboardStats {
+  totalPositions: number;
+  totalItemsQuantity: number;
+  activePositions: number;
+  activeItemsCount: number;
+  soldItemsCount: number;
+  returnedItemsCount: number;
+  totalValue: number;
+}
+
+export interface DashboardSummary {
+  stats: DashboardStats;
+  newArrivals: Array<{ name: string; quantity: number; arrivalDate: string }>;
+  lowStockProducts: Product[];
+  longStorageProducts: Product[];
+  recentSales: Array<{ productName: string; quantity: number; amount: number; time: string; userName: string }>;
+  lastReturns: Array<{ productName: string; quantity: number; time: string; userName: string }>;
+  salesChart: Array<{ date: string; amount: number }>;
 }
 
 export interface FileUploadEvent {

@@ -3,3 +3,4 @@ export * from './decorators/public.decorator';
 export * from './decorators/roles.decorator';
 export * from './enums/role.enum';
 export * from './guards/roles.guard';
+export * from './utils/product-visibility.util';
