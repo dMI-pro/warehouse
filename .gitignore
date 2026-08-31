@@ -9,6 +9,9 @@ dist/
 prod.env
 certs/
 ssl/
+letsencrypt/
+letsencrypt-lib/
+certbot/
 backup*.sql
 
 # Docker volumes

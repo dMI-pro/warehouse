@@ -740,7 +740,7 @@ const populateForm = () => {
   form.sku = product.value.sku;
   form.description = product.value.description || '';
   form.salePrice = product.value.salePrice;
-  form.purchasePrice = product.value.purchasePrice;
+  form.purchasePrice = product.value.purchasePrice ?? 0;
   form.quantity = product.value.quantity;
   form.minStockLevel = product.value.minStockLevel || 0;
   form.categoryId = product.value.categoryId;

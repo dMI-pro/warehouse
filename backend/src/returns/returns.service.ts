@@ -119,7 +119,7 @@ export class ReturnsService {
       }
     }
 
-    const findManyArgs: Prisma.ReturnFindManyArgs = {
+    const returns = await this.prisma.return.findMany({
       where,
       include: {
         product: {
@@ -132,14 +132,8 @@ export class ReturnsService {
       orderBy: {
         returnedAt: 'desc',
       },
-    };
-
-    if (limit) {
-      findManyArgs.skip = (page - 1) * limit;
-      findManyArgs.take = limit;
-    }
-
-    const returns = await this.prisma.return.findMany(findManyArgs);
+      ...(limit ? { skip: (page - 1) * limit, take: limit } : {}),
+    });
     return returns.map((ret) => sanitizeNestedProduct(ret, viewer));
   }
 
