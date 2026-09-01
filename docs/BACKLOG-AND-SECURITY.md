@@ -27,7 +27,8 @@
 | MinIO порты 9000/9001 с интернета | ✅ Закрыто (UFW + `DOCKER-USER`) |
 | Firewall UFW на VPS | ✅ Настроен (см. ниже) |
 | Публичные справочники API | ❌ Открыто |
-| Rate limit на login, JWT disabled, register | ❌ Не сделано |
+| Публичная регистрация `POST /auth/register` | ✅ Закрыта (флаг, по умолчанию выкл.) |
+| Rate limit на login, JWT disabled | ❌ Не сделано |
 | Автомиграции в `deploy.sh` | ❌ Не сделано |
 | Регулярные бэкапы на VPS (cron) | ⚠️ Проверить вручную |
 | SSL auto-renew (certbot) | ⚠️ Проверить `certbot renew --dry-run` |
@@ -85,6 +86,7 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 | Seller не видит закупку в JSON | Войти seller → DevTools → ответ `/api/products` без `purchasePrice` |
 | Пароли админов не из seed | На проде один пользователь; убедиться, что не старый пароль из аудита |
 | Новый `JWT_SECRET` после переезда | Не обязательно, если секреты не утекали; при сомнениях — ротировать |
+| Регистрация без токена → 403 | `curl -s -o /dev/null -w "%{http_code}" -X POST https://tsehh.ru/api/auth/register -H 'Content-Type: application/json' -d '{}'` → **403** |
 
 ### ⚠️ История git (низкий приоритет, если repo приватный)
 
@@ -116,17 +118,15 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 
 ---
 
-### 3. Открытая регистрация `POST /auth/register`
+### ~~3. Открытая регистрация `POST /auth/register`~~ ✅ Сделано (02.09.2026)
 
-**Источник:** `SECURITY-AUDIT`  
-**Риск:** спам disabled-аккаунтов, перебор email/username.
+Временно закрыта флагами (по умолчанию выкл., код не удалён):
+- бэк: `ENABLE_PUBLIC_REGISTRATION=true` → снова открыть `POST /auth/register`
+- фронт: `VITE_ENABLE_PUBLIC_REGISTRATION=true` → снова показать `/register`
 
-**Что сделать (один из вариантов):**
-- Отключить на проде: `if (NODE_ENV === 'production') throw ForbiddenException`.
-- Или убрать `@Public()` и создавать пользователей только через `ADMIN`.
-- Скрыть `/register` на фронте для prod (уже не главная защита).
+Без флагов: API отвечает **403**, `/register` редиректит на логин, ссылка «Зарегистрироваться» скрыта.
 
-**Файлы:** `backend/src/auth/auth.controller.ts`, `frontend/src/router/index.ts`
+**Файлы:** `backend/src/auth/auth.controller.ts`, `frontend/src/router/index.ts`, `frontend/src/views/LoginView.vue`
 
 ---
 
@@ -307,7 +307,7 @@ cd frontend && npm run test:unit
 
 1. ~~**MinIO ports + firewall**~~ ✅ сделано на VPS
 2. **`disabled` в JWT** + **rate limit login** (1–2 ч)
-3. **Закрыть register на prod** или убрать публичность
+3. ~~**Закрыть register**~~ ✅ флаг `ENABLE_PUBLIC_REGISTRATION` (по умолчанию выкл.)
 4. **`deploy.sh` + migrate deploy** (15 мин)
 5. **Бэкапы по cron** на VPS + периодический `pull-prod-to-local.sh` на Mac
 6. **certbot renew --dry-run** и cron для продления SSL

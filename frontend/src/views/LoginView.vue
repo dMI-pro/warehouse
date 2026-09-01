@@ -55,7 +55,13 @@
           <Divider />
 
           <div class="login-links">
-            <router-link to="/register" class="link">Зарегистрироваться</router-link>
+            <router-link
+              v-if="isPublicRegistrationEnabled"
+              to="/register"
+              class="link"
+            >
+              Зарегистрироваться
+            </router-link>
             <a href="#" class="link" @click.prevent="handleForgotPassword">Забыли пароль?</a>
           </div>
         </form>
@@ -80,6 +86,8 @@ const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 const toast = useToast();
+const isPublicRegistrationEnabled =
+  import.meta.env.VITE_ENABLE_PUBLIC_REGISTRATION === 'true';
 
 const form = reactive({
   login: '',

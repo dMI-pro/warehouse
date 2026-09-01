@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Get, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  Req,
+  ForbiddenException,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -14,6 +22,10 @@ export class AuthController {
   @Public()
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
+    // Временно закрыто. Чтобы открыть: ENABLE_PUBLIC_REGISTRATION=true
+    if (process.env.ENABLE_PUBLIC_REGISTRATION !== 'true') {
+      throw new ForbiddenException('Регистрация временно отключена');
+    }
     return this.authService.register(registerDto);
   }
 

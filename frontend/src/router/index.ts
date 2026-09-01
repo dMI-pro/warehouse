@@ -17,6 +17,14 @@ const router = createRouter({
       name: 'register',
       component: () => import('@/views/RegisterView.vue'),
       meta: { requiresAuth: false },
+      beforeEnter(_to, _from, next) {
+        // Временно закрыто. Чтобы открыть: VITE_ENABLE_PUBLIC_REGISTRATION=true
+        if (import.meta.env.VITE_ENABLE_PUBLIC_REGISTRATION !== 'true') {
+          next({ name: 'login' });
+          return;
+        }
+        next();
+      },
     },
     {
       path: '/',
