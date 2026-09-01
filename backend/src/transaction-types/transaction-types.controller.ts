@@ -16,7 +16,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
-import { Public } from '../common/decorators/public.decorator';
 
 @Controller('transaction-types')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -32,13 +31,11 @@ export class TransactionTypesController {
   }
 
   @Get()
-  @Public()
   async findAll() {
     return this.transactionTypesService.findAll();
   }
 
   @Get(':id')
-  @Public()
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.transactionTypesService.findOne(id);
   }

@@ -26,7 +26,7 @@
 | Пароль seed → `SEED_ADMIN_PASSWORD` | ✅ Сделано |
 | MinIO порты 9000/9001 с интернета | ✅ Закрыто (UFW + `DOCKER-USER`) |
 | Firewall UFW на VPS | ✅ Настроен (см. ниже) |
-| Публичные справочники API | ❌ Открыто |
+| Публичные справочники API | ✅ Закрыто (JWT обязателен) |
 | Публичная регистрация `POST /auth/register` | ✅ Закрыта (флаг, по умолчанию выкл.) |
 | Rate limit на login, JWT disabled | ❌ Не сделано |
 | Автомиграции в `deploy.sh` | ❌ Не сделано |
@@ -87,6 +87,7 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 | Пароли админов не из seed | На проде один пользователь; убедиться, что не старый пароль из аудита |
 | Новый `JWT_SECRET` после переезда | Не обязательно, если секреты не утекали; при сомнениях — ротировать |
 | Регистрация без токена → 403 | `curl -s -o /dev/null -w "%{http_code}" -X POST https://tsehh.ru/api/auth/register -H 'Content-Type: application/json' -d '{}'` → **403** |
+| Справочники без токена → 401 | `curl -s -o /dev/null -w "%{http_code}" https://tsehh.ru/api/categories` → **401** |
 
 ### ⚠️ История git (низкий приоритет, если repo приватный)
 
@@ -167,7 +168,7 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 | # | Проблема | Где | Рекомендация |
 |---|----------|-----|--------------|
 | 7 | JWT в `localStorage` | `frontend/src/stores/authStore.ts` | Долгосрочно: httpOnly cookie или короткий JWT + refresh |
-| 8 | Публичные справочники API | `categories`, `warehouses`, `committees`, `transaction-types` — `@Public()` на GET | Требовать JWT или урезать поля |
+| ~~8~~ | ~~Публичные справочники API~~ | ✅ Снят `@Public()` с GET | JWT обязателен, как у товаров |
 | 9 | Слабая политика паролей (мин. 6) | `backend/src/auth/dto/*.ts`, `errorHandler.ts` | Минимум 12 символов, сложность |
 | 10 | CORS без `Origin` | `backend/src/main.ts` | В prod можно не разрешать запросы без Origin |
 | 11 | Лимит тела 50 MB | `main.ts`, `nginx.conf` | Для фото достаточно 5–10 MB в Multer |
@@ -184,10 +185,10 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 
 | Модуль | GET без JWT |
 |--------|-------------|
-| Categories | ✅ публично |
-| Warehouses | ✅ публично |
-| Committees (список) | ✅ публично |
-| Transaction types | ✅ публично |
+| Categories | ❌ закрыто |
+| Warehouses | ❌ закрыто |
+| Committees (список) | ❌ закрыто |
+| Transaction types | ❌ закрыто |
 | Health, корень API | ✅ публично (нормально) |
 | Products | ❌ закрыто |
 | Sales, Returns, Users, Audit | ❌ закрыто |
@@ -197,10 +198,10 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 | Место | UI | API |
 |-------|-----|-----|
 | Товары: закупка, комитет, тип транзакции | Скрыто у seller/guest | ✅ Скрыто у seller/guest |
-| Справочники | Нужен логин для страниц | GET справочников **без** логина |
+| Справочники | Нужен логин для страниц | ✅ GET справочников только с JWT |
 | Audit log в роутере | Только `ADMIN` в `router` | `ADMIN` + `MANAGER` на API |
 
-**Доработка:** выровнять audit-log (роут vs API) и закрыть публичные справочники.
+**Доработка:** выровнять audit-log (роут vs API).
 
 ### Роли — напоминание
 
@@ -311,7 +312,7 @@ cd frontend && npm run test:unit
 4. **`deploy.sh` + migrate deploy** (15 мин)
 5. **Бэкапы по cron** на VPS + периодический `pull-prod-to-local.sh` на Mac
 6. **certbot renew --dry-run** и cron для продления SSL
-7. Публичные справочники API
+7. ~~Публичные справочники API~~ ✅
 8. `/minio/` только через auth или presigned URL (фото без логина)
 9. Остальное из таблицы «средний приоритет» и бэклог фич
 

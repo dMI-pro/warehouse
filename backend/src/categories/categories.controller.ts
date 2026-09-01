@@ -16,7 +16,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
-import { Public } from '../common/decorators/public.decorator';
 
 @Controller('categories')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -30,13 +29,11 @@ export class CategoriesController {
   }
 
   @Get()
-  @Public()
   async findAll() {
     return this.categoriesService.findAll();
   }
 
   @Get(':id')
-  @Public()
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.categoriesService.findOne(id);
   }

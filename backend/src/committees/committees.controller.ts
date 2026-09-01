@@ -17,7 +17,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
-import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('committees')
@@ -35,7 +34,6 @@ export class CommitteesController {
   }
 
   @Get()
-  @Public()
   async findAll() {
     return this.committeesService.findAll();
   }
