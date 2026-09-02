@@ -31,7 +31,7 @@
 | История git (certs, backup.sql, .env) | ✅ Очищена (`git filter-repo`) |
 | Rate limit на login, JWT disabled | ❌ Не сделано |
 | Автомиграции в `deploy.sh` | ❌ Не сделано |
-| Регулярные бэкапы на VPS (cron) | ⚠️ Проверить вручную |
+| Регулярные бэкапы на VPS (cron) | ✅ Каждый день 03:15, хранение 7 дней |
 | SSL auto-renew (certbot) | ⚠️ Проверить `certbot renew --dry-run` |
 
 ---
@@ -227,7 +227,7 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 |---|--------|--------|----------|
 | 1 | SSL Let's Encrypt | ✅ | Проверить **auto-renew**: `certbot renew --dry-run` на VPS |
 | 2 | Firewall UFW | ✅ | 22, 80, 443, 8080, 8443 открыты; 9000/9001 закрыты |
-| 3 | Бэкапы по расписанию | ⚠️ | Cron + `scripts-new/manager.sh`; копия на Mac раз в 1–2 недели |
+| 3 | Бэкапы по расписанию | ✅ | Cron 03:15 → `backup-all-vps.sh`; retention 7 дней; лог `backups-new/backup.log`; копия на Mac: `pull-backups-from-vps.sh` |
 | 4 | `deploy.sh` без миграций | ❌ | Добавить `prisma migrate deploy` после `up --build` |
 | 5 | Синхронизация `main` | ⚠️ | После успешного релиза: merge `staging` → `main` |
 | 6 | GitHub Actions secrets | ⚠️ | `VPS_HOST`, `VPS_PATH` — новый RU VPS |
@@ -291,7 +291,7 @@ cd frontend && npm run test:unit
 [x] Порты 9000/9001 снаружи закрыты (timeout)
 [x] VPN-панель http://77.91.95.232:8080/ доступна
 [x] Xray порт 8443 открыт
-[ ] Бэкап за последние 24–48 ч есть
+[x] Бэкап за последние 24–48 ч есть
 [ ] certbot renew --dry-run OK
 ```
 
@@ -315,7 +315,7 @@ cd frontend && npm run test:unit
 2. **`disabled` в JWT** + **rate limit login** (1–2 ч)
 3. ~~**Закрыть register**~~ ✅ флаг `ENABLE_PUBLIC_REGISTRATION` (по умолчанию выкл.)
 4. **`deploy.sh` + migrate deploy** (15 мин)
-5. **Бэкапы по cron** на VPS + периодический `pull-prod-to-local.sh` на Mac
+5. ~~**Бэкапы по cron** на VPS~~ ✅ + периодический `pull-backups-from-vps.sh` на Mac
 6. **certbot renew --dry-run** и cron для продления SSL
 7. ~~Публичные справочники API~~ ✅
 8. `/minio/` только через auth или presigned URL (фото без логина)

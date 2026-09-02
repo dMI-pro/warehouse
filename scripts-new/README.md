@@ -2,6 +2,57 @@
 
 Бэкапы PostgreSQL + MinIO, перенос local ↔ VPS, импорт prod на Mac.
 
+## Автобэкапы на VPS (cron)
+
+Каждую ночь в **03:15** (Europe/Moscow на VPS):
+
+```bash
+./scripts-new/macos/backup-all-vps.sh
+```
+
+Делает:
+1. `backup-db-vps.sh` → `backups-new/database/backup_*.sql`
+2. `backup-minio-vps.sh` → `backups-new/minio/minio-backup-*`
+3. Удаляет бэкапы старше **7 дней** (`BACKUP_RETENTION_DAYS`)
+4. Пишет лог в `backups-new/backup.log`
+
+Cron (уже настроен на сервере):
+
+```cron
+15 3 * * * cd /var/www/warehouse && /bin/bash ./scripts-new/macos/backup-all-vps.sh
+```
+
+Проверка:
+
+```bash
+ssh warehouse-ru-vps
+tail -50 /var/www/warehouse/backups-new/backup.log
+ls -lah /var/www/warehouse/backups-new/database/ | tail
+ls -lah /var/www/warehouse/backups-new/minio/ | tail
+crontab -l | grep backup-all
+```
+
+Ручной прогон: `cd /var/www/warehouse && ./scripts-new/macos/backup-all-vps.sh`
+
+### Копия на Mac (раз в 1–2 недели)
+
+Скачать уже готовые файлы с VPS (без нового дампа на сервере):
+
+```bash
+./scripts-new/macos/pull-backups-from-vps.sh           # все
+./scripts-new/macos/pull-backups-from-vps.sh --latest  # только самые свежие
+```
+
+SSH-алиас по умолчанию: `warehouse-ru-vps` (`WAREHOUSE_SSH_HOST`).
+
+Свежий стрим дампа «прямо сейчас» без записи на диск VPS — по-прежнему:
+
+```bash
+./scripts-new/macos/pull-prod-to-local.sh
+```
+
+---
+
 ## Быстрый старт
 
 | Платформа | Команда |
@@ -34,9 +85,11 @@
 | Скрипт | Где |
 |--------|-----|
 | `backup-db.sh` / `backup-minio.sh` | local |
-| `backup-db-vps.sh` / `backup-minio-vps.sh` | VPS |
+| `backup-db-vps.sh` / `backup-minio-vps.sh` | VPS (по отдельности) |
+| `backup-all-vps.sh` | VPS (cron: DB + MinIO + ротация 7 дней) |
 | `restore-db.sh` / `restore-minio.sh` | local и VPS |
-| `pull-prod-to-local.sh` | local (SSH → VPS) |
+| `pull-prod-to-local.sh` | local (SSH → live dump с VPS) |
+| `pull-backups-from-vps.sh` | local (rsync готовых `backups-new/` с VPS) |
 | `sync-minio-to-vps.sh` | local → VPS (новые картинки) |
 | `fix-file-urls-vps.sh` | нормализация `products.images` |
 
@@ -84,15 +137,14 @@
 
 ### E. Только бэкап на VPS
 
-На сервере (после копирования `scripts-new` на VPS):
+На сервере:
 
 ```bash
 cd /var/www/warehouse
-./scripts-new/manager.sh   # 1 DB, 2 MinIO
+./scripts-new/macos/backup-all-vps.sh   # или manager.sh → 3
 ```
 
-Файлы: `/var/www/warehouse/backups-new/`.
-
+Файлы: `/var/www/warehouse/backups-new/` (+ `backup.log`). Ночной cron уже вызывает этот скрипт.
 ## Sync MinIO: credentials
 
 Скопируйте пример и заполните prod-ключи:

@@ -55,18 +55,20 @@ while true; do
     if [ "$MODE" = "VPS" ]; then
         echo " 1) Backup Database"
         echo " 2) Backup MinIO"
-        echo " 3) Restore Database"
-        echo " 4) Restore MinIO (full replace)"
-        echo " 5) Fix image paths in DB"
+        echo " 3) Backup ALL (DB + MinIO + rotation)  ← cron uses this"
+        echo " 4) Restore Database"
+        echo " 5) Restore MinIO (full replace)"
+        echo " 6) Fix image paths in DB"
         echo " 0) Exit"
         echo ""
         read -r -p "Select: " choice
         case "$choice" in
             1) "$MAC/backup-db-vps.sh" ;;
             2) "$MAC/backup-minio-vps.sh" ;;
-            3) "$MAC/restore-db-vps.sh" ;;
-            4) "$MAC/restore-minio-vps.sh" ;;
-            5) "$MAC/fix-file-urls-vps.sh" ;;
+            3) "$MAC/backup-all-vps.sh" ;;
+            4) "$MAC/restore-db-vps.sh" ;;
+            5) "$MAC/restore-minio-vps.sh" ;;
+            6) "$MAC/fix-file-urls-vps.sh" ;;
             0) break ;;
             *) echo "Invalid option" ;;
         esac
@@ -76,13 +78,14 @@ while true; do
         echo " 3) Sync MinIO → VPS (new images)"
         echo " 4) Check MinIO"
         echo " 5) Fix MinIO public policy"
-        echo " 6) Pull prod from VPS (download only)"
+        echo " 6) Pull prod from VPS (live stream dump)"
         echo " 7) Pull prod from VPS + restore local"
-        echo " 8) Restore Database (local)"
-        echo " 9) Restore MinIO (local)"
-        echo "10) Fix image paths in DB"
+        echo " 8) Pull cron backups from VPS (rsync backups-new/)"
+        echo " 9) Restore Database (local)"
+        echo "10) Restore MinIO (local)"
+        echo "11) Fix image paths in DB"
         echo ""
-        echo "  VPS: ssh warehouse-vps  →  cd /var/www/warehouse && ./scripts-new/manager.sh"
+        echo "  VPS: ssh warehouse-ru-vps  →  cd /var/www/warehouse && ./scripts-new/manager.sh"
         echo "  0) Exit"
         echo ""
         read -r -p "Select: " choice
@@ -94,9 +97,10 @@ while true; do
             5) fix_minio_public_local ;;
             6) "$MAC/pull-prod-to-local.sh" ;;
             7) "$MAC/pull-prod-to-local.sh" --restore ;;
-            8) "$MAC/restore-db.sh" ;;
-            9) "$MAC/restore-minio.sh" ;;
-            10) "$MAC/fix-file-urls-vps.sh" ;;
+            8) "$MAC/pull-backups-from-vps.sh" ;;
+            9) "$MAC/restore-db.sh" ;;
+            10) "$MAC/restore-minio.sh" ;;
+            11) "$MAC/fix-file-urls-vps.sh" ;;
             0) break ;;
             *) echo "Invalid option" ;;
         esac
