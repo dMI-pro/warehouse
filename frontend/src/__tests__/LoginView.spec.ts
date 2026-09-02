@@ -60,7 +60,6 @@ describe('LoginView', () => {
 
     const authStore = useAuthStore();
     const loginSpy = vi.spyOn(authStore, 'login').mockResolvedValue({
-      access_token: 'token',
       user: {
         id: 1,
         email: 'test@test.com',

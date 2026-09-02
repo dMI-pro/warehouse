@@ -10,6 +10,8 @@ vi.mock('@/services/api', () => ({
     login: vi.fn(),
     register: vi.fn(),
     getMe: vi.fn(),
+    logout: vi.fn(),
+    refresh: vi.fn(),
   },
 }));
 
@@ -22,14 +24,12 @@ describe('authStore', () => {
   it('initializes with empty state', () => {
     const store = useAuthStore();
     expect(store.user).toBeNull();
-    expect(store.token).toBeNull();
     expect(store.isAuthenticated).toBe(false);
   });
 
   it('logs in successfully', async () => {
     const store = useAuthStore();
     const mockResponse = {
-      access_token: 'test-token',
       user: {
         id: 1,
         email: 'test@test.com',
@@ -44,13 +44,12 @@ describe('authStore', () => {
 
     await store.login({ username: 'test', password: 'password' });
 
-    expect(store.token).toBe('test-token');
     expect(store.user).toEqual(mockResponse.user);
     expect(store.isAuthenticated).toBe(true);
-    expect(localStorage.getItem('access_token')).toBe('test-token');
+    expect(localStorage.getItem('access_token')).toBeNull();
   });
 
-  it('logs out successfully', () => {
+  it('logs out successfully', async () => {
     const store = useAuthStore();
     store.user = {
       id: 1,
@@ -60,14 +59,13 @@ describe('authStore', () => {
       role: Role.GUEST as const,
       isSuperAdmin: false,
     };
-    store.token = 'test-token';
     localStorage.setItem('access_token', 'test-token');
     localStorage.setItem('user', JSON.stringify(store.user));
+    vi.mocked(apiService.logout).mockResolvedValue(undefined);
 
-    store.logout();
+    await store.logout();
 
     expect(store.user).toBeNull();
-    expect(store.token).toBeNull();
     expect(store.isAuthenticated).toBe(false);
     expect(localStorage.getItem('access_token')).toBeNull();
   });
@@ -87,4 +85,3 @@ describe('authStore', () => {
     expect(store.hasRole(Role.ADMIN)).toBe(true);
   });
 });
-

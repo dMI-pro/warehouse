@@ -1,4 +1,8 @@
-import axios, { type AxiosInstance, type AxiosError } from 'axios';
+import axios, {
+  type AxiosInstance,
+  type AxiosError,
+  type InternalAxiosRequestConfig,
+} from 'axios';
 import type {
   LoginDto,
   RegisterDto,
@@ -40,45 +44,69 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+const AUTH_SKIP_REFRESH = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/logout'];
+
+interface RetryableRequest extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
+
 class ApiService {
   private api: AxiosInstance;
+  private refreshPromise: Promise<void> | null = null;
 
   constructor() {
     this.api = axios.create({
       baseURL: API_BASE_URL,
+      withCredentials: true,
     });
 
-    // Добавляем токен к каждому запросу
-    this.api.interceptors.request.use((config) => {
-      const publicEndpoints = ['/auth/login', '/auth/register'];
-      const isPublicEndpoint = publicEndpoints.some((endpoint) => config.url?.includes(endpoint));
-
-      if (!isPublicEndpoint) {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      }
-
-      return config;
-    });
-
-    // Обработка ошибок
     this.api.interceptors.response.use(
       (response) => response,
-      (error: AxiosError<ApiError>) => {
-        if (error.response?.status === 401) {
-          // Токен истек или невалиден
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('user');
-          // Не перенаправляем автоматически, чтобы компоненты могли обработать ошибку
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
-          }
+      async (error: AxiosError<ApiError>) => {
+        const original = error.config as RetryableRequest | undefined;
+        const status = error.response?.status;
+        const url = original?.url;
+
+        if (status !== 401 || !original || original._retry || this.shouldSkipRefresh(url)) {
+          return Promise.reject(error);
         }
-        return Promise.reject(error);
+
+        original._retry = true;
+
+        try {
+          await this.refreshSession();
+          return this.api(original);
+        } catch (refreshError) {
+          this.redirectToLogin();
+          return Promise.reject(refreshError);
+        }
       }
     );
+  }
+
+  private shouldSkipRefresh(url?: string) {
+    if (!url) return false;
+    return AUTH_SKIP_REFRESH.some((endpoint) => url.includes(endpoint));
+  }
+
+  private refreshSession() {
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.api
+        .post('/auth/refresh')
+        .then(() => undefined)
+        .finally(() => {
+          this.refreshPromise = null;
+        });
+    }
+    return this.refreshPromise;
+  }
+
+  private redirectToLogin() {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
   }
 
   // Auth endpoints
@@ -95,6 +123,15 @@ class ApiService {
   async getMe(): Promise<User> {
     const response = await this.api.get<User>('/auth/me');
     return response.data;
+  }
+
+  async refresh(): Promise<AuthResponse> {
+    const response = await this.api.post<AuthResponse>('/auth/refresh');
+    return response.data;
+  }
+
+  async logout(): Promise<void> {
+    await this.api.post('/auth/logout');
   }
 
   // Users endpoints

@@ -22,12 +22,31 @@ model User {
   updatedAt    DateTime  @updatedAt
 
   // Отношения
-  status     UserStatus? @relation(fields: [userStatusId], references: [id], onDelete: SetNull)
-  sales      Sale[]
-  auditLogs  AuditLog[]
-  returns    Return[]
+  status         UserStatus?    @relation(fields: [userStatusId], references: [id], onDelete: SetNull)
+  sales          Sale[]
+  auditLogs      AuditLog[]
+  returns        Return[]
+  refreshTokens  RefreshToken[]
 
   @@map("users")
+}
+
+// Refresh-сессии: в cookie уходит plaintext, в БД только sha256
+model RefreshToken {
+  id                String    @id @default(uuid())
+  userId            Int
+  tokenHash         String    @unique
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  replacedByTokenId String?
+  userAgent         String?
+  ipAddress         String?
+  createdAt         DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
 }
 
 // Модель статуса пользователя

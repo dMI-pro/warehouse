@@ -173,13 +173,13 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 
 | # | Проблема | Где | Рекомендация |
 |---|----------|-----|--------------|
-| 7 | JWT в `localStorage` | `frontend/src/stores/authStore.ts` | Долгосрочно: httpOnly cookie или короткий JWT + refresh |
+| ~~7~~ | ~~JWT в `localStorage`~~ | ✅ httpOnly cookies, access 15m + refresh 7d | `authStore` больше не хранит JWT |
 | ~~8~~ | ~~Публичные справочники API~~ | ✅ Снят `@Public()` с GET | JWT обязателен, как у товаров |
 | 9 | Слабая политика паролей (мин. 6) | `backend/src/auth/dto/*.ts`, `errorHandler.ts` | Минимум 12 символов, сложность |
 | 10 | CORS без `Origin` | `backend/src/main.ts` | В prod можно не разрешать запросы без Origin |
 | 11 | Лимит тела 50 MB | `main.ts`, `nginx.conf` | Для фото достаточно 5–10 MB в Multer |
-| 12 | `JWT_EXPIRATION` vs `JWT_EXPIRES_IN` | `.env.example`, `backend/.env.example`, `auth.module.ts` | Одно имя везде |
-| 13 | Долгий JWT (31d в примерах) | `prod.env` | На проде 7d или меньше |
+| ~~12~~ | ~~`JWT_EXPIRATION` vs `JWT_EXPIRES_IN`~~ | ✅ `JWT_ACCESS_EXPIRATION` + `JWT_REFRESH_EXPIRATION` | `.env.example`, `auth.module.ts` |
+| ~~13~~ | ~~Долгий JWT (31d в примерах)~~ | ✅ access 15m, refresh 7d | cookies, не 31d |
 
 ---
 

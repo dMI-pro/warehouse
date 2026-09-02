@@ -16,7 +16,6 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => {
         const secret = config.get<string>('JWT_SECRET');
-        const expiresIn = config.get<string>('JWT_EXPIRATION', '1h') as any;
         if (!secret && config.get<string>('NODE_ENV') === 'production') {
           throw new Error(
             'JWT_SECRET environment variable is required in production',
@@ -24,7 +23,6 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
         }
         return {
           secret: secret || 'dev-only-secret-change-it',
-          signOptions: { expiresIn },
         };
       },
     }),

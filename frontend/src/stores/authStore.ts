@@ -6,35 +6,22 @@ import { apiService } from '@/services/api';
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
-  const token = ref<string | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
-  // Инициализация из localStorage
-  const initAuth = () => {
-    const storedToken = localStorage.getItem('access_token');
-    const storedUser = localStorage.getItem('user');
-
-    if (storedToken && storedUser) {
-      token.value = storedToken;
-      try {
-        user.value = JSON.parse(storedUser);
-      } catch (e) {
-        console.error('Failed to parse user from localStorage', e);
-        clearAuth();
-      }
-    }
+  const dropLegacyTokenStorage = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
   };
 
-  // Проверка авторизации
-  const isAuthenticated = computed(() => !!token.value && !!user.value);
+  dropLegacyTokenStorage();
 
-  // Проверка роли
+  const isAuthenticated = computed(() => !!user.value);
+
   const hasRole = (role: Role) => {
     return user.value?.role === role || user.value?.isSuperAdmin;
   };
 
-  // Проверка на админа
   const isAdmin = computed(() => {
     return user.value?.role === Role.ADMIN || user.value?.isSuperAdmin;
   });
@@ -45,22 +32,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAdminOrManager = computed(() => isAdmin.value || isManager.value);
 
-  // Вход
   const login = async (loginDto: LoginDto) => {
     loading.value = true;
     error.value = null;
     try {
       const response = await apiService.login(loginDto);
-      token.value = response.access_token || null;
       user.value = response.user || null;
-
-      if (response.access_token) {
-        localStorage.setItem('access_token', response.access_token);
-      }
-      if (response.user) {
-        localStorage.setItem('user', JSON.stringify(response.user));
-      }
-
+      dropLegacyTokenStorage();
       return response;
     } catch (err: any) {
       error.value = err.response?.data?.message || 'Ошибка входа';
@@ -70,20 +48,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  // Регистрация
   const register = async (registerDto: RegisterDto) => {
     loading.value = true;
     error.value = null;
     try {
-      const response = await apiService.register(registerDto);
-      // При регистрации теперь не возвращается токен, так как статус пользователя "disabled"
-      // token.value = response.access_token;
-      // user.value = response.user;
-
-      // localStorage.setItem('access_token', response.access_token);
-      // localStorage.setItem('user', JSON.stringify(response.user));
-
-      return response;
+      return await apiService.register(registerDto);
     } catch (err: any) {
       error.value = err.response?.data?.message || 'Ошибка регистрации';
       throw err;
@@ -92,40 +61,34 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  // Выход
-  const logout = () => {
-    clearAuth();
+  const logout = async () => {
+    try {
+      await apiService.logout();
+    } catch {
+      // Cookies/session may already be gone; always clear local state.
+    } finally {
+      clearAuth();
+    }
   };
 
-  // Очистка данных
   const clearAuth = () => {
     user.value = null;
-    token.value = null;
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user');
+    dropLegacyTokenStorage();
   };
 
-  // Проверка текущего пользователя
   const checkAuth = async () => {
-    if (!token.value) return false;
-
     try {
       const currentUser = await apiService.getMe();
       user.value = currentUser;
-      localStorage.setItem('user', JSON.stringify(currentUser));
       return true;
-    } catch (err) {
+    } catch {
       clearAuth();
       return false;
     }
   };
 
-  // Инициализация при старте
-  initAuth();
-
   return {
     user,
-    token,
     loading,
     error,
     isAuthenticated,
@@ -139,9 +102,5 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     logout,
     checkAuth,
-    initAuth,
   };
 });
-
-
-

@@ -21,14 +21,15 @@
    ```env
    DATABASE_URL=postgresql://user:password@host:5432/warehouse_db
    JWT_SECRET=your-very-secure-secret-key-minimum-32-characters-long
-   JWT_EXPIRES_IN=1h
+   JWT_ACCESS_EXPIRATION=15m
+   JWT_REFRESH_EXPIRATION=7d
+   COOKIE_SECURE=true
+   COOKIE_SAME_SITE=lax
+   COOKIE_ACCESS_PATH=/api
+   COOKIE_REFRESH_PATH=/api/auth
    PORT=3000
    NODE_ENV=production
    FRONTEND_URL=https://tsehh.ru
-   JWT_SECRET=your-very-secure-secret-key-minimum-32-characters-long
-   JWT_EXPIRATION=7d
-   PORT=3000
-   NODE_ENV=production
    MINIO_PUBLIC_URL=https://tsehh.ru/minio
    ```
 

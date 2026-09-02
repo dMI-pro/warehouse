@@ -10,7 +10,7 @@
 
 ## Как устроена защита
 
-- На API глобально включён `JwtAuthGuard`; исключения — только `@Public()`.
+- На API глобально включён `JwtAuthGuard`; исключения — только `@Public()`. Access JWT читается из httpOnly cookie `access_token` (fallback: `Authorization: Bearer`).
 - Роли проверяются `RolesGuard` и декоратором `@Roles`.
 - Для товаров дополнительно: `sanitizeProductForRole()` убирает из JSON у **SELLER** и **GUEST** поля `purchasePrice`, `committee` / `committeeId`, `transactionType` / `transactionTypeId` (см. `backend/src/common/utils/product-visibility.util.ts`).
 - На фронте: `router/index.ts` (маршруты) + условия в компонентах (кнопки, колонки).
@@ -23,7 +23,9 @@
 |-------|------|------------|
 | GET | `/` | Корневой ответ API |
 | GET | `/health` | Health-check |
-| POST | `/auth/login` | Вход |
+| POST | `/auth/login` | Вход, httpOnly cookies |
+| POST | `/auth/refresh` | Ротация refresh cookie |
+| POST | `/auth/logout` | Сброс cookies + revoke refresh |
 | POST | `/auth/register` | **Закрыто по умолчанию** → 403, пока `ENABLE_PUBLIC_REGISTRATION !== 'true'` |
 
 Всё остальное требует валидный JWT.
@@ -38,9 +40,11 @@
 
 | Метод | Путь | Роли | Примечание |
 |-------|------|------|------------|
-| POST | `/auth/login` | Public | Логин, выдача JWT |
+| POST | `/auth/login` | Public | Логин, httpOnly cookies (`access_token` + `refresh_token`), тело `{ user }` |
+| POST | `/auth/refresh` | Public | Ротация refresh, новые cookies |
+| POST | `/auth/logout` | Public | Revoke refresh в БД + clear cookies |
 | POST | `/auth/register` | Public* | *Фактически 403 без флага `ENABLE_PUBLIC_REGISTRATION=true` |
-| GET | `/auth/me` | JWT | Текущий пользователь |
+| GET | `/auth/me` | JWT/cookie | Текущий пользователь |
 
 ### 👥 Users
 

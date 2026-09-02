@@ -102,16 +102,15 @@ router.beforeEach(
   ) => {
     const authStore = useAuthStore();
 
+    if (!authStore.isAuthenticated) {
+      await authStore.checkAuth();
+    }
+
     // Если маршрут требует авторизации
     if (to.meta.requiresAuth !== false) {
-      // Проверяем авторизацию
       if (!authStore.isAuthenticated) {
-        // Пытаемся проверить токен
-        const isValid = await authStore.checkAuth();
-        if (!isValid) {
-          next({ name: 'login', query: { redirect: to.fullPath } });
-          return;
-        }
+        next({ name: 'login', query: { redirect: to.fullPath } });
+        return;
       }
 
       // Проверяем роли, если требуется (поддержка requiredRoles массива и старого requiredRole)

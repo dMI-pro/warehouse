@@ -45,7 +45,12 @@ npm install
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/warehouse_db"
 JWT_SECRET="не короче 32 символов"
-JWT_EXPIRES_IN="1h"
+JWT_ACCESS_EXPIRATION=15m
+JWT_REFRESH_EXPIRATION=7d
+COOKIE_SECURE=false
+COOKIE_SAME_SITE=lax
+COOKIE_ACCESS_PATH=/
+COOKIE_REFRESH_PATH=/auth
 PORT=3000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
@@ -81,6 +86,23 @@ Docker (`Makefile`): `make up`, `make down`, `make logs`, `make restart`, `make 
 Backend: `npm run start:dev`, `npm run build`, `npm run start:prod`, `npm run lint`, `npm run test`, `npm run test:e2e`.
 
 Frontend: `npm run dev`, `npm run build`, `npm run preview`, `npm run test:unit`, `npm run type-check`.
+
+## Auth cookies (local vs prod)
+
+Access JWT (~15 мин) и refresh (~7 дней) живут в httpOnly cookies. JS токены не видит. Axios шлёт запросы с `withCredentials: true`.
+
+| | Локально (`NODE_ENV=development`) | VPS (`NODE_ENV=production`, nginx `/api/`) |
+|--|--|--|
+| Front | `http://localhost:5173` | `https://tsehh.ru` |
+| API | `http://localhost:3000` | `https://tsehh.ru/api/` |
+| `COOKIE_SECURE` | `false` | `true` |
+| `COOKIE_SAME_SITE` | `lax` | `lax` |
+| `COOKIE_ACCESS_PATH` | `/` | `/api` |
+| `COOKIE_REFRESH_PATH` | `/auth` | `/api/auth` |
+
+Если `COOKIE_*` path не заданы, они берутся из `NODE_ENV` (dev: `/` + `/auth`, prod: `/api` + `/api/auth`). После выката на VPS добавьте cookie-переменные в `prod.env` и выполните `prisma migrate deploy`. Старые токены из `localStorage` перестанут работать — нужно войти заново.
+
+Bearer `Authorization` оставлен как fallback для Postman; браузерное приложение использует только cookies.
 
 ## Что умеет система
 

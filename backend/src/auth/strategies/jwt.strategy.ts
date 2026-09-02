@@ -1,8 +1,13 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import type { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { User } from '@prisma/client';
+import {
+  ACCESS_COOKIE_NAME,
+  getCookieFromRequest,
+} from '../auth-cookies';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -14,13 +19,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       );
     }
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (request: Request) =>
+          getCookieFromRequest(request, ACCESS_COOKIE_NAME),
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret || 'your-secret-key-change-in-production-dev-only',
+      secretOrKey: jwtSecret || 'dev-only-secret-change-it',
     });
   }
 
   async validate(payload: any) {
+    if (payload?.type !== 'access') {
+      throw new UnauthorizedException('Invalid token type');
+    }
+
     const user = (await this.prisma.user.findUnique({
       where: { id: payload.sub },
       include: { status: true },
@@ -30,8 +43,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found');
     }
 
-    if (user.status?.code?.toLowerCase() === 'blocked') {
+    const status = user.status?.code?.toLowerCase();
+    if (status === 'blocked') {
       throw new UnauthorizedException('User is blocked');
+    }
+    if (status === 'disabled') {
+      throw new UnauthorizedException('User is disabled');
     }
 
     const iatMs =

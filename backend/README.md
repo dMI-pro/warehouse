@@ -26,7 +26,7 @@
 Backend реализован на NestJS (TypeScript) с использованием Prisma ORM и MinIO для хранения изображений. Сервис обеспечивает API для управления товарами, продажами, возвратами, категориями, складами, комитетами, типами транзакций, статусами пользователей, пользователями и журналом действий.
 
 ### Основные модули
-- Auth: аутентификация JWT, глобальный JwtAuthGuard.
+- Auth: httpOnly cookies (короткий access JWT + refresh), глобальный JwtAuthGuard.
 - Users: управление пользователями и ролями.
 - Products: CRUD + загрузка/удаление/перестановка изображений (с компрессией).
 - Sales: операции продаж.
@@ -51,7 +51,12 @@ Backend реализован на NestJS (TypeScript) с использован�
 ```
 DATABASE_URL=postgresql://user:password@localhost:5432/warehouse_db
 JWT_SECRET=your-secret-key-min-32-characters
-JWT_EXPIRES_IN=1h
+JWT_ACCESS_EXPIRATION=15m
+JWT_REFRESH_EXPIRATION=7d
+COOKIE_SECURE=false
+COOKIE_SAME_SITE=lax
+COOKIE_ACCESS_PATH=/
+COOKIE_REFRESH_PATH=/auth
 PORT=3000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
