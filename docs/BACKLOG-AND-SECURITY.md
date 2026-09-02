@@ -33,7 +33,7 @@
 | Автомиграции в `deploy.sh` | ❌ Не сделано |
 | Регулярные бэкапы на VPS (cron) | ✅ Каждый день 03:15 MSK, хранение 7 дней |
 | Git pull с VPS по SSH (без пароля) | ✅ Deploy/account key + `git@github.com:...` |
-| SSL auto-renew (certbot) | ⚠️ Проверить `certbot renew --dry-run` |
+| SSL auto-renew (certbot) | ✅ Воскресенье 04:20 MSK → `renew-ssl-vps.sh` |
 
 ---
 
@@ -226,7 +226,7 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 
 | # | Задача | Статус | Действие |
 |---|--------|--------|----------|
-| 1 | SSL Let's Encrypt | ✅ | Проверить **auto-renew**: `certbot renew --dry-run` на VPS |
+| 1 | SSL Let's Encrypt | ✅ | Auto-renew: cron вс 04:20 → `renew-ssl-vps.sh`; лог `backups-new/ssl-renew.log` |
 | 2 | Firewall UFW | ✅ | 22, 80, 443, 8080, 8443 открыты; 9000/9001 закрыты |
 | 3 | Бэкапы по расписанию | ✅ | Cron 03:15 MSK → `backup-all-vps.sh`; retention 7 дней; лог `backups-new/backup.log`; копия на Mac: `pull-backups-from-vps.sh`. Ручной прогон 02.09 OK; первый ночной — проверить утром |
 | 4 | `deploy.sh` без миграций | ❌ | Добавить `prisma migrate deploy` после `up --build` |
@@ -296,7 +296,7 @@ cd frontend && npm run test:unit
 [x] Xray порт 8443 открыт
 [x] Бэкап есть (ручной 02.09); проверить лог после первого 03:15
 [x] Git fetch с VPS по SSH без пароля
-[ ] certbot renew --dry-run OK
+[x] certbot renew настроен (cron вс 04:20); dry-run при установке
 ```
 
 ---
@@ -320,7 +320,7 @@ cd frontend && npm run test:unit
 3. ~~**Закрыть register**~~ ✅ флаг `ENABLE_PUBLIC_REGISTRATION` (по умолчанию выкл.)
 4. **`deploy.sh` + migrate deploy** (15 мин)
 5. ~~**Бэкапы по cron** на VPS~~ ✅ + периодический `pull-backups-from-vps.sh` на Mac
-6. **certbot renew --dry-run** и cron для продления SSL
+6. ~~**certbot renew**~~ ✅ cron вс 04:20 → `renew-ssl-vps.sh`
 7. ~~Публичные справочники API~~ ✅
 8. `/minio/` только через auth или presigned URL (фото без логина)
 9. Остальное из таблицы «средний приоритет» и бэклог фич

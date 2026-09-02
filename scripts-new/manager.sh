@@ -59,6 +59,7 @@ while true; do
         echo " 4) Restore Database"
         echo " 5) Restore MinIO (full replace)"
         echo " 6) Fix image paths in DB"
+        echo " 7) Renew SSL (Let's Encrypt)"
         echo " 0) Exit"
         echo ""
         read -r -p "Select: " choice
@@ -69,6 +70,7 @@ while true; do
             4) "$MAC/restore-db-vps.sh" ;;
             5) "$MAC/restore-minio-vps.sh" ;;
             6) "$MAC/fix-file-urls-vps.sh" ;;
+            7) "$MAC/renew-ssl-vps.sh" ;;
             0) break ;;
             *) echo "Invalid option" ;;
         esac

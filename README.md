@@ -129,11 +129,21 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 На VPS в `prod.env` обязательно: `FRONTEND_URL=https://tsehh.ru` и `MINIO_PUBLIC_URL=https://tsehh.ru/minio`. SSL: `./setup-ssl.sh tsehh.ru you@email.com` (или DNS-вариант `setup-ssl-dns.sh`), сертификаты в `certs/`.
 
-### Бэкапы
+### Бэкапы и SSL
 
 На VPS каждую ночь в **03:15** cron запускает `scripts-new/macos/backup-all-vps.sh` (БД + MinIO, хранение **7 дней**, лог `backups-new/backup.log`).
 
-Копия на Mac: `./scripts-new/macos/pull-backups-from-vps.sh` (или `--latest`). Подробности — в `scripts-new/README.md`.
+SSL: каждое воскресенье **04:20** — `scripts-new/macos/renew-ssl-vps.sh` (лог `backups-new/ssl-renew.log`).
+
+Проверка срока сертификата (без даунтайма):
+
+```bash
+ssh warehouse-ru-vps
+cd /var/www/warehouse
+./scripts-new/macos/renew-ssl-vps.sh --check-only
+```
+
+Копия бэкапов на Mac: `./scripts-new/macos/pull-backups-from-vps.sh` (или `--latest`). Подробности — в `scripts-new/README.md`.
 
 ## Если что-то не поднимается
 

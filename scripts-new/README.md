@@ -34,6 +34,31 @@ crontab -l | grep backup-all
 
 Ручной прогон: `cd /var/www/warehouse && ./scripts-new/macos/backup-all-vps.sh`
 
+## Автообновление SSL (cron)
+
+Сертификат Let's Encrypt (`tsehh.ru`) лежит в `letsencrypt/` + копия для nginx в `certs/`.
+
+Каждое **воскресенье в 04:20 MSK**:
+
+```bash
+./scripts-new/macos/renew-ssl-vps.sh
+```
+
+Скрипт кратко останавливает `proxy` (нужен порт 80, authenticator=standalone), делает `certbot renew`, копирует PEM в `certs/`, поднимает proxy. Лог: `backups-new/ssl-renew.log`.
+
+Certbot обновляет сертификат только если до конца срока **< ~30 дней** (сейчас до ~29.11.2026).
+
+Проверка:
+
+```bash
+crontab -l | grep renew-ssl
+tail -30 /var/www/warehouse/backups-new/ssl-renew.log
+openssl x509 -in /var/www/warehouse/certs/fullchain.pem -noout -dates
+
+# сухой прогон (сайт ~1 мин на 80 порту недоступен):
+cd /var/www/warehouse && ./scripts-new/macos/renew-ssl-vps.sh --dry-run
+```
+
 ### Копия на Mac (раз в 1–2 недели)
 
 Скачать уже готовые файлы с VPS (без нового дампа на сервере):
@@ -87,6 +112,7 @@ SSH-алиас по умолчанию: `warehouse-ru-vps` (`WAREHOUSE_SSH_HOST`
 | `backup-db.sh` / `backup-minio.sh` | local |
 | `backup-db-vps.sh` / `backup-minio-vps.sh` | VPS (по отдельности) |
 | `backup-all-vps.sh` | VPS (cron: DB + MinIO + ротация 7 дней) |
+| `renew-ssl-vps.sh` | VPS (cron: Let's Encrypt renew → `certs/`) |
 | `restore-db.sh` / `restore-minio.sh` | local и VPS |
 | `pull-prod-to-local.sh` | local (SSH → live dump с VPS) |
 | `pull-backups-from-vps.sh` | local (rsync готовых `backups-new/` с VPS) |
