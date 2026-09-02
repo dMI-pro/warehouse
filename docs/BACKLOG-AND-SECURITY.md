@@ -28,6 +28,7 @@
 | Firewall UFW на VPS | ✅ Настроен (см. ниже) |
 | Публичные справочники API | ✅ Закрыто (JWT обязателен) |
 | Публичная регистрация `POST /auth/register` | ✅ Закрыта (флаг, по умолчанию выкл.) |
+| История git (certs, backup.sql, .env) | ✅ Очищена (`git filter-repo`) |
 | Rate limit на login, JWT disabled | ❌ Не сделано |
 | Автомиграции в `deploy.sh` | ❌ Не сделано |
 | Регулярные бэкапы на VPS (cron) | ⚠️ Проверить вручную |
@@ -89,9 +90,13 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 | Регистрация без токена → 403 | `curl -s -o /dev/null -w "%{http_code}" -X POST https://tsehh.ru/api/auth/register -H 'Content-Type: application/json' -d '{}'` → **403** |
 | Справочники без токена → 401 | `curl -s -o /dev/null -w "%{http_code}" https://tsehh.ru/api/categories` → **401** |
 
-### ⚠️ История git (низкий приоритет, если repo приватный)
+### ~~⚠️ История git~~ ✅ Сделано (02.09.2026)
 
-В **истории** коммитов когда-то лежали `certs/*.pem` и `backup_no_bom.sql`. Файлы с диска убраны, но история не переписана. При утечке репозитория — сменить все пароли и выпустить новые сертификаты.
+Чувствительные файлы удалены из всей истории (`git filter-repo` + force-push на GitHub): `certs/*.pem`, `ssl/*`, `backup_no_bom.sql`, `backup_test111.sql`, `.env`, `frontend/.env`, `thunder-client-collection.json`, пароль из старого `seed.ts`.
+
+Локальный mirror-бэкап до очистки: `warehouse-mirror-backup-20260902-011455` (рядом с репо на Mac).
+
+*Опционально:* если repo когда-то был доступен извне — всё равно ротировать `JWT_SECRET`, пароли БД/MinIO/admin на проде.
 
 ---
 
