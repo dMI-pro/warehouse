@@ -1,6 +1,6 @@
 # Бэклог: уязвимости, доработки и статус
 
-**Обновлено:** 2 сентября 2026  
+**Обновлено:** 3 сентября 2026  
 **Прод:** [https://tsehh.ru/](https://tsehh.ru/) · VPS `warehouse-ru-vps` (`77.91.95.232`) · ветка деплоя **`staging`** · стабильная копия — **`main`**
 
 Сводный документ по материалам:
@@ -31,7 +31,8 @@
 | История git (certs, backup.sql, .env) | ✅ Очищена (`git filter-repo`) |
 | Rate limit на login, JWT disabled | ❌ Не сделано |
 | Автомиграции в `deploy.sh` | ❌ Не сделано |
-| Регулярные бэкапы на VPS (cron) | ✅ Каждый день 03:15, хранение 7 дней |
+| Регулярные бэкапы на VPS (cron) | ✅ Каждый день 03:15 MSK, хранение 7 дней |
+| Git pull с VPS по SSH (без пароля) | ✅ Deploy/account key + `git@github.com:...` |
 | SSL auto-renew (certbot) | ⚠️ Проверить `certbot renew --dry-run` |
 
 ---
@@ -78,17 +79,17 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 - ✅ http://77.91.95.232:8080/ → 302 (панель VPN)
 - ✅ порт 8443 открыт (nc / VPN-клиент)
 
-### ⚠️ Сделано в коде — проверить на живом проде
+### ⚠️ Сделано в коде — проверка на живом проде (03.09.2026)
 
-| Пункт | Как проверить |
-|--------|----------------|
-| Товары без токена → 401 | `curl -s -o /dev/null -w "%{http_code}" https://tsehh.ru/api/products` → **401** |
-| Экспорт без токена → 401 | `.../api/products/export?format=csv` → **401** |
-| Seller не видит закупку в JSON | Войти seller → DevTools → ответ `/api/products` без `purchasePrice` |
-| Пароли админов не из seed | На проде один пользователь; убедиться, что не старый пароль из аудита |
-| Новый `JWT_SECRET` после переезда | Не обязательно, если секреты не утекали; при сомнениях — ротировать |
-| Регистрация без токена → 403 | `curl -s -o /dev/null -w "%{http_code}" -X POST https://tsehh.ru/api/auth/register -H 'Content-Type: application/json' -d '{}'` → **403** |
-| Справочники без токена → 401 | `curl -s -o /dev/null -w "%{http_code}" https://tsehh.ru/api/categories` → **401** |
+| Пункт | Как проверить | Статус |
+|--------|----------------|--------|
+| Товары без токена → 401 | `curl …/api/products` | ✅ 401 |
+| Экспорт без токена → 401 | `…/api/products/export?format=csv` | ⚠️ перепроверить вручную |
+| Seller не видит закупку в JSON | DevTools → `/api/products` без `purchasePrice` | ⚠️ вручную под seller |
+| Пароли админов не из seed | Один пользователь на проде | ⚠️ по желанию |
+| Новый `JWT_SECRET` после переезда | Ротация опциональна | ⚠️ по желанию |
+| Регистрация закрыта | `POST /api/auth/register` с валидным телом → **403**; пустое `{}` может дать **400** (валидация раньше флага) | ✅ закрыта |
+| Справочники без токена → 401 | `curl …/api/categories` | ✅ 401 |
 
 ### ~~⚠️ История git~~ ✅ Сделано (02.09.2026)
 
@@ -227,12 +228,13 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 |---|--------|--------|----------|
 | 1 | SSL Let's Encrypt | ✅ | Проверить **auto-renew**: `certbot renew --dry-run` на VPS |
 | 2 | Firewall UFW | ✅ | 22, 80, 443, 8080, 8443 открыты; 9000/9001 закрыты |
-| 3 | Бэкапы по расписанию | ✅ | Cron 03:15 → `backup-all-vps.sh`; retention 7 дней; лог `backups-new/backup.log`; копия на Mac: `pull-backups-from-vps.sh` |
+| 3 | Бэкапы по расписанию | ✅ | Cron 03:15 MSK → `backup-all-vps.sh`; retention 7 дней; лог `backups-new/backup.log`; копия на Mac: `pull-backups-from-vps.sh`. Ручной прогон 02.09 OK; первый ночной — проверить утром |
 | 4 | `deploy.sh` без миграций | ❌ | Добавить `prisma migrate deploy` после `up --build` |
-| 5 | Синхронизация `main` | ⚠️ | После успешного релиза: merge `staging` → `main` |
+| 5 | Синхронизация `main` | ⚠️ | `main` отстаёт от `staging`/`dev` — merge после релиза |
 | 6 | GitHub Actions secrets | ⚠️ | `VPS_HOST`, `VPS_PATH` — новый RU VPS |
 | 7 | `scripts-new/vps.minio.env` на Mac | ⚠️ | Endpoint `https://tsehh.ru` (не старый домен) |
-| 8 | Не запускать на проде | — | `reset-vps.sh`, `make seed` с тестовым паролем |
+| 8 | Git на VPS → GitHub по SSH | ✅ | Ключ `~/.ssh/warehouse-ru-vps-github`, remote `git@github.com:dMI-pro/warehouse.git` |
+| 9 | Не запускать на проде | — | `reset-vps.sh`, `make seed` с тестовым паролем |
 
 ---
 
@@ -286,12 +288,14 @@ cd frontend && npm run test:unit
 [x] https://tsehh.ru/ открывается, SSL валидный
 [ ] Логин admin / manager / seller
 [x] Фото товаров грузятся (через /minio/ на сайте)
-[ ] curl без токена: /api/products → 401
+[x] curl без токена: /api/products → 401
+[x] curl без токена: /api/categories → 401
 [ ] Seller: в JSON нет purchasePrice
 [x] Порты 9000/9001 снаружи закрыты (timeout)
 [x] VPN-панель http://77.91.95.232:8080/ доступна
 [x] Xray порт 8443 открыт
-[x] Бэкап за последние 24–48 ч есть
+[x] Бэкап есть (ручной 02.09); проверить лог после первого 03:15
+[x] Git fetch с VPS по SSH без пароля
 [ ] certbot renew --dry-run OK
 ```
 
