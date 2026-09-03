@@ -569,9 +569,9 @@ const resizeObserver = ref<ResizeObserver | null>(null);
 // Вкладки
 const tabs = ref<Array<{ label: string; icon: string; type: 'sales' | 'stock' | 'movement' | 'returns' }>>([
   { label: 'Продажи', icon: 'pi pi-shopping-cart', type: 'sales' },
+  { label: 'Возвраты', icon: 'pi pi-undo', type: 'returns' },
   { label: 'Остатки', icon: 'pi pi-box', type: 'stock' },
-  { label: 'Движение товаров', icon: 'pi pi-arrows-h', type: 'movement' },
-  { label: 'Возвраты товара', icon: 'pi pi-undo', type: 'returns' }
+  { label: 'Движение товара', icon: 'pi pi-arrows-h', type: 'movement' },
 ]);
 
 // Вычисляемые свойства
