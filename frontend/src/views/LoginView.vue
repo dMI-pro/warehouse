@@ -39,6 +39,9 @@
               class="w-full"
             /> -->
             <small v-if="errors.password" class="p-error">{{ errors.password }}</small>
+            <small class="field-hint">
+              Чтобы не ошибаться при вводе, сохраните пароль в менеджере паролей браузера (Chrome, Safari или Edge).
+            </small>
           </div>
 
           <Message v-if="authStore.error" severity="error" :closable="false" class="mb-3">
@@ -221,6 +224,12 @@ const handleForgotPassword = () => {
   font-weight: 500;
   color: var(--text-color);
   font-size: 0.9rem;
+}
+
+.field-hint {
+  color: var(--text-color-secondary, #6b7280);
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
 
 .login-button {

@@ -17,10 +17,32 @@ async function bootstrap() {
   // Trust proxy when behind reverse proxy (nginx) for correct rate limit IP
   app.set('trust proxy', 1);
 
-  // Rate limiting
+  const isProd = process.env.NODE_ENV === 'production';
+
+  // Login: count failed attempts only (401/400), so a successful login does not burn quota.
+  // 10 tries / 10 min — enough for typos, tight enough against password spraying.
+  const loginLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: isProd ? 10 : 50,
+    skipSuccessfulRequests: true,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      const reset = req.rateLimit?.resetTime;
+      const waitMin = reset
+        ? Math.max(1, Math.ceil((reset.getTime() - Date.now()) / 60000))
+        : 10;
+      res.status(429).json({
+        statusCode: 429,
+        message: `Слишком много неудачных попыток входа. Подождите ${waitMin} мин. и попробуйте снова.`,
+      });
+    },
+  });
+  app.use('/auth/login', loginLimiter);
+
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: process.env.NODE_ENV === 'production' ? 300 : 1000,
+    max: isProd ? 300 : 1000,
     standardHeaders: true,
     legacyHeaders: false,
   });

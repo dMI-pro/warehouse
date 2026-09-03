@@ -29,7 +29,7 @@
 | Публичные справочники API | ✅ Закрыто (JWT обязателен) |
 | Публичная регистрация `POST /auth/register` | ✅ Закрыта (флаг, по умолчанию выкл.) |
 | История git (certs, backup.sql, .env) | ✅ Очищена (`git filter-repo`) |
-| Rate limit на login | ❌ Не сделано |
+| Rate limit на login | ✅ 10 неудачных / 10 мин с IP (успешный вход не считается) |
 | `disabled` в JwtStrategy | ✅ Сделано (вместе с cookie-auth) |
 | Автомиграции в `deploy.sh` | ❌ Не сделано |
 | Регулярные бэкапы на VPS (cron) | ✅ Каждый день 03:15 MSK, хранение 7 дней |
@@ -139,14 +139,15 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 
 ---
 
-### 4. Нет отдельного rate limit на `/auth/login`
+### ~~4. Нет отдельного rate limit на `/auth/login`~~ ✅ Сделано (03.09.2026)
 
-**Источник:** `SECURITY-AUDIT`  
-**Риск:** ~300 запросов / 15 мин с одного IP (общий лимит) — много для перебора пароля.
+Отдельный лимит только на `POST /auth/login`: **10 неудачных попыток / 10 минут** с одного IP (в dev — 50). Успешный вход в квоту не входит (`skipSuccessfulRequests`). Общий лимит API (300 / 15 мин) без изменений.
 
-**Что сделать:** отдельный `rateLimit` на `POST /auth/login` — 5–10 попыток / минуту.
+На 429 фронт показывает: «подождите N мин.»
 
-**Файлы:** `backend/src/main.ts` или `auth.controller.ts`
+**Для возрастного менеджера:** сохранить пароль в менеджере паролей браузера — меньше опечаток, лимит почти не сработает. Если всё же сработал — подождать до 10 минут (не банится на часы).
+
+**Файлы:** `backend/src/main.ts`, `frontend/src/stores/authStore.ts`, `frontend/src/views/LoginView.vue`
 
 ---
 
@@ -312,7 +313,7 @@ cd frontend && npm run test:unit
 ## Рекомендуемый порядок работ (когда будет время)
 
 1. ~~**MinIO ports + firewall**~~ ✅ сделано на VPS
-2. ~~**`disabled` в JWT**~~ ✅ + **rate limit login** (1–2 ч)
+2. ~~**`disabled` в JWT**~~ ✅ + ~~**rate limit login**~~ ✅ (10 / 10 мин, неудачные)
 3. ~~**Закрыть register**~~ ✅ флаг `ENABLE_PUBLIC_REGISTRATION` (по умолчанию выкл.)
 4. **`deploy.sh` + migrate deploy** (15 мин)
 5. ~~**Бэкапы по cron** на VPS~~ ✅ + периодический `pull-backups-from-vps.sh` на Mac

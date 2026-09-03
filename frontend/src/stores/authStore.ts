@@ -41,7 +41,13 @@ export const useAuthStore = defineStore('auth', () => {
       dropLegacyTokenStorage();
       return response;
     } catch (err: any) {
-      error.value = err.response?.data?.message || 'Ошибка входа';
+      const raw = err.response?.data?.message;
+      const fromApi = Array.isArray(raw) ? raw.join(', ') : raw;
+      error.value =
+        fromApi ||
+        (err.response?.status === 429
+          ? 'Слишком много попыток входа. Подождите несколько минут.'
+          : 'Ошибка входа');
       throw err;
     } finally {
       loading.value = false;
