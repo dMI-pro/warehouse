@@ -1024,14 +1024,16 @@ const generateReport = async () => {
     if (filters.startDate) params.startDate = filters.startDate.toISOString().split('T')[0];
     if (filters.endDate) params.endDate = filters.endDate.toISOString().split('T')[0];
 
+    // Sales API defaults to limit=10; reports need the full filtered set
+    // (returns omit limit and already return all).
     if (reportType.value === 'sales') {
-      await salesStore.fetchSales(params);
+      await salesStore.fetchSales({ ...params, page: 1, limit: 1000 });
     } else if (reportType.value === 'stock') {
       await productsStore.fetchProducts({ limit: 1000 });
     } else if (reportType.value === 'returns') {
       await returnsStore.fetchReturns(params);
     } else {
-      await salesStore.fetchSales(params);
+      await salesStore.fetchSales({ ...params, page: 1, limit: 1000 });
     }
   } catch (error: any) {
     toast.add({ severity: 'error', summary: 'Ошибка', detail: `Не удалось загрузить отчет: ${error.message}`, life: 3000 });

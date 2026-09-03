@@ -8,9 +8,6 @@ export class DashboardService {
 
   async getSummary(query: QueryDashboardDto) {
     const chartDays = query.chartDays ?? 30;
-    const monthStart = new Date();
-    monthStart.setMonth(monthStart.getMonth() - 1);
-    const monthEnd = new Date();
 
     const chartStart = new Date();
     chartStart.setHours(0, 0, 0, 0);
@@ -21,8 +18,8 @@ export class DashboardService {
 
     const [
       productStats,
-      soldMonthAgg,
-      returnedMonthAgg,
+      soldAgg,
+      returnedAgg,
       newArrivals,
       lowStockProducts,
       longStorageProducts,
@@ -31,12 +28,11 @@ export class DashboardService {
       salesChartRows,
     ] = await Promise.all([
       this.getProductStats(),
+      // All-time totals (same semantics as committees.getStatistics)
       this.prisma.sale.aggregate({
-        where: { soldAt: { gte: monthStart, lte: monthEnd } },
         _sum: { quantity: true },
       }),
       this.prisma.return.aggregate({
-        where: { returnedAt: { gte: monthStart, lte: monthEnd } },
         _sum: { quantity: true },
       }),
       this.prisma.product.findMany({
@@ -114,8 +110,8 @@ export class DashboardService {
       `,
     ]);
 
-    const soldItemsCount = soldMonthAgg._sum.quantity ?? 0;
-    const returnedItemsCount = returnedMonthAgg._sum.quantity ?? 0;
+    const soldItemsCount = soldAgg._sum.quantity ?? 0;
+    const returnedItemsCount = returnedAgg._sum.quantity ?? 0;
 
     return {
       stats: {
