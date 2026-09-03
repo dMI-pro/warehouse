@@ -29,7 +29,8 @@
 | Публичные справочники API | ✅ Закрыто (JWT обязателен) |
 | Публичная регистрация `POST /auth/register` | ✅ Закрыта (флаг, по умолчанию выкл.) |
 | История git (certs, backup.sql, .env) | ✅ Очищена (`git filter-repo`) |
-| Rate limit на login, JWT disabled | ❌ Не сделано |
+| Rate limit на login | ❌ Не сделано |
+| `disabled` в JwtStrategy | ✅ Сделано (вместе с cookie-auth) |
 | Автомиграции в `deploy.sh` | ❌ Не сделано |
 | Регулярные бэкапы на VPS (cron) | ✅ Каждый день 03:15 MSK, хранение 7 дней |
 | Git pull с VPS по SSH (без пароля) | ✅ Deploy/account key + `git@github.com:...` |
@@ -52,6 +53,7 @@
 | 9 | Firewall на VPS | UFW: открыты 22, 80, 443, 8080, 8443; MinIO закрыт снаружи |
 | 10 | VPN-панель | http://77.91.95.232:8080/ — порт **8080** открыт в UFW постоянно |
 | 11 | Xray VLESS Reality | Порт **8443** открыт в UFW |
+| 12 | Статус `disabled` в JWT после выдачи | В `JwtStrategy.validate()` — как `blocked`; cookie/access тоже |
 
 ### Firewall на VPS (актуальная схема)
 
@@ -148,15 +150,9 @@ ssh -L 9001:127.0.0.1:9001 warehouse-ru-vps
 
 ---
 
-### 5. Статус `disabled` не проверяется в JWT после выдачи токена
+### ~~5. Статус `disabled` не проверяется в JWT после выдачи токена~~ ✅ Сделано (cookie-auth)
 
-**Источник:** `SECURITY-AUDIT`  
-**Сейчас:** `blocked` проверяется в `JwtStrategy`; `disabled` — только при **логине**.  
-**Риск:** отключённый пользователь ходит с токеном до истечения (до 31 дня).
-
-**Что сделать:** в `JwtStrategy.validate()` добавить проверку `disabled` (как для `blocked`).
-
-**Файл:** `backend/src/auth/strategies/jwt.strategy.ts`
+В `JwtStrategy.validate()` проверяются и `blocked`, и `disabled`. Access cookie (~15m) + revoke sessions закрывают старый сценарий «ходит до 31 дня».
 
 ---
 
@@ -316,7 +312,7 @@ cd frontend && npm run test:unit
 ## Рекомендуемый порядок работ (когда будет время)
 
 1. ~~**MinIO ports + firewall**~~ ✅ сделано на VPS
-2. **`disabled` в JWT** + **rate limit login** (1–2 ч)
+2. ~~**`disabled` в JWT**~~ ✅ + **rate limit login** (1–2 ч)
 3. ~~**Закрыть register**~~ ✅ флаг `ENABLE_PUBLIC_REGISTRATION` (по умолчанию выкл.)
 4. **`deploy.sh` + migrate deploy** (15 мин)
 5. ~~**Бэкапы по cron** на VPS~~ ✅ + периодический `pull-backups-from-vps.sh` на Mac
