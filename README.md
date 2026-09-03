@@ -4,7 +4,7 @@
 
 Стек: NestJS + Prisma + PostgreSQL, Vue 3 + Vite + PrimeVue, MinIO для изображений.
 
-Подробности: [руководство пользователя](docs/user-manual-final.md), [деплой](DEPLOYMENT.md).
+Подробности: [документация](docs/README.md), [руководство пользователя](docs/user-manual-final.md), [деплой](DEPLOYMENT.md).
 
 ## Запуск через Docker
 
