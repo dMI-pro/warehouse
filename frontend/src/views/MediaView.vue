@@ -184,6 +184,7 @@ import Toast from 'primevue/toast';
 
 import { apiService } from '@/services/api';
 import type { MediaItem, PaginatedResponse } from '@/types/api';
+import { buildApiDateRangeParams } from '@/utils/dateRange';
 
 const toast = useToast();
 const confirm = useConfirm();
@@ -248,12 +249,10 @@ function rowClass(data: MediaItem) {
 }
 
 function computeDateRange() {
-  if (!filters.date) return { startDate: undefined as string | undefined, endDate: undefined as string | undefined };
-  const start = new Date(filters.date);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(filters.date);
-  end.setHours(23, 59, 59, 999);
-  return { startDate: start.toISOString(), endDate: end.toISOString() };
+  if (!filters.date) {
+    return { startDate: undefined as string | undefined, endDate: undefined as string | undefined };
+  }
+  return buildApiDateRangeParams(filters.date, filters.date);
 }
 
 async function load(page?: number) {

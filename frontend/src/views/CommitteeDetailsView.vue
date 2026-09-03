@@ -246,6 +246,7 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import * as echarts from 'echarts';
 import { useAuthStore } from '@/stores/authStore';
+import { buildApiDateRangeParams } from '@/utils/dateRange';
 
 // PrimeVue Components
 import Card from 'primevue/card';
@@ -350,9 +351,10 @@ const fetchStatistics = async () => {
   if (isLoading.value) return;
   isLoading.value = true;
   try {
-    // Форматируем даты для включения конечной даты
-    const startDateStr = filters.startDate ? formatDateForApi(filters.startDate) : undefined;
-    const endDateStr = filters.endDate ? formatDateForApi(filters.endDate, true) : undefined;
+    const { startDate: startDateStr, endDate: endDateStr } = buildApiDateRangeParams(
+      filters.startDate,
+      filters.endDate,
+    );
 
     const data = await apiService.getCommitteeStatistics(committeeId, startDateStr, endDateStr);
     
@@ -372,17 +374,6 @@ const fetchStatistics = async () => {
   } finally {
     isLoading.value = false;
   }
-};
-
-// Форматирование даты для API (включительно конечную дату)
-const formatDateForApi = (date: Date, isEndDate: boolean = false): string => {
-  const d = new Date(date);
-  if (isEndDate) {
-    d.setHours(23, 59, 59, 999);
-  } else {
-    d.setHours(0, 0, 0, 0);
-  }
-  return d.toISOString();
 };
 
 const resetFilters = () => {

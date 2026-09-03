@@ -1,12 +1,12 @@
-import { IsDateString, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsString, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QueryReturnsDto {
-  @IsDateString()
+  @IsString()
   @IsOptional()
   startDate?: string;
 
-  @IsDateString()
+  @IsString()
   @IsOptional()
   endDate?: string;
 

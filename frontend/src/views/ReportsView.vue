@@ -485,10 +485,18 @@ import { Role } from '@/types/api';
 
 import QuantityInput from '@/components/forms/QuantityInput.vue';
 import { getDefaultTemplate } from '@/utils/exportTemplates';
+import { useDateRangeFilter } from '@/composables/useDateRangeFilter';
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
+const {
+  filters,
+  dateRangeError,
+  validate: validateDateRange,
+  toQueryParams: dateRangeToQueryParams,
+  reset: resetDateRangeFilters,
+} = useDateRangeFilter();
 
 // Типы данных
 interface NormalizedSale {
@@ -563,7 +571,6 @@ let mainChart: echarts.ECharts | null = null;
 const isLoading = ref(false);
 const rows = ref(15);
 const saving = ref(false);
-const dateRangeError = ref<string>('');
 const resizeObserver = ref<ResizeObserver | null>(null);
 
 // Вкладки
@@ -604,11 +611,7 @@ const restoreTabFromUrl = () => {
   }
 };
 
-// Фильтры
-const filters = reactive({
-  startDate: null as Date | null,
-  endDate: null as Date | null,
-});
+// Фильтры дат — useDateRangeFilter (выше)
 
 // Экспорт
 const exportFormat = ref<'excel' | 'csv'>('csv');
@@ -987,41 +990,16 @@ const getItemName = (item: NormalizedItem): string => {
   const anyItem = item as any;
   return anyItem.productName ?? anyItem.name ?? `ID: ${anyItem.id}`;
 };
-// Валидация дат (без изменений)
-const validateDateRange = () => {
-  dateRangeError.value = '';
-  
-  if (filters.startDate && filters.endDate) {
-    const start = new Date(filters.startDate);
-    const end = new Date(filters.endDate);
-    
-    if (start > end) {
-      dateRangeError.value = 'Дата начала не может быть позже даты окончания';
-      return false;
-    }
-    
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays > 365) {
-      dateRangeError.value = 'Диапазон не должен превышать 1 год';
-      return false;
-    }
-  }
-  
-  return true;
-};
+// Валидация дат — useDateRangeFilter.validate
 
-// Генерация отчета (без изменений)
+// Генерация отчета
 const generateReport = async () => {
   if (!validateDateRange()) return;
   
   isLoading.value = true;
   
   try {
-    const params: any = {};
-    if (filters.startDate) params.startDate = filters.startDate.toISOString().split('T')[0];
-    if (filters.endDate) params.endDate = filters.endDate.toISOString().split('T')[0];
+    const params = dateRangeToQueryParams();
 
     // Sales API defaults to limit=10; reports need the full filtered set
     // (returns omit limit and already return all).
@@ -1041,11 +1019,9 @@ const generateReport = async () => {
   }
 };
 
-// Сброс фильтров (без изменений)
+// Сброс фильтров
 const resetFilters = () => {
-  filters.startDate = null;
-  filters.endDate = null;
-  dateRangeError.value = '';
+  resetDateRangeFilters();
   generateReport();
 };
 

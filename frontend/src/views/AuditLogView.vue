@@ -38,8 +38,9 @@
             <Calendar
               id="startDate"
               v-model="filters.startDate"
-              dateFormat="yy-mm-dd"
+              dateFormat="dd.mm.yy"
               showIcon
+              :showButtonBar="true"
               class="w-full"
             />
           </div>
@@ -48,17 +49,26 @@
             <Calendar
               id="endDate"
               v-model="filters.endDate"
-              dateFormat="yy-mm-dd"
+              dateFormat="dd.mm.yy"
               showIcon
+              :showButtonBar="true"
               class="w-full"
             />
           </div>
-          <div class="filter-item">
+          <div class="filter-item filter-actions">
             <Button
-              label="Применить фильтры"
+              label="Применить"
               icon="pi pi-filter"
               class="w-full"
               @click="applyFilters"
+            />
+            <Button
+              label="Сбросить"
+              icon="pi pi-times"
+              severity="secondary"
+              outlined
+              class="w-full"
+              @click="resetFilters"
             />
           </div>
         </div>
@@ -219,9 +229,12 @@ import type { User, Role, AuditLog, PaginatedResponse } from '@/types/api';
 import { isCurrentUserActor, getActorDisplayName, getInitials, getAvatarColor } from '@/utils/user-utils';
 import { getDefaultTemplate } from '@/utils/exportTemplates';
 import { exportExcelTable, type ExcelColumn } from '@/utils/excelExport';
+import { buildApiDateRangeParams, validateDateRange, formatAppDateTime } from '@/utils/dateRange';
+import { useToast } from 'primevue/usetoast';
 
 const usersStore = useUsersStore();
 const authStore = useAuthStore();
+const toast = useToast();
 const loading = ref(false);
 const selectedUser = ref<User | null>(null);
 const userSuggestions = ref<User[]>([]);
@@ -286,12 +299,18 @@ const actionTypeOptions = [
 const fetchAuditLogs = async () => {
   loading.value = true;
   try {
-    const params: any = {
+    const rangeError = validateDateRange(filters.startDate, filters.endDate);
+    if (rangeError) {
+      toast.add({ severity: 'warn', summary: 'Фильтр', detail: rangeError, life: 3000 });
+      return;
+    }
+
+    const params: Record<string, string | number> = {
       page: pagination.value.page,
       limit: pagination.value.limit,
     };
 
-    if (selectedUser.value) {
+    if (selectedUser.value?.id) {
       params.userId = selectedUser.value.id;
     }
 
@@ -299,21 +318,7 @@ const fetchAuditLogs = async () => {
       params.action = filters.actionType;
     }
 
-    if (filters.startDate) {
-      const d = filters.startDate;
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      params.startDate = `${year}-${month}-${day}T00:00:00.000+03:00`;
-    }
-
-    if (filters.endDate) {
-      const d = filters.endDate;
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      params.endDate = `${year}-${month}-${day}T23:59:59.999+03:00`;
-    }
+    Object.assign(params, buildApiDateRangeParams(filters.startDate, filters.endDate));
 
     const response: PaginatedResponse<AuditLog> = await apiService.getAuditLogs(params);
     auditLogs.value = response.data;
@@ -323,8 +328,18 @@ const fetchAuditLogs = async () => {
       limit: response.meta.limit,
       totalPages: response.meta.totalPages,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to load audit logs', error);
+    const detail =
+      error?.response?.data?.message ||
+      error?.message ||
+      'Не удалось загрузить журнал';
+    toast.add({
+      severity: 'error',
+      summary: 'Ошибка',
+      detail: Array.isArray(detail) ? detail.join(', ') : String(detail),
+      life: 5000,
+    });
   } finally {
     loading.value = false;
   }
@@ -334,16 +349,7 @@ const filteredLogs = computed(() => {
   return auditLogs.value;
 });
 
-const formatDateTime = (dateString: string) => {
-  return new Date(dateString).toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Europe/Moscow',
-  });
-};
+const formatDateTime = (dateString: string) => formatAppDateTime(dateString);
 
 const getActionIcon = (action: string): string => {
   const iconMap: Record<string, string> = {
@@ -470,6 +476,15 @@ const applyFilters = async () => {
   await fetchAuditLogs();
 };
 
+const resetFilters = async () => {
+  selectedUser.value = null;
+  filters.actionType = null;
+  filters.startDate = null;
+  filters.endDate = null;
+  pagination.value.page = 1;
+  await fetchAuditLogs();
+};
+
 const buildChanges = (log: AuditLog | null) => {
   const result: Array<{ key: string; old: string; new: string }> = [];
   if (!log) {
@@ -590,6 +605,12 @@ const exportAuditExcel = async () => {
 }
 
 .filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-actions {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

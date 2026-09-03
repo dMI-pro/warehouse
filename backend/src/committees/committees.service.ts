@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommitteeDto } from './dto/create-committee.dto';
 import { UpdateCommitteeDto } from './dto/update-committee.dto';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { parseQueryDateBound } from '../common/utils/date-range.util';
 
 @Injectable()
 export class CommitteesService {
@@ -103,10 +104,10 @@ export class CommitteesService {
     // Date filters
     const dateFilter: any = {};
     if (startDate) {
-      dateFilter.gte = new Date(startDate);
+      dateFilter.gte = parseQueryDateBound(startDate, 'start');
     }
     if (endDate) {
-      dateFilter.lte = new Date(endDate);
+      dateFilter.lte = parseQueryDateBound(endDate, 'end');
     }
 
     // Получаем ВСЕ товары комитета

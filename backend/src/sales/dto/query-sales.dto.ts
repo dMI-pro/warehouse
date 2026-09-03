@@ -1,4 +1,4 @@
-import { IsOptional, IsInt, Min, Max, IsDateString } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QuerySalesDto {
@@ -12,11 +12,11 @@ export class QuerySalesDto {
   @Type(() => Number)
   soldBy?: number;
 
-  @IsDateString()
+  @IsString()
   @IsOptional()
   startDate?: string;
 
-  @IsDateString()
+  @IsString()
   @IsOptional()
   endDate?: string;
 

@@ -16,7 +16,6 @@ import {
   IsOptional,
   IsInt,
   IsString,
-  IsDateString,
   IsBoolean,
   IsIn,
   Min,
@@ -35,11 +34,11 @@ class QueryMediaDto {
   unusedOnly?: boolean;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   startDate?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   endDate?: string;
 
   @IsOptional()

@@ -15,6 +15,7 @@ import {
   sanitizeNestedProduct,
   type ProductViewer,
 } from '../common/utils/product-visibility.util';
+import { parseQueryDateBound } from '../common/utils/date-range.util';
 
 @Injectable()
 export class ReturnsService {
@@ -112,10 +113,10 @@ export class ReturnsService {
     if (startDate || endDate) {
       where.returnedAt = {};
       if (startDate) {
-        where.returnedAt.gte = new Date(startDate);
+        where.returnedAt.gte = parseQueryDateBound(startDate, 'start');
       }
       if (endDate) {
-        where.returnedAt.lte = new Date(endDate);
+        where.returnedAt.lte = parseQueryDateBound(endDate, 'end');
       }
     }
 

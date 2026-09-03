@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
+import { parseQueryDateBound } from '../common/utils/date-range.util';
 
 export interface MediaQuery {
   search?: string;
@@ -107,8 +108,8 @@ export class MediaService {
     }
 
     if (startDate || endDate) {
-      const start = startDate ? new Date(startDate) : undefined;
-      const end = endDate ? new Date(endDate) : undefined;
+      const start = startDate ? parseQueryDateBound(startDate, 'start') : undefined;
+      const end = endDate ? parseQueryDateBound(endDate, 'end') : undefined;
       items = items.filter((i) => {
         const d = new Date(i.lastModified);
         if (start && d < start) return false;

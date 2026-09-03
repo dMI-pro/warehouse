@@ -4,12 +4,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
+import { parseQueryDateBound } from '../common/utils/date-range.util';
 import { Type } from 'class-transformer';
 import {
   IsOptional,
   IsInt,
   IsString,
-  IsDateString,
   Min,
 } from 'class-validator';
 
@@ -37,11 +37,12 @@ class QueryAuditLogDto {
   @Type(() => Number)
   relatedUserId?: number;
 
-  @IsDateString()
+  /** ISO datetime or YYYY-MM-DD; expanded in parseQueryDateBound */
+  @IsString()
   @IsOptional()
   startDate?: string;
 
-  @IsDateString()
+  @IsString()
   @IsOptional()
   endDate?: string;
 
@@ -77,16 +78,11 @@ export class AuditLogController {
     };
 
     if (query.startDate) {
-      params.startDate = new Date(query.startDate);
+      params.startDate = parseQueryDateBound(query.startDate, 'start');
     }
 
     if (query.endDate) {
-      const endDate = new Date(query.endDate);
-      // Если передана только дата (YYYY-MM-DD), устанавливаем конец дня
-      if (query.endDate.length === 10) {
-        endDate.setHours(23, 59, 59, 999);
-      }
-      params.endDate = endDate;
+      params.endDate = parseQueryDateBound(query.endDate, 'end');
     }
 
     return this.auditLogService.findAll(params);
