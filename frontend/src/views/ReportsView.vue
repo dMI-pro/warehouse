@@ -576,8 +576,7 @@ const tabs = ref<Array<{ label: string; icon: string; type: 'sales' | 'stock' | 
 
 // Вычисляемые свойства
 const reportType = computed(() => {
-  const types = ['sales', 'stock', 'movement', 'returns'];
-  return types[activeTabIndex.value] as 'sales' | 'stock' | 'movement' | 'returns';
+  return tabs.value[activeTabIndex.value]?.type ?? 'sales';
 });
 
 // Функции вкладок
