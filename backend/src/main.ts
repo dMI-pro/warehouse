@@ -27,10 +27,10 @@ async function bootstrap() {
     skipSuccessfulRequests: true,
     standardHeaders: true,
     legacyHeaders: false,
-    handler: (req, res) => {
-      const reset = req.rateLimit?.resetTime;
-      const waitMin = reset
-        ? Math.max(1, Math.ceil((reset.getTime() - Date.now()) / 60000))
+    handler: (_req, res) => {
+      const retryAfter = Number(res.getHeader('Retry-After'));
+      const waitMin = Number.isFinite(retryAfter) && retryAfter > 0
+        ? Math.max(1, Math.ceil(retryAfter / 60))
         : 10;
       res.status(429).json({
         statusCode: 429,
