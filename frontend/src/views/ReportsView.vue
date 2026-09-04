@@ -1,39 +1,21 @@
 <template>
   <div class="reports">
-    <!-- Шапка страницы -->
-    <div class="grid mb-4">
-      <div class="col-12">
-        <div class="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-3">
-          <div class="flex align-items-center gap-3">
-            <div class="p-3 surface-100 border-round-lg">
-              <i class="pi pi-chart-line text-primary text-2xl"></i>
-            </div>
-            <div>
-              <h1 class="text-2xl font-bold m-0">Отчеты</h1>
-              <span class="text-color-secondary">Аналитика продаж, остатков и возвратов</span>
-            </div>
-          </div>
-          
-          <div class="flex align-items-center gap-3">
-            <div class="flex align-items-center gap-2 p-3 surface-100 border-round-lg">
-              <i class="pi pi-download text-primary"></i>
-              <span class="font-medium">Экспорт:</span>
-              <Dropdown
-                v-model="exportFormat"
-                :options="exportFormats"
-                optionLabel="label"
-                optionValue="value"
-                class="w-10rem"
-              />
-            </div>
-            <Button
-              label="Экспортировать"
-              icon="pi pi-file-export"
-              :disabled="!normalizedReportData.length"
-              @click="handleExport"
-            />
-          </div>
-        </div>
+    <div class="page-header">
+      <h1 class="page-title">Отчёты</h1>
+      <div class="header-actions">
+        <Dropdown
+          v-model="exportFormat"
+          :options="exportFormats"
+          optionLabel="label"
+          optionValue="value"
+          class="w-10rem"
+        />
+        <Button
+          label="Экспортировать"
+          icon="pi pi-file-export"
+          :disabled="!normalizedReportData.length"
+          @click="handleExport"
+        />
       </div>
     </div>
 
@@ -1749,6 +1731,27 @@ onBeforeUnmount(() => {
 <style scoped>
 .reports {
   min-height: calc(100vh - 100px);
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 /* Стили для вкладок */
