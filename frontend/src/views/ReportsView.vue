@@ -63,25 +63,31 @@
         </Card>
 
         <!-- Статистика -->
-        <Card v-if="reportType === 'sales'" class="mb-4 section-card">
+        <Card
+          v-if="reportType === 'sales'"
+          class="mb-4 section-card"
+          :class="{ 'section-card--collapsed': statsCollapsed }"
+        >
           <template #title>
-            <div class="section-header">
-              <div class="flex align-items-center gap-2">
+            <button
+              type="button"
+              class="section-header"
+              :aria-expanded="!statsCollapsed"
+              @click="toggleStatsSection"
+            >
+              <div class="section-header__title">
                 <i class="pi pi-chart-bar text-primary"></i>
                 <span>Статистика</span>
               </div>
-              <Button
-                :label="statsCollapsed ? 'Развернуть' : 'Свернуть'"
-                :icon="statsCollapsed ? 'pi pi-chevron-down' : 'pi pi-chevron-up'"
-                severity="secondary"
-                outlined
-                size="small"
-                @click="toggleStatsSection"
+              <i
+                class="pi section-header__chevron"
+                :class="statsCollapsed ? 'pi-chevron-down' : 'pi-chevron-up'"
+                aria-hidden="true"
               />
-            </div>
+            </button>
           </template>
-          <template #content>
-            <div v-if="!statsCollapsed">
+          <template v-if="!statsCollapsed" #content>
+            <div>
               <div v-if="normalizedReportData.length" class="grid">
                 <div class="col-6 md:col-3">
                   <Card class="h-full">
@@ -160,25 +166,30 @@
         </Card>
 
         <!-- Фильтры -->
-        <Card class="mb-4 section-card">
+        <Card
+          class="mb-4 section-card"
+          :class="{ 'section-card--collapsed': filtersCollapsed }"
+        >
           <template #title>
-            <div class="section-header">
-              <div class="flex align-items-center gap-2">
+            <button
+              type="button"
+              class="section-header"
+              :aria-expanded="!filtersCollapsed"
+              @click="toggleFiltersSection"
+            >
+              <div class="section-header__title">
                 <i class="pi pi-filter text-primary"></i>
                 <span>Фильтры</span>
               </div>
-              <Button
-                :label="filtersCollapsed ? 'Развернуть' : 'Свернуть'"
-                :icon="filtersCollapsed ? 'pi pi-chevron-down' : 'pi pi-chevron-up'"
-                severity="secondary"
-                outlined
-                size="small"
-                @click="toggleFiltersSection"
+              <i
+                class="pi section-header__chevron"
+                :class="filtersCollapsed ? 'pi-chevron-down' : 'pi-chevron-up'"
+                aria-hidden="true"
               />
-            </div>
+            </button>
           </template>
-          <template #content>
-            <div v-if="!filtersCollapsed" class="filters-section">
+          <template v-if="!filtersCollapsed" #content>
+            <div class="filters-section">
               <div
                 class="filters-grid"
                 :class="{ 'filters-grid--extended': reportType === 'sales' || reportType === 'returns' }"
@@ -1617,12 +1628,53 @@ onBeforeUnmount(() => {
   gap: 1rem;
 }
 
+.section-card--collapsed :deep(.p-card-body) {
+  gap: 0;
+}
+
+.section-card--collapsed :deep(.p-card-content) {
+  display: none;
+  padding: 0;
+}
+
 .section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  flex-wrap: wrap;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  flex-wrap: nowrap;
+}
+
+.section-header:hover .section-header__chevron {
+  color: var(--primary-color);
+}
+
+.section-header:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.section-header__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.section-header__chevron {
+  flex-shrink: 0;
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
 }
 
 .filters-section {
@@ -1720,10 +1772,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
-  .section-header {
-    align-items: stretch;
-  }
-
   .chart-container {
     height: 300px;
   }
