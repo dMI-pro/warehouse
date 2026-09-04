@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueryDashboardDto } from './dto/query-dashboard.dto';
+import {
+  COMMISSION_TRANSACTION_TYPE_NAME,
+  DEFAULT_COMMISSION_RATE,
+} from '../common/utils/sale-profit.util';
 
 @Injectable()
 export class DashboardService {
@@ -26,6 +30,7 @@ export class DashboardService {
       recentSales,
       lastReturns,
       salesChartRows,
+      problemSales,
     ] = await Promise.all([
       this.getProductStats(),
       // All-time totals (same semantics as committees.getStatistics)
@@ -108,6 +113,7 @@ export class DashboardService {
         GROUP BY DATE("soldAt")
         ORDER BY date ASC
       `,
+      this.getProblemSalesCounts(),
     ]);
 
     const soldItemsCount = soldAgg._sum.quantity ?? 0;
@@ -124,6 +130,7 @@ export class DashboardService {
         returnedItemsCount,
         totalValue: productStats.total_value,
       },
+      problemSales,
       newArrivals: newArrivals.map((product) => ({
         name: product.name,
         quantity: product.quantity,
@@ -145,9 +152,42 @@ export class DashboardService {
         userName: ret.user?.fullName || ret.user?.username || 'Система',
       })),
       salesChart: salesChartRows.map((row) => ({
-        date: row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date),
+        date:
+          row.date instanceof Date
+            ? row.date.toISOString().split('T')[0]
+            : String(row.date),
         amount: Number(row.amount) || 0,
       })),
+    };
+  }
+
+  private async getProblemSalesCounts(): Promise<{
+    lossCount: number;
+    lowCommissionCount: number;
+  }> {
+    const [lossRow] = await this.prisma.$queryRaw<Array<{ count: number }>>`
+      SELECT COUNT(*)::int AS count
+      FROM sales s
+      INNER JOIN products p ON p.id = s."productId"
+      WHERE (s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity < 0
+    `;
+
+    const [lowCommissionRow] = await this.prisma.$queryRaw<
+      Array<{ count: number }>
+    >`
+      SELECT COUNT(*)::int AS count
+      FROM sales s
+      INNER JOIN products p ON p.id = s."productId"
+      INNER JOIN transaction_type tt ON tt.id = p."transactionTypeId"
+      WHERE LOWER(TRIM(tt.name)) = LOWER(${COMMISSION_TRANSACTION_TYPE_NAME})
+        AND (s."salePrice" * s.quantity) > 0
+        AND (s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity
+            < (s."salePrice" * s.quantity * ${DEFAULT_COMMISSION_RATE})
+    `;
+
+    return {
+      lossCount: lossRow?.count ?? 0,
+      lowCommissionCount: lowCommissionRow?.count ?? 0,
     };
   }
 

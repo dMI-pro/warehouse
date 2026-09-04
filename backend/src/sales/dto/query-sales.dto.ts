@@ -1,4 +1,4 @@
-import { IsOptional, IsInt, Min, Max, IsString } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsString, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QuerySalesDto {
@@ -20,6 +20,12 @@ export class QuerySalesDto {
   @IsString()
   @IsOptional()
   search?: string;
+
+  /** loss | low_commission — проблемные продажи */
+  @IsString()
+  @IsIn(['loss', 'low_commission'])
+  @IsOptional()
+  profitAlert?: 'loss' | 'low_commission';
 
   @IsString()
   @IsOptional()

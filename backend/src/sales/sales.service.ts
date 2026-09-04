@@ -16,6 +16,10 @@ import {
   type ProductViewer,
 } from '../common/utils/product-visibility.util';
 import { parseQueryDateBound } from '../common/utils/date-range.util';
+import {
+  COMMISSION_TRANSACTION_TYPE_NAME,
+  DEFAULT_COMMISSION_RATE,
+} from '../common/utils/sale-profit.util';
 
 @Injectable()
 export class SalesService {
@@ -138,6 +142,7 @@ export class SalesService {
       soldBy,
       committeeId,
       search,
+      profitAlert,
       startDate,
       endDate,
       page = 1,
@@ -181,6 +186,11 @@ export class SalesService {
       }
     }
 
+    if (profitAlert) {
+      const alertIds = await this.findSaleIdsByProfitAlert(profitAlert);
+      where.id = { in: alertIds.length ? alertIds : [-1] };
+    }
+
     const [sales, total] = await Promise.all([
       this.prisma.sale.findMany({
         where,
@@ -191,6 +201,7 @@ export class SalesService {
             include: {
               category: true,
               committee: true,
+              transactionType: true,
             },
           },
           user: {
@@ -217,6 +228,33 @@ export class SalesService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /** IDs of sales matching profit alert (all-time; combined with other Prisma filters). */
+  private async findSaleIdsByProfitAlert(
+    profitAlert: 'loss' | 'low_commission',
+  ): Promise<number[]> {
+    if (profitAlert === 'loss') {
+      const rows = await this.prisma.$queryRaw<Array<{ id: number }>>`
+        SELECT s.id
+        FROM sales s
+        INNER JOIN products p ON p.id = s."productId"
+        WHERE (s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity < 0
+      `;
+      return rows.map((r) => r.id);
+    }
+
+    const rows = await this.prisma.$queryRaw<Array<{ id: number }>>`
+      SELECT s.id
+      FROM sales s
+      INNER JOIN products p ON p.id = s."productId"
+      INNER JOIN transaction_type tt ON tt.id = p."transactionTypeId"
+      WHERE LOWER(TRIM(tt.name)) = LOWER(${COMMISSION_TRANSACTION_TYPE_NAME})
+        AND (s."salePrice" * s.quantity) > 0
+        AND (s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity
+            < (s."salePrice" * s.quantity * ${DEFAULT_COMMISSION_RATE})
+    `;
+    return rows.map((r) => r.id);
   }
 
   async findOne(id: number, viewer?: ProductViewer) {

@@ -306,6 +306,7 @@ class ApiService {
     soldBy?: number;
     committeeId?: number;
     search?: string;
+    profitAlert?: 'loss' | 'low_commission';
     startDate?: string;
     endDate?: string;
     page?: number;

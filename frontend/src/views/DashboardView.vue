@@ -43,6 +43,34 @@
         </template>
       </Card>
 
+      <!-- Проблемные продажи -->
+      <Card class="widget-card problem-sales-widget span-2" v-if="isAdminOrManager">
+        <template #content>
+          <div class="widget-header">
+            <div class="widget-icon">⚠️</div>
+            <div class="widget-title">Проблемные продажи</div>
+          </div>
+          <div class="problem-sales-content">
+            <button
+              type="button"
+              class="problem-sales-item problem-sales-item--loss"
+              @click="openProblemSales('loss')"
+            >
+              <span class="problem-sales-label">Убыточные</span>
+              <span class="problem-sales-count">{{ problemSales.lossCount }}</span>
+            </button>
+            <button
+              type="button"
+              class="problem-sales-item problem-sales-item--commission"
+              @click="openProblemSales('low_commission')"
+            >
+              <span class="problem-sales-label">Комиссия &lt; 20%</span>
+              <span class="problem-sales-count">{{ problemSales.lowCommissionCount }}</span>
+            </button>
+          </div>
+        </template>
+      </Card>
+
       <!-- Новые поступления (2 колонки) -->
       <Card class="widget-card new-arrivals-widget span-2">
         <template #content>
@@ -431,6 +459,10 @@ const stats = ref({
   returnedItemsCount: 0, // Возвращено
   totalValue: 0, // На сумму
 });
+const problemSales = ref({
+  lossCount: 0,
+  lowCommissionCount: 0,
+});
 const lowStockProducts = ref<Product[]>([]);
 const longStorageProducts = ref<Product[]>([]);
 const recentActions = ref<Array<{ type: string; entity: string; details: string; user: string; time: string }>>([]);
@@ -575,6 +607,10 @@ const formatTime = (time: string) => {
   }).format(date);
 };
 
+const openProblemSales = (alert: 'loss' | 'low_commission') => {
+  router.push({ path: '/reports', query: { tab: 'sales', alert } });
+};
+
 const getNameProductWithQuantity = (product: Product) => {
   return `${product.name} — ${product.quantity} шт.`
 }
@@ -593,6 +629,10 @@ const loadStats = async () => {
     ]);
 
     stats.value = summary.stats;
+    problemSales.value = {
+      lossCount: summary.problemSales?.lossCount ?? 0,
+      lowCommissionCount: summary.problemSales?.lowCommissionCount ?? 0,
+    };
     newArrivals.value = summary.newArrivals.map((item) => ({
       name: item.name,
       quantity: item.quantity,
@@ -715,6 +755,62 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem 1rem;
+}
+
+.problem-sales-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.problem-sales-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  background: var(--surface-ground);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.problem-sales-item:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.problem-sales-item--loss {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.problem-sales-item--commission {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.problem-sales-label {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+}
+
+.problem-sales-count {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.problem-sales-item--loss .problem-sales-count {
+  color: #b91c1c;
+}
+
+.problem-sales-item--commission .problem-sales-count {
+  color: #b45309;
 }
 
 .long-storage-item,

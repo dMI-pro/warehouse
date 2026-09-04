@@ -116,7 +116,12 @@
                           </div>
                           <div class="flex-1">
                             <div class="text-sm text-color-secondary">Прибыль</div>
-                            <div class="text-xl font-bold text-green-600">{{ formatPrice(calculatedStats.totalProfit) }}</div>
+                            <div
+                              class="text-xl font-bold"
+                              :class="calculatedStats.totalProfit < 0 ? 'text-red-600' : 'text-green-600'"
+                            >
+                              {{ formatPrice(calculatedStats.totalProfit) }}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -205,6 +210,23 @@
                     placeholder="Поиск по названию, SKU, описанию..."
                     class="w-full"
                     @keyup.enter="generateReport"
+                  />
+                </div>
+
+                <div
+                  v-if="reportType === 'sales'"
+                  class="filter-item"
+                >
+                  <label for="reportProfitAlert" class="filter-label">Проблема</label>
+                  <Dropdown
+                    id="reportProfitAlert"
+                    v-model="extraFilters.profitAlert"
+                    :options="SALE_PROFIT_ALERT_OPTIONS"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Все продажи"
+                    class="w-full"
+                    showClear
                   />
                 </div>
 
@@ -328,6 +350,7 @@
               class="report-table p-datatable-sm"
               stripedRows
               showGridlines
+              :rowClass="getSaleRowClass"
             >
               <Column
                 v-for="column in tableColumns"
@@ -339,7 +362,12 @@
               >
                 <template #body="{ data }">
                   <template v-if="column.format === 'price'">
-                    <Tag :value="formatPrice(data[column.field])" severity="success" class="font-semibold" />
+                    <Tag
+                      :value="formatPrice(data[column.field])"
+                      :severity="getPriceTagSeverity(column.field, data)"
+                      class="font-semibold"
+                      :title="getProfitAlertTitle(data)"
+                    />
                   </template>
                   <template v-else-if="column.format === 'date'">
                     <span>{{ formatDate(data[column.field]) }}</span>
@@ -544,6 +572,11 @@ import { Role } from '@/types/api';
 import QuantityInput from '@/components/forms/QuantityInput.vue';
 import { getDefaultTemplate } from '@/utils/exportTemplates';
 import { useDateRangeFilter } from '@/composables/useDateRangeFilter';
+import {
+  evaluateSaleProfitFlags,
+  SALE_PROFIT_ALERT_OPTIONS,
+  type SaleProfitAlert,
+} from '@/utils/saleProfit';
 
 const route = useRoute();
 const router = useRouter();
@@ -560,6 +593,7 @@ const extraFilters = reactive({
   search: '',
   committeeId: null as number | null,
   processedBy: null as number | null,
+  profitAlert: null as SaleProfitAlert | null,
 });
 
 // Типы данных
@@ -574,6 +608,8 @@ interface NormalizedSale {
   totalProfit: number;
   seller: string;
   date: string;
+  isLoss: boolean;
+  isLowCommission: boolean;
   originalData?: Sale;
 }
 
@@ -761,9 +797,12 @@ const normalizedReportData = computed(() => {
       const salePrice = Number(sale.salePrice) || 0;
       const purchasePrice = Number(sale.product?.purchasePrice) || 0;
       const quantity = sale.quantity;
-      const totalAmount = salePrice * quantity;
-      const profitPerItem = salePrice - purchasePrice;
-      const totalProfit = profitPerItem * quantity;
+      const flags = evaluateSaleProfitFlags({
+        salePrice,
+        purchasePrice,
+        quantity,
+        transactionTypeName: sale.product?.transactionType?.name,
+      });
       
       return {
         id: sale.id,
@@ -772,10 +811,12 @@ const normalizedReportData = computed(() => {
         quantity: quantity,
         salePrice: salePrice,
         purchasePrice: purchasePrice,
-        totalAmount: totalAmount,
-        totalProfit: totalProfit,
+        totalAmount: flags.revenue,
+        totalProfit: flags.profit,
         seller: sale.user?.fullName || 'Неизвестный продавец',
         date: sale.soldAt || sale.createdAt || new Date().toISOString(),
+        isLoss: flags.isLoss,
+        isLowCommission: flags.isLowCommission,
         originalData: sale
       };
     });
@@ -817,6 +858,8 @@ const normalizedReportData = computed(() => {
         totalProfit: 0,
         seller: sale.user?.fullName || 'Неизвестный продавец',
         date: sale.soldAt || sale.createdAt || new Date().toISOString(),
+        isLoss: false,
+        isLowCommission: false,
         originalData: sale
       };
     });
@@ -1076,6 +1119,7 @@ const buildExtraQueryParams = () => {
     committeeId?: number;
     soldBy?: number;
     returnedBy?: number;
+    profitAlert?: SaleProfitAlert;
   } = {};
 
   const search = extraFilters.search.trim();
@@ -1088,8 +1132,55 @@ const buildExtraQueryParams = () => {
   if (reportType.value === 'returns' && extraFilters.processedBy != null) {
     params.returnedBy = extraFilters.processedBy;
   }
+  if (reportType.value === 'sales' && extraFilters.profitAlert) {
+    params.profitAlert = extraFilters.profitAlert;
+  }
 
   return params;
+};
+
+const syncAlertToUrl = () => {
+  const query = { ...route.query, tab: reportType.value } as Record<string, string | string[] | undefined>;
+  if (reportType.value === 'sales' && extraFilters.profitAlert) {
+    query.alert = extraFilters.profitAlert;
+  } else {
+    delete query.alert;
+  }
+  router.replace({ query });
+};
+
+const restoreAlertFromUrl = () => {
+  const alert = route.query.alert;
+  if (alert === 'loss' || alert === 'low_commission') {
+    extraFilters.profitAlert = alert;
+    filtersCollapsed.value = false;
+  }
+};
+
+const getPriceTagSeverity = (field: string, data: NormalizedItem) => {
+  if (field !== 'totalProfit' || reportType.value !== 'sales') {
+    return 'success';
+  }
+  const sale = data as NormalizedSale;
+  if (sale.isLoss) return 'danger';
+  if (sale.isLowCommission) return 'warn';
+  return 'success';
+};
+
+const getProfitAlertTitle = (data: NormalizedItem) => {
+  if (reportType.value !== 'sales') return undefined;
+  const sale = data as NormalizedSale;
+  if (sale.isLoss) return 'Убыточная продажа';
+  if (sale.isLowCommission) return 'Комиссия ниже 20% от цены продажи';
+  return undefined;
+};
+
+const getSaleRowClass = (data: NormalizedItem) => {
+  if (reportType.value !== 'sales') return undefined;
+  const sale = data as NormalizedSale;
+  if (sale.isLoss) return 'sale-row--loss';
+  if (sale.isLowCommission) return 'sale-row--low-commission';
+  return undefined;
 };
 
 const generateReport = async () => {
@@ -1104,6 +1195,8 @@ const generateReport = async () => {
         ? buildExtraQueryParams()
         : {}),
     };
+
+    syncAlertToUrl();
 
     // Sales API defaults to limit=10; reports need the full filtered set
     // (returns omit limit and already return all).
@@ -1129,6 +1222,7 @@ const resetFilters = () => {
   extraFilters.search = '';
   extraFilters.committeeId = null;
   extraFilters.processedBy = null;
+  extraFilters.profitAlert = null;
   generateReport();
 };
 
@@ -1561,8 +1655,26 @@ watch(() => route.query.tab, (newTab) => {
   }
 });
 
+watch(
+  () => route.query.alert,
+  (alert) => {
+    if (alert === 'loss' || alert === 'low_commission') {
+      if (extraFilters.profitAlert !== alert) {
+        extraFilters.profitAlert = alert;
+        filtersCollapsed.value = false;
+        if (reportType.value === 'sales') {
+          generateReport();
+        }
+      }
+    }
+  },
+);
+
 // Хуки жизненного цикла
-onBeforeMount(() => restoreTabFromUrl());
+onBeforeMount(() => {
+  restoreTabFromUrl();
+  restoreAlertFromUrl();
+});
 
 onMounted(async () => {
   try {
@@ -1718,14 +1830,23 @@ onBeforeUnmount(() => {
 @media (min-width: 1100px) {
   .filters-grid--extended {
     grid-template-columns:
-      minmax(160px, 1.1fr)
-      minmax(140px, 1fr)
-      minmax(140px, 1fr)
-      minmax(140px, 1fr)
-      minmax(140px, 1fr)
-      minmax(120px, auto)
-      minmax(120px, auto);
+      minmax(140px, 1.1fr)
+      minmax(130px, 1fr)
+      minmax(120px, 1fr)
+      minmax(130px, 1fr)
+      minmax(130px, 1fr)
+      minmax(130px, 1fr)
+      minmax(110px, auto)
+      minmax(110px, auto);
   }
+}
+
+.report-table :deep(.sale-row--loss) {
+  background: #fef2f2 !important;
+}
+
+.report-table :deep(.sale-row--low-commission) {
+  background: #fffbeb !important;
 }
 
 /* График */

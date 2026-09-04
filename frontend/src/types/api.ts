@@ -302,6 +302,10 @@ export interface DashboardStats {
 
 export interface DashboardSummary {
   stats: DashboardStats;
+  problemSales?: {
+    lossCount: number;
+    lowCommissionCount: number;
+  };
   newArrivals: Array<{ name: string; quantity: number; arrivalDate: string }>;
   lowStockProducts: Product[];
   longStorageProducts: Product[];
