@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { Sale, CreateSaleDto, UpdateSaleDto, SalesStatistics, PaginatedResponse } from '@/types/api';
 import { apiService } from '@/services/api';
+import type { SaleProfitAlert } from '@/utils/saleProfit';
 
 export const useSalesStore = defineStore('sales', () => {
   const sales = ref<Sale[]>([]);
@@ -20,7 +21,7 @@ export const useSalesStore = defineStore('sales', () => {
     soldBy?: number;
     committeeId?: number;
     search?: string;
-    profitAlert?: 'loss' | 'low_commission';
+    profitAlert?: SaleProfitAlert;
     startDate?: string;
     endDate?: string;
     page?: number;

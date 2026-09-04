@@ -41,6 +41,7 @@ import type {
   MediaItem,
   DashboardSummary,
 } from '@/types/api';
+import type { SaleProfitAlert } from '@/utils/saleProfit';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -306,7 +307,7 @@ class ApiService {
     soldBy?: number;
     committeeId?: number;
     search?: string;
-    profitAlert?: 'loss' | 'low_commission';
+    profitAlert?: SaleProfitAlert;
     startDate?: string;
     endDate?: string;
     page?: number;
