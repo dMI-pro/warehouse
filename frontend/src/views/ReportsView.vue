@@ -179,12 +179,62 @@
           </template>
           <template #content>
             <div v-if="!filtersCollapsed" class="filters-section">
-              <div class="grid formgrid filters-grid">
-                <div class="col-12 md:col-6 xl:col-3">
-                  <label for="startDate" class="block mb-2 font-medium">
-                    <i class="pi pi-calendar mr-1"></i>
-                    Дата начала
-                  </label>
+              <div
+                class="filters-grid"
+                :class="{ 'filters-grid--extended': reportType === 'sales' || reportType === 'returns' }"
+              >
+                <div
+                  v-if="reportType === 'sales' || reportType === 'returns'"
+                  class="filter-item"
+                >
+                  <label for="reportSearch" class="filter-label">Поиск</label>
+                  <InputText
+                    id="reportSearch"
+                    v-model="extraFilters.search"
+                    placeholder="Поиск по названию, SKU, описанию..."
+                    class="w-full"
+                    @keyup.enter="generateReport"
+                  />
+                </div>
+
+                <div
+                  v-if="reportType === 'sales' || reportType === 'returns'"
+                  class="filter-item"
+                >
+                  <label for="reportCommittee" class="filter-label">Комитет</label>
+                  <Dropdown
+                    id="reportCommittee"
+                    v-model="extraFilters.committeeId"
+                    :options="committeeOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Все комитеты"
+                    class="w-full"
+                    showClear
+                  />
+                </div>
+
+                <div
+                  v-if="reportType === 'sales' || reportType === 'returns'"
+                  class="filter-item"
+                >
+                  <label for="reportProcessedBy" class="filter-label">Кто оформил</label>
+                  <Dropdown
+                    id="reportProcessedBy"
+                    v-model="extraFilters.processedBy"
+                    :options="userOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Все пользователи"
+                    class="w-full"
+                    showClear
+                    :filter="true"
+                    filterPlaceholder="Поиск пользователя"
+                  />
+                </div>
+
+                <div class="filter-item">
+                  <label for="startDate" class="filter-label">Дата начала</label>
                   <Calendar
                     id="startDate"
                     v-model="filters.startDate"
@@ -196,11 +246,8 @@
                   />
                 </div>
 
-                <div class="col-12 md:col-6 xl:col-3">
-                  <label for="endDate" class="block mb-2 font-medium">
-                    <i class="pi pi-calendar mr-1"></i>
-                    Дата окончания
-                  </label>
+                <div class="filter-item">
+                  <label for="endDate" class="filter-label">Дата окончания</label>
                   <Calendar
                     id="endDate"
                     v-model="filters.endDate"
@@ -212,7 +259,7 @@
                   />
                 </div>
 
-                <div class="col-12 xl:col-3 flex align-items-end">
+                <div class="filter-item filter-item--actions">
                   <Button
                     label="Применить"
                     icon="pi pi-check"
@@ -223,7 +270,7 @@
                   />
                 </div>
 
-                <div class="col-12 xl:col-3 flex align-items-end">
+                <div class="filter-item filter-item--actions">
                   <Button
                     label="Сбросить"
                     icon="pi pi-refresh"
@@ -233,14 +280,12 @@
                     @click="resetFilters"
                   />
                 </div>
-
-                <div v-if="dateRangeError" class="col-12">
-                  <small class="p-error block">
-                    <i class="pi pi-exclamation-circle mr-1"></i>
-                    {{ dateRangeError }}
-                  </small>
-                </div>
               </div>
+
+              <small v-if="dateRangeError" class="p-error block mt-2">
+                <i class="pi pi-exclamation-circle mr-1"></i>
+                {{ dateRangeError }}
+              </small>
             </div>
           </template>
         </Card>
@@ -479,6 +524,8 @@ import { useSalesStore } from '@/stores/salesStore';
 import { useProductsStore } from '@/stores/productsStore';
 import { useReturnsStore } from '@/stores/returnsStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useCommitteesStore } from '@/stores/committeesStore';
+import { useUsersStore } from '@/stores/usersStore';
 import { useToast } from 'primevue/usetoast';
 import type { Sale, Product, Return as ApiReturn, Return } from '@/types/api';
 import { Role } from '@/types/api';
@@ -497,6 +544,12 @@ const {
   toQueryParams: dateRangeToQueryParams,
   reset: resetDateRangeFilters,
 } = useDateRangeFilter();
+
+const extraFilters = reactive({
+  search: '',
+  committeeId: null as number | null,
+  processedBy: null as number | null,
+});
 
 // Типы данных
 interface NormalizedSale {
@@ -563,6 +616,19 @@ const salesStore = useSalesStore();
 const productsStore = useProductsStore();
 const returnsStore = useReturnsStore();
 const authStore = useAuthStore();
+const committeesStore = useCommitteesStore();
+const usersStore = useUsersStore();
+
+const committeeOptions = computed(() =>
+  committeesStore.committees.map((c) => ({ label: c.name, value: c.id })),
+);
+
+const userOptions = computed(() =>
+  usersStore.users.map((u) => ({
+    label: u.fullName?.trim() || u.username,
+    value: u.id,
+  })),
+);
 
 // Состояние
 const activeTabIndex = ref(0);
@@ -993,13 +1059,40 @@ const getItemName = (item: NormalizedItem): string => {
 // Валидация дат — useDateRangeFilter.validate
 
 // Генерация отчета
+const buildExtraQueryParams = () => {
+  const params: {
+    search?: string;
+    committeeId?: number;
+    soldBy?: number;
+    returnedBy?: number;
+  } = {};
+
+  const search = extraFilters.search.trim();
+  if (search) params.search = search;
+  if (extraFilters.committeeId != null) params.committeeId = extraFilters.committeeId;
+
+  if (reportType.value === 'sales' && extraFilters.processedBy != null) {
+    params.soldBy = extraFilters.processedBy;
+  }
+  if (reportType.value === 'returns' && extraFilters.processedBy != null) {
+    params.returnedBy = extraFilters.processedBy;
+  }
+
+  return params;
+};
+
 const generateReport = async () => {
   if (!validateDateRange()) return;
   
   isLoading.value = true;
   
   try {
-    const params = dateRangeToQueryParams();
+    const params = {
+      ...dateRangeToQueryParams(),
+      ...((reportType.value === 'sales' || reportType.value === 'returns')
+        ? buildExtraQueryParams()
+        : {}),
+    };
 
     // Sales API defaults to limit=10; reports need the full filtered set
     // (returns omit limit and already return all).
@@ -1022,6 +1115,9 @@ const generateReport = async () => {
 // Сброс фильтров
 const resetFilters = () => {
   resetDateRangeFilters();
+  extraFilters.search = '';
+  extraFilters.committeeId = null;
+  extraFilters.processedBy = null;
   generateReport();
 };
 
@@ -1458,6 +1554,15 @@ watch(() => route.query.tab, (newTab) => {
 onBeforeMount(() => restoreTabFromUrl());
 
 onMounted(async () => {
+  try {
+    await Promise.all([
+      committeesStore.fetchCommittees(),
+      usersStore.fetchUsers(),
+    ]);
+  } catch {
+    // Справочники для фильтров; отчёт всё равно загрузим
+  }
+
   await generateReport();
   
   if (reportType.value === 'sales' || reportType.value === 'returns') {
@@ -1525,7 +1630,50 @@ onBeforeUnmount(() => {
 }
 
 .filters-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
   align-items: end;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.filter-label {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--text-color);
+}
+
+.filter-item--actions {
+  justify-content: flex-end;
+}
+
+@media (min-width: 768px) {
+  .filters-grid:not(.filters-grid--extended) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .filters-grid--extended {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .filters-grid--extended {
+    grid-template-columns:
+      minmax(160px, 1.1fr)
+      minmax(140px, 1fr)
+      minmax(140px, 1fr)
+      minmax(140px, 1fr)
+      minmax(140px, 1fr)
+      minmax(120px, auto)
+      minmax(120px, auto);
+  }
 }
 
 /* График */

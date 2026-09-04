@@ -136,6 +136,8 @@ export class SalesService {
     const {
       productId,
       soldBy,
+      committeeId,
+      search,
       startDate,
       endDate,
       page = 1,
@@ -151,6 +153,22 @@ export class SalesService {
 
     if (soldBy) {
       where.soldBy = soldBy;
+    }
+
+    const productWhere: Prisma.ProductWhereInput = {};
+    if (committeeId) {
+      productWhere.committeeId = committeeId;
+    }
+    if (search?.trim()) {
+      const q = search.trim();
+      productWhere.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { sku: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+    if (Object.keys(productWhere).length > 0) {
+      where.product = productWhere;
     }
 
     if (startDate || endDate) {

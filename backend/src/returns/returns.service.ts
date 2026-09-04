@@ -107,8 +107,36 @@ export class ReturnsService {
   }
 
   async findAll(query: QueryReturnsDto, viewer?: ProductViewer) {
-    const { startDate, endDate, page = 1, limit } = query;
+    const {
+      returnedBy,
+      committeeId,
+      search,
+      startDate,
+      endDate,
+      page = 1,
+      limit,
+    } = query;
     const where: Prisma.ReturnWhereInput = {};
+
+    if (returnedBy) {
+      where.returnedBy = returnedBy;
+    }
+
+    const productWhere: Prisma.ProductWhereInput = {};
+    if (committeeId) {
+      productWhere.committeeId = committeeId;
+    }
+    if (search?.trim()) {
+      const q = search.trim();
+      productWhere.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { sku: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+    if (Object.keys(productWhere).length > 0) {
+      where.product = productWhere;
+    }
 
     if (startDate || endDate) {
       where.returnedAt = {};

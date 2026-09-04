@@ -17,6 +17,9 @@ export const useSalesStore = defineStore('sales', () => {
 
   const fetchSales = async (params?: {
     productId?: number;
+    soldBy?: number;
+    committeeId?: number;
+    search?: string;
     startDate?: string;
     endDate?: string;
     page?: number;

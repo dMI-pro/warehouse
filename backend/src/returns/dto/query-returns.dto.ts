@@ -2,6 +2,20 @@ import { IsString, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QueryReturnsDto {
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  returnedBy?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  committeeId?: number;
+
+  @IsString()
+  @IsOptional()
+  search?: string;
+
   @IsString()
   @IsOptional()
   startDate?: string;

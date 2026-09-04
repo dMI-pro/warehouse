@@ -12,6 +12,15 @@ export class QuerySalesDto {
   @Type(() => Number)
   soldBy?: number;
 
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  committeeId?: number;
+
+  @IsString()
+  @IsOptional()
+  search?: string;
+
   @IsString()
   @IsOptional()
   startDate?: string;

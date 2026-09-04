@@ -303,6 +303,9 @@ class ApiService {
 
   async getSales(params?: {
     productId?: number;
+    soldBy?: number;
+    committeeId?: number;
+    search?: string;
     startDate?: string;
     endDate?: string;
     page?: number;
@@ -424,6 +427,9 @@ class ApiService {
   }
 
   async getReturns(params?: {
+    returnedBy?: number;
+    committeeId?: number;
+    search?: string;
     startDate?: string;
     endDate?: string;
     page?: number;
