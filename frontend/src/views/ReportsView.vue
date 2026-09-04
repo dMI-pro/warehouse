@@ -380,6 +380,14 @@
                       {{ data[column.field] }}
                     </div>
                   </template>
+                  <template v-else-if="column.field === 'productName' || column.field === 'name'">
+                    <span
+                      v-if="getRowProductId(data)"
+                      class="product-name-link"
+                      @click="openProductDetails(getRowProductId(data)!)"
+                    >{{ data[column.field] }}</span>
+                    <span v-else>{{ data[column.field] }}</span>
+                  </template>
                   <template v-else>
                     {{ data[column.field] }}
                   </template>
@@ -600,6 +608,7 @@ const extraFilters = reactive({
 // Типы данных
 interface NormalizedSale {
   id: number;
+  productId: number | null;
   productName: string;
   committee: string;
   quantity: number;
@@ -626,6 +635,7 @@ interface NormalizedProduct {
 
 interface NormalizedReturn {
   id: number;
+  productId: number | null;
   productName: string;
   committee: string;
   quantity: number;
@@ -807,6 +817,7 @@ const normalizedReportData = computed(() => {
       
       return {
         id: sale.id,
+        productId: sale.productId ?? sale.product?.id ?? null,
         productName: sale.product?.name || 'Неизвестный товар',
         committee: sale.product?.committee?.name || '-',
         quantity: quantity,
@@ -834,6 +845,7 @@ const normalizedReportData = computed(() => {
   } else if (reportType.value === 'returns') {
     return returnsStore.returns.map((ret): NormalizedReturn => ({
       id: ret.id,
+      productId: ret.productId ?? ret.product?.id ?? null,
       productName: ret.product?.name || 'Неизвестный товар',
       committee: ret.product?.committee?.name || '-',
       quantity: ret.quantity,
@@ -850,6 +862,7 @@ const normalizedReportData = computed(() => {
       
       return {
         id: sale.id,
+        productId: sale.productId ?? sale.product?.id ?? null,
         productName: sale.product?.name || 'Неизвестный товар',
         committee: sale.product?.committee?.name || '-',
         quantity: quantity,
@@ -901,7 +914,7 @@ const tableColumns = computed<ReportColumn[]>(() => {
       { field: 'id', header: 'ID чека', sortable: true, minWidth: '80px' },
       { field: 'productName', header: 'Товар', sortable: true, minWidth: '200px' },
       { field: 'quantity', header: 'Кол-во', sortable: true, minWidth: '100px' },
-      { field: 'totalAmount', header: 'Сумма', sortable: true, format: 'price', minWidth: '120px' },
+      { field: 'totalAmount', header: 'Продажа', sortable: true, format: 'price', minWidth: '120px' },
       { field: 'totalProfit', header: 'Прибыль', sortable: true, format: 'price', minWidth: '120px' },
       { field: 'seller', header: 'Кто оформил', sortable: true, minWidth: '150px' },
       { field: 'committee', header: 'Комитет', sortable: true, minWidth: '160px' },
@@ -1105,6 +1118,18 @@ const deleteItem = async (item: NormalizedItem) => {
 
 const viewItem = (item: NormalizedItem) => {
   toast.add({ severity: 'info', summary: 'Информация', detail: 'Просмотр деталей записи', life: 3000 });
+};
+
+const getRowProductId = (row: NormalizedItem): number | null => {
+  if (reportType.value === 'stock') {
+    return (row as NormalizedProduct).id ?? null;
+  }
+  const withProduct = row as NormalizedSale | NormalizedReturn;
+  return withProduct.productId ?? null;
+};
+
+const openProductDetails = (id: number) => {
+  router.push({ name: 'product-details', params: { id } });
 };
 
 const getItemName = (item: NormalizedItem): string => {
@@ -1769,6 +1794,16 @@ onBeforeUnmount(() => {
 
 .section-header:hover .section-header__chevron {
   color: var(--primary-color);
+}
+
+.product-name-link {
+  color: var(--primary-color);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.product-name-link:hover {
+  text-decoration: underline;
 }
 
 .section-header:focus-visible {
