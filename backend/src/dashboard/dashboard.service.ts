@@ -188,9 +188,9 @@ export class DashboardService {
       INNER JOIN products p ON p.id = s."productId"
       INNER JOIN transaction_type tt ON tt.id = p."transactionTypeId"
       WHERE LOWER(TRIM(tt.name)) = LOWER(${COMMISSION_TRANSACTION_TYPE_NAME})
-        AND (s."salePrice" * s.quantity) > 0
+        AND COALESCE(p."purchasePrice", 0) > 0
         AND (s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity
-            < (s."salePrice" * s.quantity * ${DEFAULT_COMMISSION_RATE})
+            < (COALESCE(p."purchasePrice", 0) * s.quantity * ${DEFAULT_COMMISSION_RATE})
     `;
 
     const recentRows = await this.prisma.$queryRaw<
@@ -222,9 +222,9 @@ export class DashboardService {
         OR (
           tt.id IS NOT NULL
           AND LOWER(TRIM(tt.name)) = LOWER(${COMMISSION_TRANSACTION_TYPE_NAME})
-          AND (s."salePrice" * s.quantity) > 0
+          AND COALESCE(p."purchasePrice", 0) > 0
           AND (s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity
-              < (s."salePrice" * s.quantity * ${DEFAULT_COMMISSION_RATE})
+              < (COALESCE(p."purchasePrice", 0) * s.quantity * ${DEFAULT_COMMISSION_RATE})
         )
       ORDER BY s."soldAt" DESC
       LIMIT 8

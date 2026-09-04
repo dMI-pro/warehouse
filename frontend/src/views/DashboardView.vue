@@ -66,10 +66,10 @@
               <button
                 type="button"
                 class="problem-sales-item problem-sales-item--commission"
-                title="Продажи с типом «Комиссия», где прибыль меньше 20% от суммы продажи"
+                title="Продажи с типом «Комиссия», где прибыль меньше 25% от цены закупа"
                 @click="openProblemSales('low_commission')"
               >
-                Комиссия &lt; 20%: <span class="problem-sales-count">{{ problemSales.lowCommissionCount }}</span>
+                Комиссия &lt; 25%: <span class="problem-sales-count">{{ problemSales.lowCommissionCount }}</span>
               </button>
             </div>
             <DataTable

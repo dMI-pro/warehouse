@@ -1,9 +1,10 @@
 /**
  * Sale profit / commission checks (mirrors backend sale-profit.util).
- * Default commission is 20% of sale revenue.
+ * For «Комиссия»: min profit = purchasePrice × rate × quantity (default 25% of purchase).
  */
 
-export const DEFAULT_COMMISSION_RATE = 0.2;
+/** Min profit as a fraction of purchase price (default 0.25 → 25%). */
+export const DEFAULT_COMMISSION_RATE = 0.25;
 export const COMMISSION_TRANSACTION_TYPE_NAME = 'Комиссия';
 
 export type SaleProfitAlert = 'loss' | 'low_commission' | 'problem';
@@ -27,6 +28,15 @@ export function calcSaleProfit(
   return (salePrice - purchasePrice) * quantity;
 }
 
+export function calcMinCommissionProfit(
+  purchasePrice: number,
+  quantity: number,
+  commissionRate?: number | null,
+): number {
+  const rate = resolveCommissionRate(commissionRate);
+  return (Number(purchasePrice) || 0) * rate * (Number(quantity) || 0);
+}
+
 export function evaluateSaleProfitFlags(input: {
   salePrice: number;
   purchasePrice: number;
@@ -41,11 +51,11 @@ export function evaluateSaleProfitFlags(input: {
   const revenue = salePrice * quantity;
   const isLoss = profit < 0;
 
-  const rate = resolveCommissionRate(input.commissionRate);
+  const minProfit = calcMinCommissionProfit(purchasePrice, quantity, input.commissionRate);
   const isLowCommission =
     isCommissionTransactionType(input.transactionTypeName) &&
-    revenue > 0 &&
-    profit < revenue * rate;
+    purchasePrice > 0 &&
+    profit < minProfit;
 
   return { isLoss, isLowCommission, profit, revenue };
 }

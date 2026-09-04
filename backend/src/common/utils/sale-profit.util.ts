@@ -1,10 +1,12 @@
 /**
  * Sale profit / commission checks.
- * Default commission is 20% of sale revenue.
+ * For transaction type «Комиссия»: min profit = purchasePrice * rate * quantity
+ * (default 25% of purchase — same idea as salePrice ≈ purchase × 1.25).
  * Optional per-committee rate can be passed later without changing call sites.
  */
 
-export const DEFAULT_COMMISSION_RATE = 0.2;
+/** Min profit as a fraction of purchase price (default 0.25 → 25%). */
+export const DEFAULT_COMMISSION_RATE = 0.25;
 export const COMMISSION_TRANSACTION_TYPE_NAME = 'Комиссия';
 
 export type SaleProfitAlert = 'loss' | 'low_commission';
@@ -34,12 +36,22 @@ export function calcSaleRevenue(salePrice: number, quantity: number): number {
   return salePrice * quantity;
 }
 
+/** Min acceptable profit for commission sales: purchase × rate × qty */
+export function calcMinCommissionProfit(
+  purchasePrice: number,
+  quantity: number,
+  commissionRate?: number | null,
+): number {
+  const rate = resolveCommissionRate(commissionRate);
+  return (Number(purchasePrice) || 0) * rate * (Number(quantity) || 0);
+}
+
 export function evaluateSaleProfitFlags(input: {
   salePrice: number;
   purchasePrice: number;
   quantity: number;
   transactionTypeName?: string | null;
-  /** Future: committee.commissionRate (0..1). Omit → DEFAULT_COMMISSION_RATE */
+  /** Future: committee.commissionRate (0..1 of purchase). Omit → DEFAULT_COMMISSION_RATE */
   commissionRate?: number | null;
 }): { isLoss: boolean; isLowCommission: boolean; profit: number; revenue: number } {
   const salePrice = Number(input.salePrice) || 0;
@@ -49,11 +61,15 @@ export function evaluateSaleProfitFlags(input: {
   const revenue = calcSaleRevenue(salePrice, quantity);
   const isLoss = profit < 0;
 
-  const rate = resolveCommissionRate(input.commissionRate);
+  const minProfit = calcMinCommissionProfit(
+    purchasePrice,
+    quantity,
+    input.commissionRate,
+  );
   const isLowCommission =
     isCommissionTransactionType(input.transactionTypeName) &&
-    revenue > 0 &&
-    profit < revenue * rate;
+    purchasePrice > 0 &&
+    profit < minProfit;
 
   return { isLoss, isLowCommission, profit, revenue };
 }

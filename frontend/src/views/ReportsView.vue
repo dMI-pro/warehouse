@@ -1171,7 +1171,7 @@ const getProfitAlertTitle = (data: NormalizedItem) => {
   if (reportType.value !== 'sales') return undefined;
   const sale = data as NormalizedSale;
   if (sale.isLoss) return 'Убыточная продажа';
-  if (sale.isLowCommission) return 'Комиссия ниже 20% от цены продажи';
+  if (sale.isLowCommission) return 'Комиссия: прибыль ниже 25% от цены закупа';
   return undefined;
 };
 
