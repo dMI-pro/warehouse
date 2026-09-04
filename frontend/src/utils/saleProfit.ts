@@ -1,11 +1,22 @@
 /**
  * Sale profit / commission checks (mirrors backend sale-profit.util).
- * For «Комиссия»: min profit = purchasePrice × rate × quantity (default 25% of purchase).
+ * «Комиссия»: want ≥20% of sale after paying purchase to committee
+ * ⇒ sale ≥ purchase×1.25 ⇒ profit ≥ purchase×0.25.
  */
 
-/** Min profit as a fraction of purchase price (default 0.25 → 25%). */
+/**
+ * Min profit as a fraction of purchase price.
+ * 0.25 ⇒ sale must be at least purchase×1.25 so margin is ≥20% of sale.
+ */
 export const DEFAULT_COMMISSION_RATE = 0.25;
 export const COMMISSION_TRANSACTION_TYPE_NAME = 'Комиссия';
+
+/** Short UI label for the low-commission alert */
+export const LOW_COMMISSION_LABEL = 'Комиссия < 20%';
+
+/** Tooltip / title explaining the math */
+export const LOW_COMMISSION_HINT =
+  'Тип «Комиссия»: прибыль меньше 25% от цены закупа. Нужно продать ≥ закуп × 1.25, чтобы после выплаты комитету суммы закупа осталось ≥ 20% от продажи.';
 
 export type SaleProfitAlert = 'loss' | 'low_commission' | 'problem';
 
@@ -63,5 +74,8 @@ export function evaluateSaleProfitFlags(input: {
 export const SALE_PROFIT_ALERT_OPTIONS: Array<{ label: string; value: SaleProfitAlert }> = [
   { label: 'Все проблемные', value: 'problem' },
   { label: 'Убыток', value: 'loss' },
-  { label: 'Низкая комиссия', value: 'low_commission' },
+  {
+    label: 'Комиссия < 20% (прибыль < 25% закупа)',
+    value: 'low_commission',
+  },
 ];

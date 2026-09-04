@@ -66,10 +66,11 @@
               <button
                 type="button"
                 class="problem-sales-item problem-sales-item--commission"
-                title="Продажи с типом «Комиссия», где прибыль меньше 25% от цены закупа"
+                :title="LOW_COMMISSION_HINT"
                 @click="openProblemSales('low_commission')"
               >
-                Комиссия &lt; 25%: <span class="problem-sales-count">{{ problemSales.lowCommissionCount }}</span>
+                {{ LOW_COMMISSION_LABEL }}:
+                <span class="problem-sales-count">{{ problemSales.lowCommissionCount }}</span>
               </button>
             </div>
             <DataTable
@@ -446,6 +447,7 @@ import { apiService } from '@/services/api';
 import type { Product } from '@/types/api';
 import { storeToRefs } from 'pinia';
 import { mapAuditLogToDashboardAction } from '@/utils/audit-log-display';
+import { LOW_COMMISSION_HINT, LOW_COMMISSION_LABEL } from '@/utils/saleProfit';
 
 type DashboardAction = {
   type: string;

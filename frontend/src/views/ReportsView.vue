@@ -574,6 +574,7 @@ import { getDefaultTemplate } from '@/utils/exportTemplates';
 import { useDateRangeFilter } from '@/composables/useDateRangeFilter';
 import {
   evaluateSaleProfitFlags,
+  LOW_COMMISSION_HINT,
   SALE_PROFIT_ALERT_OPTIONS,
   type SaleProfitAlert,
 } from '@/utils/saleProfit';
@@ -1171,7 +1172,7 @@ const getProfitAlertTitle = (data: NormalizedItem) => {
   if (reportType.value !== 'sales') return undefined;
   const sale = data as NormalizedSale;
   if (sale.isLoss) return 'Убыточная продажа';
-  if (sale.isLowCommission) return 'Комиссия: прибыль ниже 25% от цены закупа';
+  if (sale.isLowCommission) return LOW_COMMISSION_HINT;
   return undefined;
 };
 

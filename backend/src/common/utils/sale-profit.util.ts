@@ -1,11 +1,14 @@
 /**
  * Sale profit / commission checks.
- * For transaction type «Комиссия»: min profit = purchasePrice * rate * quantity
- * (default 25% of purchase — same idea as salePrice ≈ purchase × 1.25).
+ * For type «Комиссия»: after paying the committee the purchase price, we want
+ * ≥20% of the sale left. That means sale ≥ purchase×1.25, i.e. profit ≥ purchase×0.25.
  * Optional per-committee rate can be passed later without changing call sites.
  */
 
-/** Min profit as a fraction of purchase price (default 0.25 → 25%). */
+/**
+ * Min profit as a fraction of purchase price.
+ * 0.25 ⇒ sale must be at least purchase×1.25 so margin is ≥20% of sale.
+ */
 export const DEFAULT_COMMISSION_RATE = 0.25;
 export const COMMISSION_TRANSACTION_TYPE_NAME = 'Комиссия';
 
@@ -36,7 +39,7 @@ export function calcSaleRevenue(salePrice: number, quantity: number): number {
   return salePrice * quantity;
 }
 
-/** Min acceptable profit for commission sales: purchase × rate × qty */
+/** Min acceptable profit for commission sales: purchase × 0.25 × qty */
 export function calcMinCommissionProfit(
   purchasePrice: number,
   quantity: number,
@@ -51,7 +54,7 @@ export function evaluateSaleProfitFlags(input: {
   purchasePrice: number;
   quantity: number;
   transactionTypeName?: string | null;
-  /** Future: committee.commissionRate (0..1 of purchase). Omit → DEFAULT_COMMISSION_RATE */
+  /** Future: committee rate as fraction of purchase (default 0.25). */
   commissionRate?: number | null;
 }): { isLoss: boolean; isLowCommission: boolean; profit: number; revenue: number } {
   const salePrice = Number(input.salePrice) || 0;
