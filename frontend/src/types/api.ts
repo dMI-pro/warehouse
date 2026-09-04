@@ -305,6 +305,14 @@ export interface DashboardSummary {
   problemSales?: {
     lossCount: number;
     lowCommissionCount: number;
+    recent?: Array<{
+      id: number;
+      productName: string;
+      amount: number;
+      profit: number;
+      time: string;
+      reason: 'loss' | 'low_commission';
+    }>;
   };
   newArrivals: Array<{ name: string; quantity: number; arrivalDate: string }>;
   lowStockProducts: Product[];

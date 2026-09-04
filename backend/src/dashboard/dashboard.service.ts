@@ -164,6 +164,14 @@ export class DashboardService {
   private async getProblemSalesCounts(): Promise<{
     lossCount: number;
     lowCommissionCount: number;
+    recent: Array<{
+      id: number;
+      productName: string;
+      amount: number;
+      profit: number;
+      time: Date;
+      reason: 'loss' | 'low_commission';
+    }>;
   }> {
     const [lossRow] = await this.prisma.$queryRaw<Array<{ count: number }>>`
       SELECT COUNT(*)::int AS count
@@ -185,9 +193,55 @@ export class DashboardService {
             < (s."salePrice" * s.quantity * ${DEFAULT_COMMISSION_RATE})
     `;
 
+    const recentRows = await this.prisma.$queryRaw<
+      Array<{
+        id: number;
+        productName: string;
+        amount: number;
+        profit: number;
+        time: Date;
+        reason: string;
+      }>
+    >`
+      SELECT
+        s.id,
+        COALESCE(p.name, 'Неизвестный товар') AS "productName",
+        (s."salePrice" * s.quantity)::float AS amount,
+        ((s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity)::float AS profit,
+        s."soldAt" AS time,
+        CASE
+          WHEN (s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity < 0
+            THEN 'loss'
+          ELSE 'low_commission'
+        END AS reason
+      FROM sales s
+      INNER JOIN products p ON p.id = s."productId"
+      LEFT JOIN transaction_type tt ON tt.id = p."transactionTypeId"
+      WHERE
+        (s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity < 0
+        OR (
+          tt.id IS NOT NULL
+          AND LOWER(TRIM(tt.name)) = LOWER(${COMMISSION_TRANSACTION_TYPE_NAME})
+          AND (s."salePrice" * s.quantity) > 0
+          AND (s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity
+              < (s."salePrice" * s.quantity * ${DEFAULT_COMMISSION_RATE})
+        )
+      ORDER BY s."soldAt" DESC
+      LIMIT 8
+    `;
+
     return {
       lossCount: lossRow?.count ?? 0,
       lowCommissionCount: lowCommissionRow?.count ?? 0,
+      recent: recentRows.map((row) => ({
+        id: row.id,
+        productName: row.productName,
+        amount: Number(row.amount) || 0,
+        profit: Number(row.profit) || 0,
+        time: row.time,
+        reason:
+          row.reason === 'loss' ? ('loss' as const) : ('low_commission' as const),
+      })),
     };
   }
 

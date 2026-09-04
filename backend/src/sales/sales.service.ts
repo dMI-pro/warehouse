@@ -232,7 +232,7 @@ export class SalesService {
 
   /** IDs of sales matching profit alert (all-time; combined with other Prisma filters). */
   private async findSaleIdsByProfitAlert(
-    profitAlert: 'loss' | 'low_commission',
+    profitAlert: 'loss' | 'low_commission' | 'problem',
   ): Promise<number[]> {
     if (profitAlert === 'loss') {
       const rows = await this.prisma.$queryRaw<Array<{ id: number }>>`
@@ -240,6 +240,25 @@ export class SalesService {
         FROM sales s
         INNER JOIN products p ON p.id = s."productId"
         WHERE (s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity < 0
+      `;
+      return rows.map((r) => r.id);
+    }
+
+    if (profitAlert === 'problem') {
+      const rows = await this.prisma.$queryRaw<Array<{ id: number }>>`
+        SELECT s.id
+        FROM sales s
+        INNER JOIN products p ON p.id = s."productId"
+        LEFT JOIN transaction_type tt ON tt.id = p."transactionTypeId"
+        WHERE
+          (s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity < 0
+          OR (
+            tt.id IS NOT NULL
+            AND LOWER(TRIM(tt.name)) = LOWER(${COMMISSION_TRANSACTION_TYPE_NAME})
+            AND (s."salePrice" * s.quantity) > 0
+            AND (s."salePrice" - COALESCE(p."purchasePrice", 0)) * s.quantity
+                < (s."salePrice" * s.quantity * ${DEFAULT_COMMISSION_RATE})
+          )
       `;
       return rows.map((r) => r.id);
     }

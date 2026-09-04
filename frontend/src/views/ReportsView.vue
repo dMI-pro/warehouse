@@ -1151,7 +1151,7 @@ const syncAlertToUrl = () => {
 
 const restoreAlertFromUrl = () => {
   const alert = route.query.alert;
-  if (alert === 'loss' || alert === 'low_commission') {
+  if (alert === 'loss' || alert === 'low_commission' || alert === 'problem') {
     extraFilters.profitAlert = alert;
     filtersCollapsed.value = false;
   }
@@ -1658,7 +1658,7 @@ watch(() => route.query.tab, (newTab) => {
 watch(
   () => route.query.alert,
   (alert) => {
-    if (alert === 'loss' || alert === 'low_commission') {
+    if (alert === 'loss' || alert === 'low_commission' || alert === 'problem') {
       if (extraFilters.profitAlert !== alert) {
         extraFilters.profitAlert = alert;
         filtersCollapsed.value = false;
@@ -1842,11 +1842,11 @@ onBeforeUnmount(() => {
 }
 
 .report-table :deep(.sale-row--loss) {
-  background: #fef2f2 !important;
+  background: color-mix(in srgb, var(--error-color) 12%, white) !important;
 }
 
 .report-table :deep(.sale-row--low-commission) {
-  background: #fffbeb !important;
+  background: color-mix(in srgb, var(--warning-color) 12%, white) !important;
 }
 
 /* График */

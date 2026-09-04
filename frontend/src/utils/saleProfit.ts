@@ -6,7 +6,7 @@
 export const DEFAULT_COMMISSION_RATE = 0.2;
 export const COMMISSION_TRANSACTION_TYPE_NAME = 'Комиссия';
 
-export type SaleProfitAlert = 'loss' | 'low_commission';
+export type SaleProfitAlert = 'loss' | 'low_commission' | 'problem';
 
 export function resolveCommissionRate(committeeRate?: number | null): number {
   if (typeof committeeRate === 'number' && Number.isFinite(committeeRate) && committeeRate >= 0) {
@@ -51,6 +51,7 @@ export function evaluateSaleProfitFlags(input: {
 }
 
 export const SALE_PROFIT_ALERT_OPTIONS: Array<{ label: string; value: SaleProfitAlert }> = [
+  { label: 'Все проблемные', value: 'problem' },
   { label: 'Убыток', value: 'loss' },
   { label: 'Низкая комиссия', value: 'low_commission' },
 ];

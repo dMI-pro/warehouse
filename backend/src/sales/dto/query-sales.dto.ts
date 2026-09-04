@@ -21,11 +21,11 @@ export class QuerySalesDto {
   @IsOptional()
   search?: string;
 
-  /** loss | low_commission — проблемные продажи */
+  /** loss | low_commission | problem — проблемные продажи */
   @IsString()
-  @IsIn(['loss', 'low_commission'])
+  @IsIn(['loss', 'low_commission', 'problem'])
   @IsOptional()
-  profitAlert?: 'loss' | 'low_commission';
+  profitAlert?: 'loss' | 'low_commission' | 'problem';
 
   @IsString()
   @IsOptional()

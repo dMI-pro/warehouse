@@ -48,25 +48,73 @@
         <template #content>
           <div class="widget-header">
             <div class="widget-icon">⚠️</div>
-            <div class="widget-title">Проблемные продажи</div>
+            <div class="widget-title">
+              Проблемные продажи
+              <small class="text-sm text-500">(последние 8)</small>
+            </div>
           </div>
           <div class="problem-sales-content">
-            <button
-              type="button"
-              class="problem-sales-item problem-sales-item--loss"
-              @click="openProblemSales('loss')"
+            <div class="problem-sales-counters">
+              <button
+                type="button"
+                class="problem-sales-item problem-sales-item--loss"
+                title="Продажи, у которых прибыль отрицательная (цена продажи ниже цены закупки)"
+                @click="openProblemSales('loss')"
+              >
+                Убыточные: <span class="problem-sales-count">{{ problemSales.lossCount }}</span>
+              </button>
+              <button
+                type="button"
+                class="problem-sales-item problem-sales-item--commission"
+                title="Продажи с типом «Комиссия», где прибыль меньше 20% от суммы продажи"
+                @click="openProblemSales('low_commission')"
+              >
+                Комиссия &lt; 20%: <span class="problem-sales-count">{{ problemSales.lowCommissionCount }}</span>
+              </button>
+            </div>
+            <DataTable
+              :value="problemSales.recent"
+              :loading="loading"
+              :paginator="false"
+              class="problem-sales-table"
+              :rows="8"
+              :scrollable="true"
+              scrollHeight="200px"
             >
-              <span class="problem-sales-label">Убыточные</span>
-              <span class="problem-sales-count">{{ problemSales.lossCount }}</span>
-            </button>
-            <button
-              type="button"
-              class="problem-sales-item problem-sales-item--commission"
-              @click="openProblemSales('low_commission')"
-            >
-              <span class="problem-sales-label">Комиссия &lt; 20%</span>
-              <span class="problem-sales-count">{{ problemSales.lowCommissionCount }}</span>
-            </button>
+              <Column field="productName" header="Товар">
+                <template #body="{ data }">
+                  <div class="truncate-text" style="max-width: 220px">{{ data.productName }}</div>
+                </template>
+              </Column>
+              <Column field="amount" header="Сумма" style="width: 110px">
+                <template #body="{ data }">
+                  {{ formatPrice(data.amount) }}
+                </template>
+              </Column>
+              <Column field="profit" header="Прибыль" style="width: 110px">
+                <template #body="{ data }">
+                  <span
+                    :class="data.profit < 0 ? 'problem-sales-profit--loss' : 'problem-sales-profit--commission'"
+                  >
+                    {{ formatPrice(data.profit) }}
+                  </span>
+                </template>
+              </Column>
+              <Column field="time" header="Дата" style="width: 130px">
+                <template #body="{ data }">
+                  {{ formatTime(data.time) }}
+                </template>
+              </Column>
+            </DataTable>
+            <div class="text-center mt-2">
+              <Button
+                label="Все"
+                icon="pi pi-list"
+                text
+                size="small"
+                @click="openProblemSales('problem')"
+              />
+            </div>
           </div>
         </template>
       </Card>
@@ -462,6 +510,14 @@ const stats = ref({
 const problemSales = ref({
   lossCount: 0,
   lowCommissionCount: 0,
+  recent: [] as Array<{
+    id: number;
+    productName: string;
+    amount: number;
+    profit: number;
+    time: string;
+    reason: 'loss' | 'low_commission';
+  }>,
 });
 const lowStockProducts = ref<Product[]>([]);
 const longStorageProducts = ref<Product[]>([]);
@@ -607,7 +663,7 @@ const formatTime = (time: string) => {
   }).format(date);
 };
 
-const openProblemSales = (alert: 'loss' | 'low_commission') => {
+const openProblemSales = (alert: 'loss' | 'low_commission' | 'problem') => {
   router.push({ path: '/reports', query: { tab: 'sales', alert } });
 };
 
@@ -632,6 +688,10 @@ const loadStats = async () => {
     problemSales.value = {
       lossCount: summary.problemSales?.lossCount ?? 0,
       lowCommissionCount: summary.problemSales?.lowCommissionCount ?? 0,
+      recent: (summary.problemSales?.recent ?? []).map((item) => ({
+        ...item,
+        time: String(item.time),
+      })),
     };
     newArrivals.value = summary.newArrivals.map((item) => ({
       name: item.name,
@@ -758,59 +818,71 @@ onUnmounted(() => {
 }
 
 .problem-sales-content {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.problem-sales-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
 }
 
 .problem-sales-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.35rem;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
   margin: 0;
-  padding: 1rem;
-  border: 1px solid var(--surface-border);
-  border-radius: 10px;
+  padding: 0.55rem 0.9rem;
+  border: 2px solid var(--surface-border);
+  border-radius: 8px;
   background: var(--surface-ground);
   cursor: pointer;
   text-align: left;
   font: inherit;
-  color: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-color);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .problem-sales-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .problem-sales-item--loss {
-  border-color: #fecaca;
-  background: #fef2f2;
+  border-color: var(--error-color);
+  background: color-mix(in srgb, var(--error-color) 16%, white);
 }
 
 .problem-sales-item--commission {
-  border-color: #fde68a;
-  background: #fffbeb;
-}
-
-.problem-sales-label {
-  font-size: 0.875rem;
-  color: var(--text-color-secondary);
+  border-color: var(--warning-color);
+  background: color-mix(in srgb, var(--warning-color) 16%, white);
 }
 
 .problem-sales-count {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.1rem;
+  font-weight: 800;
   line-height: 1.2;
 }
 
 .problem-sales-item--loss .problem-sales-count {
-  color: #b91c1c;
+  color: var(--error-color);
 }
 
 .problem-sales-item--commission .problem-sales-count {
-  color: #b45309;
+  color: var(--warning-color);
+}
+
+.problem-sales-profit--loss {
+  color: var(--error-color);
+  font-weight: 600;
+}
+
+.problem-sales-profit--commission {
+  color: var(--warning-color);
+  font-weight: 600;
 }
 
 .long-storage-item,
