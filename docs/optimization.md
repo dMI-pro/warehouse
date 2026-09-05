@@ -110,8 +110,8 @@ Refresh-сессия не доказывает, что пользователь 
 
 ### Высокий приоритет
 
-1. **Нет gzip/brotli в nginx.**  
-   Добавить gzip как минимум для JS, CSS, JSON, SVG и шрифтов. Это обычно уменьшает JS/CSS в 3–5 раз. Brotli можно добавить позднее.
+1. ~~**Нет gzip/brotli в nginx.**~~  
+   ✅ gzip включён для JS, CSS, JSON, SVG и шрифтов. Brotli можно добавить позднее.
 
 2. **Слишком крупные изображения.**  
    В MinIO найдены WebP размером 3.4 МБ, 2.8 МБ, 1.3 МБ и 1.1 МБ. Формат WebP сам по себе не гарантирует малый размер. Нужны:
@@ -213,9 +213,9 @@ Refresh-сессия не доказывает, что пользователь 
 - ~~Нет ограничения и ротации Docker json-file logs~~ — ✅ в `docker-compose.prod.yml` у всех сервисов `max-size: 10m`, `max-file: 5`.
 - MinIO публикует порты 9000 и 9001 наружу; это вопрос безопасности, но также лишняя поверхность атаки.
 - MinIO использует тег `latest`, поэтому обновление может неожиданно изменить поведение.
-- `index.html` не имеет явного `no-cache`; после деплоя старый HTML может ссылаться на уже удалённые hashed chunks и давать 404 до hard refresh.
-- Объявленный nginx `map $expires` не применяется, потому что отсутствует `expires $expires`.
-- Regex статического кэша не включает `.woff`, `.woff2` и `.ttf`.
+- ~~`index.html` не имеет явного `no-cache`~~ — ✅ `no-cache, no-store, must-revalidate`; hashed assets — `public, immutable` (1y); шрифты `woff`/`woff2`/`ttf` в static location; API — `private, no-store`.
+- ~~Объявленный nginx `map $expires` не применяется~~ — ✅ неиспользуемый `map` убран.
+- ~~Regex статического кэша не включает `.woff`, `.woff2` и `.ttf`~~ — ✅ добавлены.
 - `deploy.sh` не выполняет `prisma migrate deploy` и post-deploy smoke test.
 - Workflow использует `cancel-in-progress: true`: новый push способен прервать деплой в середине.
 - `Dockerfile.proxy` копирует весь `prod.env` в build stage, хотя фронтенду нужны только `VITE_*`; секреты не должны попадать в слои образа.
@@ -326,8 +326,8 @@ TanStack Query не исправит большие изображения, не
 ### P0 — исправить сразу
 
 1. Healthcheck: `localhost` → `127.0.0.1`.
-2. Включить gzip для JS/CSS/JSON/SVG/fonts.
-3. Добавить `Cache-Control: no-cache` для `index.html`, `public, immutable` для hashed assets и кэширование шрифтов.
+2. ~~Включить gzip для JS/CSS/JSON/SVG/fonts.~~ ✅
+3. ~~Добавить `Cache-Control: no-cache` для `index.html`, `public, immutable` для hashed assets и кэширование шрифтов.~~ ✅
 4. Добавить ограничение размера/разрешения изображений и thumbnails.
 5. Убрать двойной `generateReport`, повторные refetch и исправить resize-listener ReportsView.
 6. Проверить rate limit для нескольких сотрудников за одним NAT.

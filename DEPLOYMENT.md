@@ -142,6 +142,22 @@
 
 В `docker-compose.prod.yml` backend healthcheck ходит на `http://127.0.0.1:3000/health` (не `localhost`): в Alpine `localhost` часто резолвится в IPv6 `::1`, а Nest слушает IPv4. Публичная проверка: `https://tsehh.ru/api/health`.
 
+### Nginx (кэш и gzip)
+
+В `nginx.conf` (прокси на VPS):
+
+- gzip для JS, CSS, JSON, SVG и шрифтов;
+- `index.html`: `Cache-Control: no-cache, no-store, must-revalidate` (после деплоя браузер берёт новый shell);
+- hashed JS/CSS/assets (+ `woff`/`woff2`/`ttf`): годовой кэш `public, immutable`;
+- `/api/`: `private, no-store` (приватные ответы не кэшируются);
+- SPA `try_files`, `/api/` и `/minio/` сохранены.
+
+После правки конфига на VPS (volume-mounted):
+
+```bash
+docker exec antiquar-proxy nginx -t && docker exec antiquar-proxy nginx -s reload
+```
+
 ### PM2 мониторинг
 
 ```bash
