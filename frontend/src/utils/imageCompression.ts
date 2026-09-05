@@ -8,40 +8,31 @@ export interface CompressionOptions {
 }
 
 const DEFAULT_OPTIONS: CompressionOptions = {
-  maxSizeMB: 0.5, // 500KB
-  maxWidthOrHeight: 1920,
+  maxSizeMB: 0.35,
+  maxWidthOrHeight: 1600,
   useWebWorker: true,
   fileType: 'image/webp',
 };
 
 /**
- * Сжимает изображение на клиенте перед загрузкой
- * @param file - файл изображения
- * @param options - опции сжатия
- * @returns сжатый файл
+ * Сжимает изображение на клиенте перед загрузкой.
+ * Для товаров сжатие всегда включено (сервер всё равно пережмёт).
  */
 export async function compressImageFile(
   file: File,
   options: CompressionOptions = {},
 ): Promise<File> {
-  // Проверяем флаг сжатия в .env. По умолчанию сжатие ВЫКЛЮЧЕНО, если флаг не равен 'true'
-  if (import.meta.env.VITE_ENABLE_IMAGE_COMPRESSION !== 'true') {
-    return file;
-  }
-
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
   try {
-    // Определяем тип файла
     const fileType = file.type || opts.fileType || 'image/webp';
 
-    // Сжимаем изображение
     const compressedFile = await imageCompression(file, {
-      maxSizeMB: opts.maxSizeMB || 0.5,
-      maxWidthOrHeight: opts.maxWidthOrHeight || 1920,
+      maxSizeMB: opts.maxSizeMB || 0.35,
+      maxWidthOrHeight: opts.maxWidthOrHeight || 1600,
       useWebWorker: opts.useWebWorker !== false,
       fileType: fileType.includes('webp') ? 'image/webp' : fileType,
-      initialQuality: 0.85,
+      initialQuality: 0.8,
     });
     const baseName = file.name.replace(/\.[^/.]+$/, '') || 'image';
     const targetName = `${baseName}.webp`;
@@ -53,7 +44,6 @@ export async function compressImageFile(
     return finalFile;
   } catch (error) {
     console.error('Ошибка сжатия изображения:', error);
-    // В случае ошибки возвращаем оригинальный файл
     return file;
   }
 }

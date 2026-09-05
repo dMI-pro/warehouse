@@ -158,6 +158,14 @@
 docker exec antiquar-proxy nginx -t && docker exec antiquar-proxy nginx -s reload
 ```
 
+### Изображения товаров (MinIO)
+
+- В БД `products.images` — массив ключей MinIO (как раньше); первый элемент — главное фото.
+- Полный WebP при загрузке: до ~1600px, целевой вес ≤ ~350 KB (сервер сжимает всегда).
+- Thumbnail только для главной: `products/…/thumbs/<name>.webp` (в `images[]` не пишется). API отдаёт `thumbnailUrl`.
+- Смена главной (reorder / «сделать главной») удаляет старый thumb и создаёт новый для `images[0]`.
+- Старые URL полных фото совместимы; у товаров без thumb таблица падает на полное фото (`onerror`).
+
 ### PM2 мониторинг
 
 ```bash

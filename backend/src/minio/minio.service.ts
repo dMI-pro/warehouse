@@ -115,6 +115,53 @@ export class MinioService implements OnModuleInit {
     }
   }
 
+  async uploadBuffer(
+    objectName: string,
+    buffer: Buffer,
+    contentType: string = 'image/webp',
+  ): Promise<string> {
+    try {
+      await this.minioClient.putObject(
+        this.bucketName,
+        objectName,
+        buffer,
+        buffer.length,
+        { 'Content-Type': contentType },
+      );
+      return objectName;
+    } catch (err) {
+      this.logger.error(
+        `Error uploading buffer ${objectName}: ${err.message}`,
+        err.stack,
+      );
+      throw err;
+    }
+  }
+
+  async getObjectBuffer(objectName: string): Promise<Buffer> {
+    const stream = await this.minioClient.getObject(
+      this.bucketName,
+      objectName,
+    );
+    const chunks: Buffer[] = [];
+    return new Promise((resolve, reject) => {
+      stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      stream.on('error', reject);
+      stream.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+  }
+
+  async deleteFileQuietly(fileName: string) {
+    try {
+      await this.deleteFile(fileName);
+    } catch (err: any) {
+      if (err?.code === 'NotFound' || err?.code === 'NoSuchKey') return;
+      this.logger.warn(
+        `Quiet delete failed for ${fileName}: ${err?.message || err}`,
+      );
+    }
+  }
+
   private async buildUniqueFileName(folder: string, base: string, ext: string) {
     const normalizedFolder = folder.replace(/^\/+|\/+$/g, '');
     const prefix = normalizedFolder ? `${normalizedFolder}/` : '';

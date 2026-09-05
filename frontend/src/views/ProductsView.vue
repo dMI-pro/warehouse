@@ -138,9 +138,14 @@
                 <template v-if="column.template === 'image'">
                   <img
                     v-if="data.images && data.images.length > 0"
-                    :src="getImageUrl(data.images[0])"
+                    :src="getProductThumbUrl(data)"
                     :alt="data.name"
                     class="product-image"
+                    width="60"
+                    height="60"
+                    loading="lazy"
+                    decoding="async"
+                    @error="onProductThumbError($event, data)"
                   />
                   <span v-else class="no-image">Нет фото</span>
                 </template>
@@ -1054,6 +1059,21 @@ const getImageUrl = (imagePath: string) => {
   return imagePath;
 };
 
+/** Prefer API thumbnailUrl for table; fall back to full main image (legacy). */
+const getProductThumbUrl = (product: { thumbnailUrl?: string | null; images?: string[] }) => {
+  if (product.thumbnailUrl) return getImageUrl(product.thumbnailUrl);
+  if (product.images?.[0]) return getImageUrl(product.images[0]);
+  return '';
+};
+
+const onProductThumbError = (event: Event, product: { images?: string[] }) => {
+  const img = event.target as HTMLImageElement;
+  const full = product.images?.[0] ? getImageUrl(product.images[0]) : '';
+  if (full && img.src !== full) {
+    img.src = full;
+  }
+};
+
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
@@ -1399,7 +1419,7 @@ const removeImage = async (index: number) => {
   }
 };
 
-const setMainImage = (index: number) => {
+const setMainImage = async (index: number) => {
   if (productForm.images && productForm.images.length > index) {
     const image: string = productForm.images![index] as string;
     productForm.images.splice(index, 1);
@@ -1411,6 +1431,21 @@ const setMainImage = (index: number) => {
       if (file) {
         pendingFiles.value.splice(index, 1);
         pendingFiles.value.unshift(file);
+      }
+    }
+
+    // Persist new main photo → backend regenerates thumbnail for images[0].
+    if (editingProduct.value?.id) {
+      try {
+        const updated = await productsStore.reorderImages(
+          editingProduct.value.id,
+          productForm.images,
+        );
+        if (updated?.images) {
+          productForm.images = [...updated.images];
+        }
+      } catch {
+        // store already toasts
       }
     }
   }
@@ -1800,6 +1835,8 @@ const exportAllProducts = async (format: 'xlsx' | 'csv') => {
   object-fit: cover;
   border-radius: 4px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: var(--surface-100, #f4f4f5);
+  flex-shrink: 0;
 }
 
 .no-image {

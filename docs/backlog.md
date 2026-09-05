@@ -99,6 +99,7 @@
 | 36a | Docker prod: ложный `unhealthy` backend — healthcheck на `127.0.0.1:3000/health` вместо `localhost` (IPv6) | ✅ сделано |
 | 36b | Docker prod: json-file logs `max-size: 10m`, `max-file: 5` для всех сервисов | ✅ сделано |
 | 36c | nginx: gzip + cache (`index.html` no-store, assets immutable 1y, API no-store, woff/ttf) | ✅ сделано |
+| 36d | Фото: лимит WebP; thumb только для главной (`images[0]`); lazy 60×60 в таблице | ✅ сделано |
 | 37 | `npm ci` + `npm run type-check` в CI | сделать |
 | 38 | Audit-log: выровнять роли UI vs API | см. `security.md` |
 | 39 | Merge `main` ← `staging` после релиза | эксплуатация |
@@ -131,6 +132,7 @@
 - Docker prod healthcheck backend: `127.0.0.1:3000/health` (без ложного unhealthy из‑за IPv6 `localhost`)
 - Docker prod: ротация json-file логов (`10m` × `5`) для всех сервисов
 - nginx: gzip; `index.html` без кэша; hashed assets/`woff`/`ttf` — `immutable` 1y; API — `no-store`
+- Фото товаров: WebP ≤1600px/~350 KB; thumb 240px только для главной; таблица lazy 60×60
 
 Интеграция фронт↔бэк — архив: `INTEGRATION_CHECKLIST.md` (всё [x]).
 

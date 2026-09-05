@@ -2,6 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MinioService } from '../minio/minio.service';
 import { parseQueryDateBound } from '../common/utils/date-range.util';
+import {
+  isThumbObjectKey,
+  thumbKeyFromImageKey,
+} from '../common/utils/image-compression.util';
+import {
+  removeThumbnailForImage,
+  syncMainImageThumbnail,
+} from '../common/utils/product-image-thumb.util';
 
 export interface MediaQuery {
   search?: string;
@@ -72,11 +80,18 @@ export class MediaService {
       select: { images: true },
     });
     for (const p of products) {
-      for (const img of p.images || []) {
-        if (!img) continue;
-        // Если это URL, извлекаем ключ
+      const imgs = (p.images || []).filter(Boolean);
+      for (const img of imgs) {
         const key = this.minio.getKeyFromUrl(img) || img;
         usedMap.set(key, (usedMap.get(key) || 0) + 1);
+      }
+      // Only the main image has a generated thumbnail object.
+      if (imgs[0]) {
+        const mainKey = this.minio.getKeyFromUrl(imgs[0]) || imgs[0];
+        if (!isThumbObjectKey(mainKey)) {
+          const thumbKey = thumbKeyFromImageKey(mainKey);
+          usedMap.set(thumbKey, (usedMap.get(thumbKey) || 0) + 1);
+        }
       }
     }
 
@@ -163,17 +178,26 @@ export class MediaService {
     for (const key of unique) {
       try {
         await this.minio.deleteFile(key);
+        if (!isThumbObjectKey(key)) {
+          await removeThumbnailForImage(this.minio, key);
+        }
         const products = await this.prisma.product.findMany({
           where: { images: { has: key } },
           select: { id: true, images: true },
         });
         for (const p of products) {
+          const previousMain = (p.images || [])[0] || null;
           const nextImages = (p.images || []).filter((img) => img !== key);
           if (nextImages.length !== (p.images || []).length) {
             await this.prisma.product.update({
               where: { id: p.id },
               data: { images: nextImages },
             });
+            await syncMainImageThumbnail(
+              this.minio,
+              previousMain,
+              nextImages[0] || null,
+            );
           }
         }
         deleted.push(key);

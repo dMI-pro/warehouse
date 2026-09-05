@@ -96,6 +96,8 @@ export interface Product {
   transactionType?: TransactionType;
   arrivalDate?: string;
   images: string[];
+  /** Public URL of main-image thumbnail (images[0]); may 404 for legacy products until re-synced. */
+  thumbnailUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }

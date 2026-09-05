@@ -130,6 +130,10 @@
                           :src="getFullImageUrl(slotProps.item)"
                           :alt="product.name"
                           class="gallery-image"
+                          width="800"
+                          height="400"
+                          loading="eager"
+                          decoding="async"
                           @error="handleImageError"
                         />
                       </div>
@@ -140,6 +144,10 @@
                           :src="getFullImageUrl(slotProps.item)"
                           :alt="product.name"
                           class="thumbnail-image"
+                          width="80"
+                          height="80"
+                          loading="lazy"
+                          decoding="async"
                           @error="handleImageError"
                         />
                         <div v-if="slotProps.item === product.images[0]" class="main-image-indicator">

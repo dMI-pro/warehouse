@@ -13,7 +13,8 @@ import { QueryProductsDto } from './dto/query-products.dto';
 import { Prisma } from '@prisma/client';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { MinioService } from '../minio/minio.service';
-import { compressImage } from '../common/utils/image-compression.util';
+import { compressImage, PRODUCT_FULL_IMAGE_OPTIONS, thumbKeyFromImageKey } from '../common/utils/image-compression.util';
+import { syncMainImageThumbnail, removeThumbnailForImage } from '../common/utils/product-image-thumb.util';
 import {
   sanitizeProductForRole,
   canSeeProductSensitiveFields,
@@ -49,6 +50,24 @@ export class ProductsService {
 
   private mapProduct(product: any, viewer?: ProductViewer) {
     return sanitizeProductForRole(product, viewer);
+  }
+
+  /** Resolve public URLs for images[] + thumbnailUrl for images[0]. */
+  private async withImageUrls(product: any, viewer?: ProductViewer) {
+    const mapped = this.mapProduct(product, viewer) as any;
+    const imgs = (product.images || []).filter(Boolean) as string[];
+    if (imgs.length === 0) {
+      mapped.images = [];
+      mapped.thumbnailUrl = null;
+      return mapped;
+    }
+    mapped.images = await Promise.all(
+      imgs.map((img: string) => this.minioService.getFileUrl(img)),
+    );
+    mapped.thumbnailUrl = await this.minioService.getFileUrl(
+      thumbKeyFromImageKey(imgs[0]),
+    );
+    return mapped;
   }
 
   async getLastSku() {
@@ -163,11 +182,12 @@ export class ProductsService {
       });
     }
 
-    const mapped = this.mapProduct(product, viewer);
-    if (mapped.images && mapped.images.length > 0) {
-      const imgs = (product.images || []).filter(Boolean);
-      mapped.images = await Promise.all(
-        imgs.map((img: string) => this.minioService.getFileUrl(img)),
+    const mapped = await this.withImageUrls(product, viewer);
+    if ((product.images || []).length > 0) {
+      await syncMainImageThumbnail(
+        this.minioService,
+        null,
+        product.images[0],
       );
     }
     return mapped;
@@ -247,16 +267,7 @@ export class ProductsService {
     ]);
 
     const data = await Promise.all(
-      products.map(async (p) => {
-        const mapped = this.mapProduct(p, viewer);
-        if (Array.isArray(mapped.images) && mapped.images.length > 0) {
-          const imgs = (p.images || []).filter(Boolean);
-          mapped.images = await Promise.all(
-            imgs.map((img: string) => this.minioService.getFileUrl(img)),
-          );
-        }
-        return mapped;
-      }),
+      products.map((p) => this.withImageUrls(p, viewer)),
     );
 
     return {
@@ -289,14 +300,7 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    const mapped = this.mapProduct(product, viewer);
-    if (mapped.images && mapped.images.length > 0) {
-      const imgs = (product.images || []).filter(Boolean);
-      mapped.images = await Promise.all(
-        imgs.map((img: string) => this.minioService.getFileUrl(img)),
-      );
-    }
-    return mapped;
+    return this.withImageUrls(product, viewer);
   }
 
   async update(
@@ -395,6 +399,7 @@ export class ProductsService {
     }
 
     // Очистка всех путей изображений (и новых, и старых в БД)
+    const previousMain = (oldProduct.images || [])[0] || null;
     if (updateProductDto.images) {
       updateProductDto.images = this.cleanImages(updateProductDto.images);
     } else if (oldProduct.images) {
@@ -466,14 +471,16 @@ export class ProductsService {
       }
     }
 
-    const mapped = this.mapProduct(updatedProduct, viewer);
-    if (mapped.images && mapped.images.length > 0) {
-      const imgs = (updatedProduct.images || []).filter(Boolean);
-      mapped.images = await Promise.all(
-        imgs.map((img: string) => this.minioService.getFileUrl(img)),
+    const nextMain = (updatedProduct.images || [])[0] || null;
+    if (updateProductDto.images !== undefined) {
+      await syncMainImageThumbnail(
+        this.minioService,
+        previousMain,
+        nextMain,
       );
     }
-    return mapped;
+
+    return this.withImageUrls(updatedProduct, viewer);
   }
 
   async findInStock(viewer?: ProductViewer) {
@@ -491,19 +498,7 @@ export class ProductsService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    const data = await Promise.all(
-      products.map(async (p) => {
-        const mapped = this.mapProduct(p, viewer);
-        if (Array.isArray(mapped.images) && mapped.images.length > 0) {
-          const imgs = (p.images || []).filter(Boolean);
-          mapped.images = await Promise.all(
-            imgs.map((img: string) => this.minioService.getFileUrl(img)),
-          );
-        }
-        return mapped;
-      }),
-    );
-    return data;
+    return Promise.all(products.map((p) => this.withImageUrls(p, viewer)));
   }
 
   async getHistory(productId: number, page: number = 1, limit: number = 50) {
@@ -844,6 +839,11 @@ export class ProductsService {
       throw new ConflictException('Cannot delete product with existing sales');
     }
 
+    for (const img of product.images || []) {
+      await this.minioService.deleteFileQuietly(img);
+      await removeThumbnailForImage(this.minioService, img);
+    }
+
     await this.prisma.product.delete({
       where: { id },
     });
@@ -873,10 +873,13 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    // Сжатие изображения
-    const compressedBuffer = await compressImage(file.buffer);
+    // Always compress product uploads (independent of ENABLE_IMAGE_COMPRESSION).
+    const compressedBuffer = await compressImage(
+      file.buffer,
+      PRODUCT_FULL_IMAGE_OPTIONS,
+      true,
+    );
 
-    // Создание нового файла
     const compressedFile = {
       ...file,
       buffer: compressedBuffer,
@@ -889,7 +892,6 @@ export class ProductsService {
       compressedFile as Express.Multer.File,
     );
 
-    // Добавляем новый файл и очищаем весь массив
     const currentImages = product.images || [];
     const updatedImages = this.cleanImages([...currentImages, fileName]);
 
@@ -906,6 +908,12 @@ export class ProductsService {
       },
     });
 
+    const nextMain = updatedImages[0] || null;
+    // New uploads append; thumbnail only when this becomes the main (first) photo.
+    if (currentImages.length === 0 && nextMain) {
+      await syncMainImageThumbnail(this.minioService, null, nextMain);
+    }
+
     if (this.auditLogService) {
       await this.auditLogService.create({
         userId,
@@ -919,14 +927,7 @@ export class ProductsService {
       });
     }
 
-    const mapped = this.mapProduct(updatedProduct, viewer);
-    if (mapped.images && mapped.images.length > 0) {
-      const imgs = (updatedProduct.images || []).filter(Boolean);
-      mapped.images = await Promise.all(
-        imgs.map((img: string) => this.minioService.getFileUrl(img)),
-      );
-    }
-    return mapped;
+    return this.withImageUrls(updatedProduct, viewer);
   }
 
   async deleteImage(
@@ -940,7 +941,8 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    // Поиск ключа по URL или использование самого URL как ключа
+    const previousMain = (product.images || [])[0] || null;
+
     const keyFromUrl = this.minioService.getKeyFromUrl(imageUrl);
     const key = keyFromUrl
       ? product.images.find((img) => img === keyFromUrl)
@@ -953,8 +955,8 @@ export class ProductsService {
     } catch (e) {
       console.warn(`File ${imageToDelete} not found in MinIO`);
     }
+    await removeThumbnailForImage(this.minioService, imageToDelete);
 
-    // Удаляем файл и очищаем оставшиеся пути
     const updatedImages = this.cleanImages(
       product.images.filter((img) => img !== imageToDelete),
     );
@@ -972,6 +974,13 @@ export class ProductsService {
       },
     });
 
+    const nextMain = updatedImages[0] || null;
+    await syncMainImageThumbnail(
+      this.minioService,
+      previousMain,
+      nextMain,
+    );
+
     if (this.auditLogService) {
       await this.auditLogService.create({
         userId,
@@ -985,14 +994,7 @@ export class ProductsService {
       });
     }
 
-    const mapped = this.mapProduct(updatedProduct, viewer);
-    if (mapped.images && mapped.images.length > 0) {
-      const imgs = (updatedProduct.images || []).filter(Boolean);
-      mapped.images = await Promise.all(
-        imgs.map((img: string) => this.minioService.getFileUrl(img)),
-      );
-    }
-    return mapped;
+    return this.withImageUrls(updatedProduct, viewer);
   }
 
   async reorderImages(
@@ -1004,7 +1006,7 @@ export class ProductsService {
     const product = await this.prisma.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundException(`Product ${id} not found`);
 
-    // Очищаем присланные URL и сохраняем только ключи
+    const previousMain = (product.images || [])[0] || null;
     const newKeys = this.cleanImages(imageUrls);
 
     const updatedProduct = await this.prisma.product.update({
@@ -1017,6 +1019,13 @@ export class ProductsService {
         transactionType: true,
       },
     });
+
+    const nextMain = newKeys[0] || null;
+    await syncMainImageThumbnail(
+      this.minioService,
+      previousMain,
+      nextMain,
+    );
 
     if (this.auditLogService) {
       await this.auditLogService.create({
@@ -1038,14 +1047,6 @@ export class ProductsService {
       });
     }
 
-    const mapped = this.mapProduct(updatedProduct, viewer);
-    if (mapped.images && mapped.images.length > 0) {
-      mapped.images = await Promise.all(
-        updatedProduct.images.map((img: string) =>
-          this.minioService.getFileUrl(img),
-        ),
-      );
-    }
-    return mapped;
+    return this.withImageUrls(updatedProduct, viewer);
   }
 }
