@@ -138,6 +138,10 @@
 
 ## Мониторинг и логи
 
+### Healthcheck backend (Docker)
+
+В `docker-compose.prod.yml` backend healthcheck ходит на `http://127.0.0.1:3000/health` (не `localhost`): в Alpine `localhost` часто резолвится в IPv6 `::1`, а Nest слушает IPv4. Публичная проверка: `https://tsehh.ru/api/health`.
+
 ### PM2 мониторинг
 
 ```bash
