@@ -97,6 +97,7 @@
 | # | Задача | Статус |
 |---|--------|--------|
 | 36a | Docker prod: ложный `unhealthy` backend — healthcheck на `127.0.0.1:3000/health` вместо `localhost` (IPv6) | ✅ сделано |
+| 36b | Docker prod: json-file logs `max-size: 10m`, `max-file: 5` для всех сервисов | ✅ сделано |
 | 37 | `npm ci` + `npm run type-check` в CI | сделать |
 | 38 | Audit-log: выровнять роли UI vs API | см. `security.md` |
 | 39 | Merge `main` ← `staging` после релиза | эксплуатация |
@@ -127,6 +128,7 @@
 - Проблемные продажи (убыток / комиссия &lt; 20% от продажи = прибыль &lt; 25% закупа), виджет на главной, фильтры в отчётах
 - Фильтры дат audit-log и отчётов в таймзоне Europe/Moscow
 - Docker prod healthcheck backend: `127.0.0.1:3000/health` (без ложного unhealthy из‑за IPv6 `localhost`)
+- Docker prod: ротация json-file логов (`10m` × `5`) для всех сервисов
 
 Интеграция фронт↔бэк — архив: `INTEGRATION_CHECKLIST.md` (всё [x]).
 

@@ -152,9 +152,17 @@ pm2 monit
 
 ### Docker логи
 
+В `docker-compose.prod.yml` у всех сервисов (`postgres`, `backend`, `minio`, `proxy`) драйвер `json-file` с ротацией: `max-size: 10m`, `max-file: 5` (до ~50 MB логов на контейнер). Volumes PostgreSQL/MinIO этим не затрагиваются. Чтобы применить новые лимиты на уже запущенном стеке, пересоздайте контейнеры без `--build` (данные в `./postgres_data` и `./minio_data` сохраняются):
+
 ```bash
-docker-compose logs -f backend
-docker-compose logs -f frontend
+docker compose -f docker-compose.prod.yml up -d --force-recreate
+```
+
+Просмотр логов:
+
+```bash
+docker compose -f docker-compose.prod.yml logs -f backend
+docker compose -f docker-compose.prod.yml logs -f proxy
 ```
 
 ## Резервное копирование
