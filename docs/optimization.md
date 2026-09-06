@@ -146,7 +146,10 @@ Refresh-сессия не доказывает, что пользователь 
    Именованный `handleWindowResize` корректно снимается в `onBeforeUnmount`.
 
 10. ~~**Поиск товаров без debounce.**~~ ✅
-    `ProductsView`: debounce 400 мс; страница сбрасывается на 1; активный запрос отменяется сразу при новом вводе и при уходе со страницы; `fetchProducts` использует `AbortSignal` и sequence guard против устаревших ответов. Ошибки отложенного Promise обработаны без `Unhandled Promise Rejection`.
+    `ProductsView`: debounce через `useDebouncedSearch` (400 мс); страница сбрасывается на 1; активный запрос отменяется сразу при новом вводе и при уходе со страницы; `fetchProducts` использует `AbortSignal` и sequence guard против устаревших ответов. Ошибки отложенного Promise обработаны без `Unhandled Promise Rejection`.
+
+10a. ~~**Дубли UI фильтров на 4 экранах.**~~ ✅
+    Общие `FilterBar` / `FilterField` (`components/filters/`); страницы задают набор полей и логику apply/live сами. Layout presets: `products`, `reports`, `reports-extended`, `media`, `auto`.
 
 11. **Dashboard обновляется каждые 5 минут независимо от видимости вкладки.**  
     Таймер удаляется при unmount, что правильно, но лучше использовать `refetchInterval` TanStack Query с остановкой для background tab.

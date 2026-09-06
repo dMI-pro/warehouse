@@ -21,53 +21,68 @@
       </div>
     </div>
 
-    <div class="filters">
-      <IconField class="search">
-        <InputIcon class="pi pi-search" />
-        <InputText
-          v-model="filters.search"
-          placeholder="Поиск по названию"
-          @keyup.enter="() => load()"
+    <FilterBar layout="media">
+      <FilterField wide>
+        <IconField class="search w-full">
+          <InputIcon class="pi pi-search" />
+          <InputText
+            v-model="filters.search"
+            placeholder="Поиск по названию"
+            class="w-full"
+            @keyup.enter="() => load()"
+          />
+        </IconField>
+      </FilterField>
+
+      <FilterField>
+        <Calendar
+          v-model="filters.date"
+          dateFormat="dd.mm.yy"
+          placeholder="Дата добавления"
+          showIcon
+          class="date-filter"
+          @date-select="onDateSelect"
+          :manualInput="false"
         />
-      </IconField>
+      </FilterField>
 
-      <Calendar
-        v-model="filters.date"
-        dateFormat="dd.mm.yy"
-        placeholder="Дата добавления"
-        showIcon
-        class="date-filter"
-        @date-select="onDateSelect"
-        :manualInput="false"
-      />
+      <FilterField>
+        <ToggleButton
+          v-model="filters.unusedOnly"
+          onLabel="Нигде не используются"
+          offLabel="Все"
+          onIcon="pi pi-filter-slash"
+          offIcon="pi pi-filter"
+          class="unused-toggle"
+          @update:modelValue="() => load()"
+        />
+      </FilterField>
 
-      <ToggleButton
-        v-model="filters.unusedOnly"
-        onLabel="Нигде не используются"
-        offLabel="Все"
-        onIcon="pi pi-filter-slash"
-        offIcon="pi pi-filter"
-        class="unused-toggle"
-        @update:modelValue="() => load()"
-      />
-
-      <Dropdown
-        v-model="sortBy"
-        :options="sortByOptions"
-        optionLabel="label"
-        optionValue="value"
-        class="sort-by"
-      />
-      <Dropdown
-        v-model="sortOrder"
-        :options="sortOrderOptions"
-        optionLabel="label"
-        optionValue="value"
-        class="sort-order"
-      />
-      <Button label="Применить" icon="pi pi-filter" @click="() => load()" />
-      <Button label="Сбросить" icon="pi pi-times" text @click="resetFilters" />
-    </div>
+      <FilterField>
+        <Dropdown
+          v-model="sortBy"
+          :options="sortByOptions"
+          optionLabel="label"
+          optionValue="value"
+          class="sort-by"
+        />
+      </FilterField>
+      <FilterField>
+        <Dropdown
+          v-model="sortOrder"
+          :options="sortOrderOptions"
+          optionLabel="label"
+          optionValue="value"
+          class="sort-order"
+        />
+      </FilterField>
+      <FilterField>
+        <Button label="Применить" icon="pi pi-filter" @click="() => load()" />
+      </FilterField>
+      <FilterField>
+        <Button label="Сбросить" icon="pi pi-times" text @click="resetFilters" />
+      </FilterField>
+    </FilterBar>
 
     <div v-if="!modeGallery" class="table-mode">
       <DataTable
@@ -181,6 +196,8 @@ import Checkbox from 'primevue/checkbox';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import Toast from 'primevue/toast';
+import FilterBar from '@/components/filters/FilterBar.vue';
+import FilterField from '@/components/filters/FilterField.vue';
 
 import { apiService } from '@/services/api';
 import type { MediaItem, PaginatedResponse } from '@/types/api';
@@ -370,12 +387,6 @@ onMounted(() => load());
 }
 .actions {
   display: flex;
-  gap: .5rem;
-  align-items: center;
-}
-.filters {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto auto auto;
   gap: .5rem;
   align-items: center;
 }

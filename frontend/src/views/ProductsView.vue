@@ -23,76 +23,72 @@
     </div>
 
     <!-- Фильтры и поиск -->
-    <Card class="filters-card mb-4">
-      <template #content>
-        <div class="filters-grid">
-          <div class="filter-item search-item">
-            <div class="p-input-icon-left w-full">
-              <InputText
-                v-model="searchQuery"
-                placeholder="Поиск по названию, SKU, описанию..."
-                fluid
-                @input="handleSearch"
-              />
-            </div>
-          </div>
-          <div class="filter-item">
-            <Dropdown
-              id="category"
-              v-model="selectedCategory"
-              :options="categoryOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Все категории"
-              class="w-full"
-              @change="handleCategoryChange"
-            />
-          </div>
-          <div class="filter-item">
-            <Dropdown
-              id="warehouse"
-              v-model="selectedWarehouse"
-              :options="warehouseOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Все склады"
-              class="w-full"
-              @change="handleWarehouseChange"
-            />
-          </div>
-          <div class="filter-item" v-if="isAdminOrManager">
-            <Dropdown
-              id="committee"
-              v-model="selectedCommittee"
-              :options="committeeOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Все коммитеты"
-              class="w-full"
-              @change="handleCommitteeChange"
-            />
-          </div>
-          <div class="filter-item">
-            <Button
-              :label="inStockOnly ? 'В наличии: включено' : 'В наличии'"
-              :icon="inStockOnly ? 'pi pi-check' : 'pi pi-box'"
-              :severity="inStockOnly ? 'success' : 'secondary'"
-              :outlined="!inStockOnly"
-              @click="toggleInStock"
-            />
-          </div>
-          <div class="filter-item">
-            <Button
-              label="Сбросить"
-              icon="pi pi-refresh"
-              severity="secondary"
-              outlined
-              @click="resetFilters"
-            />
-          </div>
+    <FilterBar layout="products">
+      <FilterField wide>
+        <div class="p-input-icon-left w-full">
+          <InputText
+            v-model="searchQuery"
+            placeholder="Поиск по названию, SKU, описанию..."
+            fluid
+            @input="handleSearch"
+          />
         </div>
-      </template>
-    </Card>
+      </FilterField>
+      <FilterField>
+        <Dropdown
+          id="category"
+          v-model="selectedCategory"
+          :options="categoryOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Все категории"
+          class="w-full"
+          @change="handleCategoryChange"
+        />
+      </FilterField>
+      <FilterField>
+        <Dropdown
+          id="warehouse"
+          v-model="selectedWarehouse"
+          :options="warehouseOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Все склады"
+          class="w-full"
+          @change="handleWarehouseChange"
+        />
+      </FilterField>
+      <FilterField v-if="isAdminOrManager">
+        <Dropdown
+          id="committee"
+          v-model="selectedCommittee"
+          :options="committeeOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Все коммитеты"
+          class="w-full"
+          @change="handleCommitteeChange"
+        />
+      </FilterField>
+      <FilterField>
+        <Button
+          :label="inStockOnly ? 'В наличии: включено' : 'В наличии'"
+          :icon="inStockOnly ? 'pi pi-check' : 'pi pi-box'"
+          :severity="inStockOnly ? 'success' : 'secondary'"
+          :outlined="!inStockOnly"
+          @click="toggleInStock"
+        />
+      </FilterField>
+      <FilterField>
+        <Button
+          label="Сбросить"
+          icon="pi pi-refresh"
+          severity="secondary"
+          outlined
+          @click="resetFilters"
+        />
+      </FilterField>
+    </FilterBar>
 
     <!-- Таблица товаров -->
     <Card>
@@ -723,6 +719,9 @@ import { exportExcelTable, type ExcelColumn } from '@/utils/excelExport';
 import { getDefaultTemplate } from '@/utils/exportTemplates';
 
 import QuantityInput from '@/components/forms/QuantityInput.vue';
+import FilterBar from '@/components/filters/FilterBar.vue';
+import FilterField from '@/components/filters/FilterField.vue';
+import { useDebouncedSearch } from '@/composables/useDebouncedSearch';
 
 const productsStore = useProductsStore();
 const categoriesStore = useCategoriesStore();
@@ -736,16 +735,20 @@ const confirm = useConfirm();
 const toast = useToast();
 const router = useRouter();
 
-const searchQuery = ref('');
-const SEARCH_DEBOUNCE_MS = 400;
-let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-const clearSearchDebounce = () => {
-  if (searchDebounceTimer) {
-    clearTimeout(searchDebounceTimer);
-    searchDebounceTimer = null;
-  }
-};
+const {
+  searchQuery,
+  scheduleSearch,
+  clearSearchDebounce,
+  resetSearch,
+} = useDebouncedSearch({
+  delayMs: 400,
+  onSchedule: () => productsStore.cancelProductsRequest(),
+  onDebounced: (value) => {
+    productsStore.setFilters({ search: value });
+    productsStore.setPage(1);
+    return productsStore.fetchProducts({ page: 1 }).catch(() => undefined);
+  },
+});
 const selectedCategory = ref<number | null>(null);
 const selectedWarehouse = ref<number | null>(null);
 const selectedCommittee = ref<number | null>(null);
@@ -1097,14 +1100,7 @@ const getQuantitySeverity = (quantity: number, minStockLevel: number) => {
 };
 
 const handleSearch = () => {
-  clearSearchDebounce();
-  productsStore.cancelProductsRequest();
-  searchDebounceTimer = setTimeout(() => {
-    searchDebounceTimer = null;
-    productsStore.setFilters({ search: searchQuery.value });
-    productsStore.setPage(1);
-    void productsStore.fetchProducts({ page: 1 }).catch(() => undefined);
-  }, SEARCH_DEBOUNCE_MS);
+  scheduleSearch();
 };
 
 const handleCategoryChange = () => {
@@ -1150,8 +1146,7 @@ const handleSortChange = () => {
 };
 
 const resetFilters = () => {
-  clearSearchDebounce();
-  searchQuery.value = '';
+  resetSearch('');
   selectedCategory.value = null;
   selectedWarehouse.value = null;
   selectedCommittee.value = null;
@@ -1813,7 +1808,6 @@ const exportAllProducts = async (format: 'xlsx' | 'csv') => {
 };
 
 onBeforeUnmount(() => {
-  clearSearchDebounce();
   productsStore.cancelProductsRequest();
 });
 </script>
@@ -1842,23 +1836,6 @@ onBeforeUnmount(() => {
   font-size: 2rem;
   font-weight: 600;
   margin: 0;
-}
-
-.filters-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr auto;
-  gap: 1rem;
-  align-items: end;
-}
-
-.search-item {
-  grid-column: span 1;
-}
-
-.filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
 }
 
 .product-image {
@@ -2022,25 +1999,6 @@ onBeforeUnmount(() => {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
-  }
-
-  .filters-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-}
-@media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .filters-grid {
-    grid-template-columns: 1fr;
   }
 
   .form-grid {

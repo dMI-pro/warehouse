@@ -6,74 +6,68 @@
     </div>
 
     <!-- Фильтры -->
-    <Card class="filters-card mb-4">
-      <template #content>
-        <div class="filters-grid">
-          <div class="filter-item">
-            <label for="user" class="filter-label">Пользователь</label>
-            <AutoComplete
-              id="user"
-              v-model="selectedUser"
-              :suggestions="userSuggestions"
-              @complete="searchUsers"
-              optionLabel="fullName"
-              placeholder="Выберите пользователя"
-              class="w-full"
-            />
-          </div>
-          <div class="filter-item">
-            <label for="actionType" class="filter-label">Тип действия</label>
-            <Dropdown
-              id="actionType"
-              v-model="filters.actionType"
-              :options="actionTypeOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Все типы"
-              class="w-full"
-            />
-          </div>
-          <div class="filter-item">
-            <label for="startDate" class="filter-label">Дата начала</label>
-            <Calendar
-              id="startDate"
-              v-model="filters.startDate"
-              dateFormat="dd.mm.yy"
-              showIcon
-              :showButtonBar="true"
-              class="w-full"
-            />
-          </div>
-          <div class="filter-item">
-            <label for="endDate" class="filter-label">Дата окончания</label>
-            <Calendar
-              id="endDate"
-              v-model="filters.endDate"
-              dateFormat="dd.mm.yy"
-              showIcon
-              :showButtonBar="true"
-              class="w-full"
-            />
-          </div>
-          <div class="filter-item filter-actions">
-            <Button
-              label="Применить"
-              icon="pi pi-filter"
-              class="w-full"
-              @click="applyFilters"
-            />
-            <Button
-              label="Сбросить"
-              icon="pi pi-times"
-              severity="secondary"
-              outlined
-              class="w-full"
-              @click="resetFilters"
-            />
-          </div>
+    <FilterBar layout="auto">
+      <FilterField label="Пользователь" html-for="user">
+        <AutoComplete
+          id="user"
+          v-model="selectedUser"
+          :suggestions="userSuggestions"
+          @complete="searchUsers"
+          optionLabel="fullName"
+          placeholder="Выберите пользователя"
+          class="w-full"
+        />
+      </FilterField>
+      <FilterField label="Тип действия" html-for="actionType">
+        <Dropdown
+          id="actionType"
+          v-model="filters.actionType"
+          :options="actionTypeOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Все типы"
+          class="w-full"
+        />
+      </FilterField>
+      <FilterField label="Дата начала" html-for="startDate">
+        <Calendar
+          id="startDate"
+          v-model="filters.startDate"
+          dateFormat="dd.mm.yy"
+          showIcon
+          :showButtonBar="true"
+          class="w-full"
+        />
+      </FilterField>
+      <FilterField label="Дата окончания" html-for="endDate">
+        <Calendar
+          id="endDate"
+          v-model="filters.endDate"
+          dateFormat="dd.mm.yy"
+          showIcon
+          :showButtonBar="true"
+          class="w-full"
+        />
+      </FilterField>
+      <FilterField actions>
+        <div class="filter-actions-stack">
+          <Button
+            label="Применить"
+            icon="pi pi-filter"
+            class="w-full"
+            @click="applyFilters"
+          />
+          <Button
+            label="Сбросить"
+            icon="pi pi-times"
+            severity="secondary"
+            outlined
+            class="w-full"
+            @click="resetFilters"
+          />
         </div>
-      </template>
-    </Card>
+      </FilterField>
+    </FilterBar>
 
     <!-- Таблица журнала -->
     <Card>
@@ -222,6 +216,8 @@ import AutoComplete from 'primevue/autocomplete';
 import Dialog from 'primevue/dialog';
 import Tag from 'primevue/tag';
 import Message from 'primevue/message';
+import FilterBar from '@/components/filters/FilterBar.vue';
+import FilterField from '@/components/filters/FilterField.vue';
 import { useUsersStore } from '@/stores/usersStore';
 import { useAuthStore } from '@/stores/authStore';
 import { apiService } from '@/services/api';
@@ -593,32 +589,11 @@ const exportAuditExcel = async () => {
   margin-bottom: 2rem;
 }
 
-.filters-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.filters-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  align-items: end;
-}
-
-.filter-item {
+.filter-actions-stack {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-
-.filter-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.filter-label {
-  font-weight: 500;
-  font-size: 0.875rem;
+  width: 100%;
 }
 
 .audit-table {

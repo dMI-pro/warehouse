@@ -1,6 +1,6 @@
 # Бэклог сайта (фичи и баги)
 
-**Обновлено:** 4 сентября 2026  
+**Обновлено:** 6 сентября 2026  
 **Прод:** [https://tsehh.ru/](https://tsehh.ru/) · ветка **`staging`**
 
 Безопасность отдельно: [`security.md`](./security.md). Оглавление папки: [`README.md`](./README.md).  
@@ -102,6 +102,7 @@
 | 36d | Фото: лимит WebP; thumb только для главной (`images[0]`); lazy 60×60 в таблице | ✅ сделано |
 | 36e | Frontend: один `generateReport` (включая прямой URL вкладки), без лишнего refetch limit=10; resize listener; реактивный ProductDetails без deep watch / двойной истории; ProductsView сохраняет актуальные фильтры после edit | ✅ сделано |
 | 36f | ProductsView: debounce 400 мс; немедленный abort при новом вводе/unmount; sequence guard и обработка Promise | ✅ сделано |
+| 36g | Shared `FilterBar` / `FilterField` + `useDebouncedSearch`; Products / Reports / Audit / Media | ✅ сделано |
 | 37 | `npm ci` + `npm run type-check` в CI | сделать |
 | 38 | Audit-log: выровнять роли UI vs API | см. `security.md` |
 | 39 | Merge `main` ← `staging` после релиза | эксплуатация |
@@ -135,6 +136,7 @@
 - Docker prod: ротация json-file логов (`10m` × `5`) для всех сервисов
 - nginx: gzip; `index.html` без кэша; hashed assets/`woff`/`ttf` — `immutable` 1y; API — `no-store`
 - Фото товаров: WebP ≤1600px/~350 KB; thumb 240px только для главной; таблица lazy 60×60
+- Общие фильтры UI: `FilterBar` / `FilterField`, debounce поиска в composable
 
 Интеграция фронт↔бэк — архив: `INTEGRATION_CHECKLIST.md` (всё [x]).
 

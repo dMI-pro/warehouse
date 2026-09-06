@@ -153,157 +153,133 @@
         </Card>
 
         <!-- Фильтры -->
-        <Card
-          class="mb-4 section-card"
-          :class="{ 'section-card--collapsed': filtersCollapsed }"
+        <FilterBar
+          v-model:collapsed="filtersCollapsed"
+          collapsible
+          title="Фильтры"
+          icon="pi-filter"
+          :layout="reportType === 'sales' || reportType === 'returns' ? 'reports-extended' : 'reports'"
         >
-          <template #title>
-            <button
-              type="button"
-              class="section-header"
-              :aria-expanded="!filtersCollapsed"
-              @click="toggleFiltersSection"
-            >
-              <div class="section-header__title">
-                <i class="pi pi-filter text-primary"></i>
-                <span>Фильтры</span>
-              </div>
-              <i
-                class="pi section-header__chevron"
-                :class="filtersCollapsed ? 'pi-chevron-down' : 'pi-chevron-up'"
-                aria-hidden="true"
-              />
-            </button>
+          <FilterField
+            v-if="reportType === 'sales' || reportType === 'returns'"
+            label="Поиск"
+            html-for="reportSearch"
+          >
+            <InputText
+              id="reportSearch"
+              v-model="extraFilters.search"
+              placeholder="Поиск по названию, SKU, описанию..."
+              class="w-full"
+              @keyup.enter="generateReport"
+            />
+          </FilterField>
+
+          <FilterField
+            v-if="reportType === 'sales'"
+            label="Проблема"
+            html-for="reportProfitAlert"
+          >
+            <Dropdown
+              id="reportProfitAlert"
+              v-model="extraFilters.profitAlert"
+              :options="SALE_PROFIT_ALERT_OPTIONS"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Все продажи"
+              class="w-full"
+              showClear
+            />
+          </FilterField>
+
+          <FilterField
+            v-if="reportType === 'sales' || reportType === 'returns'"
+            label="Комитет"
+            html-for="reportCommittee"
+          >
+            <Dropdown
+              id="reportCommittee"
+              v-model="extraFilters.committeeId"
+              :options="committeeOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Все комитеты"
+              class="w-full"
+              showClear
+            />
+          </FilterField>
+
+          <FilterField
+            v-if="reportType === 'sales' || reportType === 'returns'"
+            label="Кто оформил"
+            html-for="reportProcessedBy"
+          >
+            <Dropdown
+              id="reportProcessedBy"
+              v-model="extraFilters.processedBy"
+              :options="userOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Все пользователи"
+              class="w-full"
+              showClear
+              :filter="true"
+              filterPlaceholder="Поиск пользователя"
+            />
+          </FilterField>
+
+          <FilterField label="Дата начала" html-for="startDate">
+            <Calendar
+              id="startDate"
+              v-model="filters.startDate"
+              dateFormat="dd.mm.yy"
+              showIcon
+              :showButtonBar="true"
+              class="w-full"
+              :class="{ 'p-invalid': dateRangeError }"
+            />
+          </FilterField>
+
+          <FilterField label="Дата окончания" html-for="endDate">
+            <Calendar
+              id="endDate"
+              v-model="filters.endDate"
+              dateFormat="dd.mm.yy"
+              showIcon
+              :showButtonBar="true"
+              class="w-full"
+              :class="{ 'p-invalid': dateRangeError }"
+            />
+          </FilterField>
+
+          <FilterField actions>
+            <Button
+              label="Применить"
+              icon="pi pi-check"
+              class="w-full"
+              :loading="isLoading"
+              severity="success"
+              @click="generateReport"
+            />
+          </FilterField>
+
+          <FilterField actions>
+            <Button
+              label="Сбросить"
+              icon="pi pi-refresh"
+              severity="secondary"
+              outlined
+              class="w-full"
+              @click="resetFilters"
+            />
+          </FilterField>
+
+          <template #footer>
+            <small v-if="dateRangeError" class="p-error block mt-2">
+              <i class="pi pi-exclamation-circle mr-1"></i>
+              {{ dateRangeError }}
+            </small>
           </template>
-          <template v-if="!filtersCollapsed" #content>
-            <div class="filters-section">
-              <div
-                class="filters-grid"
-                :class="{ 'filters-grid--extended': reportType === 'sales' || reportType === 'returns' }"
-              >
-                <div
-                  v-if="reportType === 'sales' || reportType === 'returns'"
-                  class="filter-item"
-                >
-                  <label for="reportSearch" class="filter-label">Поиск</label>
-                  <InputText
-                    id="reportSearch"
-                    v-model="extraFilters.search"
-                    placeholder="Поиск по названию, SKU, описанию..."
-                    class="w-full"
-                    @keyup.enter="generateReport"
-                  />
-                </div>
-
-                <div
-                  v-if="reportType === 'sales'"
-                  class="filter-item"
-                >
-                  <label for="reportProfitAlert" class="filter-label">Проблема</label>
-                  <Dropdown
-                    id="reportProfitAlert"
-                    v-model="extraFilters.profitAlert"
-                    :options="SALE_PROFIT_ALERT_OPTIONS"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Все продажи"
-                    class="w-full"
-                    showClear
-                  />
-                </div>
-
-                <div
-                  v-if="reportType === 'sales' || reportType === 'returns'"
-                  class="filter-item"
-                >
-                  <label for="reportCommittee" class="filter-label">Комитет</label>
-                  <Dropdown
-                    id="reportCommittee"
-                    v-model="extraFilters.committeeId"
-                    :options="committeeOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Все комитеты"
-                    class="w-full"
-                    showClear
-                  />
-                </div>
-
-                <div
-                  v-if="reportType === 'sales' || reportType === 'returns'"
-                  class="filter-item"
-                >
-                  <label for="reportProcessedBy" class="filter-label">Кто оформил</label>
-                  <Dropdown
-                    id="reportProcessedBy"
-                    v-model="extraFilters.processedBy"
-                    :options="userOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Все пользователи"
-                    class="w-full"
-                    showClear
-                    :filter="true"
-                    filterPlaceholder="Поиск пользователя"
-                  />
-                </div>
-
-                <div class="filter-item">
-                  <label for="startDate" class="filter-label">Дата начала</label>
-                  <Calendar
-                    id="startDate"
-                    v-model="filters.startDate"
-                    dateFormat="dd.mm.yy"
-                    showIcon
-                    :showButtonBar="true"
-                    class="w-full"
-                    :class="{ 'p-invalid': dateRangeError }"
-                  />
-                </div>
-
-                <div class="filter-item">
-                  <label for="endDate" class="filter-label">Дата окончания</label>
-                  <Calendar
-                    id="endDate"
-                    v-model="filters.endDate"
-                    dateFormat="dd.mm.yy"
-                    showIcon
-                    :showButtonBar="true"
-                    class="w-full"
-                    :class="{ 'p-invalid': dateRangeError }"
-                  />
-                </div>
-
-                <div class="filter-item filter-item--actions">
-                  <Button
-                    label="Применить"
-                    icon="pi pi-check"
-                    class="w-full"
-                    :loading="isLoading"
-                    severity="success"
-                    @click="generateReport"
-                  />
-                </div>
-
-                <div class="filter-item filter-item--actions">
-                  <Button
-                    label="Сбросить"
-                    icon="pi pi-refresh"
-                    severity="secondary"
-                    outlined
-                    class="w-full"
-                    @click="resetFilters"
-                  />
-                </div>
-              </div>
-
-              <small v-if="dateRangeError" class="p-error block mt-2">
-                <i class="pi pi-exclamation-circle mr-1"></i>
-                {{ dateRangeError }}
-              </small>
-            </div>
-          </template>
-        </Card>
+        </FilterBar>
 
         <!-- Таблица данных -->
         <Card class="mb-4">
@@ -560,6 +536,8 @@ import type { Sale, Product, Return as ApiReturn, Return } from '@/types/api';
 import { Role } from '@/types/api';
 
 import QuantityInput from '@/components/forms/QuantityInput.vue';
+import FilterBar from '@/components/filters/FilterBar.vue';
+import FilterField from '@/components/filters/FilterField.vue';
 import { getDefaultTemplate } from '@/utils/exportTemplates';
 import { useDateRangeFilter } from '@/composables/useDateRangeFilter';
 import {
@@ -748,10 +726,9 @@ const toggleStatsSection = async () => {
   await resizeChartAfterLayoutChange();
 };
 
-const toggleFiltersSection = async () => {
-  filtersCollapsed.value = !filtersCollapsed.value;
-  await resizeChartAfterLayoutChange();
-};
+watch(filtersCollapsed, () => {
+  void resizeChartAfterLayoutChange();
+});
 
 // Заголовки таблиц
 const getTableTitle = () => {
@@ -1817,58 +1794,6 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   color: var(--text-color-secondary);
   font-size: 0.875rem;
-}
-
-.filters-section {
-  padding-top: 0.25rem;
-}
-
-.filters-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem 1.25rem;
-  align-items: end;
-}
-
-.filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.filter-label {
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: var(--text-color);
-}
-
-.filter-item--actions {
-  justify-content: flex-end;
-}
-
-@media (min-width: 768px) {
-  .filters-grid:not(.filters-grid--extended) {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .filters-grid--extended {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1100px) {
-  .filters-grid--extended {
-    grid-template-columns:
-      minmax(140px, 1.1fr)
-      minmax(130px, 1fr)
-      minmax(120px, 1fr)
-      minmax(130px, 1fr)
-      minmax(130px, 1fr)
-      minmax(130px, 1fr)
-      minmax(110px, auto)
-      minmax(110px, auto);
-  }
 }
 
 .report-table :deep(.sale-row--loss) {
