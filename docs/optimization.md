@@ -142,8 +142,8 @@ Refresh-сессия не доказывает, что пользователь 
 8. **Лишняя перерисовка графика ReportsView.**  
    Глубокий watcher `normalizedReportData` вызывает `updateChart()`, а смена вкладки и первоначальная загрузка вызывают обновление графика отдельно. Один ответ может приводить к нескольким `clear/init/setOption`.
 
-9. **Утечка resize-listener в ReportsView.**  
-   `addEventListener` и `removeEventListener` получают разные анонимные функции. Старый обработчик не удаляется после ухода со страницы. Повторные посещения отчётов накапливают обработчики.
+9. ~~**Утечка resize-listener в ReportsView.**~~ ✅
+   Именованный `handleWindowResize` корректно снимается в `onBeforeUnmount`.
 
 10. **Поиск товаров без debounce.**  
     `ProductsView` вызывает API на событие `input`, то есть примерно один запрос на каждый введённый символ. Поиск не защищён от быстрых повторов и устаревших ответов. TanStack Query отменяет/дедуплицирует только при правильном query key и передаче `AbortSignal`; debounce всё равно нужен.
@@ -151,14 +151,14 @@ Refresh-сессия не доказывает, что пользователь 
 11. **Dashboard обновляется каждые 5 минут независимо от видимости вкладки.**  
     Таймер удаляется при unmount, что правильно, но лучше использовать `refetchInterval` TanStack Query с остановкой для background tab.
 
-12. **ReportsView дважды загружает отчёт при смене вкладки.**  
-    `setReportType()` вызывает `generateReport()`, после чего watcher `reportType` вызывает его ещё раз. Один клик может загрузить два набора по 1000 записей.
+12. ~~**ReportsView дважды загружает отчёт при смене вкладки.**~~ ✅
+    `setReportType()` только меняет вкладку/URL; `generateReport()` один раз в `watch(reportType)`. Начальная вкладка вычисляется из URL при создании состояния, поэтому прямое открытие `/reports?tab=...` не запускает watcher и `onMounted` одновременно.
 
-13. **ReportsView дважды загружает данные после mutations.**  
-    Store после update/delete сам делает refetch с дефолтным `limit: 10`, затем view вызывает `generateReport()` с `limit: 1000`. Первый запрос бесполезен для отчёта.
+13. ~~**ReportsView дважды загружает данные после mutations.**~~ ✅
+    `updateSale`/`deleteSale`/`updateReturn`/`deleteReturn` патчат локальный store; полный отчёт обновляет только `generateReport()` с нужными фильтрами/limit.
 
-14. **ProductDetailsView повторно загружает историю из-за deep watcher.**  
-    Глубокое наблюдение за всем объектом товара вызывает `fetchProductLogs()` при изменении фото и других вложенных полей. Наблюдать нужно только за `product.id`, а историю обновлять явно после mutation.
+14. ~~**ProductDetailsView повторно загружает историю из-за deep watcher.**~~ ✅
+    Deep watcher убран. Реактивный `productId` корректно меняется при SPA-навигации. История грузится при mount, смене `route.params.id` и явно после save/upload/delete/reorder. В ProductsView после редактирования выполняется один refetch с текущими фильтрами, а карточка обновляет товар локально.
 
 ## Backend и PostgreSQL
 
@@ -324,7 +324,7 @@ TanStack Query не исправит большие изображения, не
 2. ~~Включить gzip для JS/CSS/JSON/SVG/fonts.~~ ✅
 3. ~~Добавить `Cache-Control: no-cache` для `index.html`, `public, immutable` для hashed assets и кэширование шрифтов.~~ ✅
 4. ~~Добавить ограничение размера/разрешения изображений и thumbnails.~~ ✅
-5. Убрать двойной `generateReport`, повторные refetch и исправить resize-listener ReportsView.
+5. ~~Убрать двойной `generateReport`, повторные refetch и исправить resize-listener ReportsView.~~ ✅ (+ ProductDetails deep watcher / двойная история)
 6. Проверить rate limit для нескольких сотрудников за одним NAT.
 7. Добавить `prisma migrate deploy` и smoke test в деплой.
 

@@ -1286,7 +1286,9 @@ const saveProduct = async () => {
         arrivalDate: productForm.arrivalDate ? productForm.arrivalDate.toISOString() : undefined,
         images: productForm.images,
       };
-      await productsStore.updateProduct(editingProduct.value.id, updateDto);
+      await productsStore.updateProduct(editingProduct.value.id, updateDto, {
+        refetchList: true,
+      });
       toast.add({ severity: 'success', summary: 'Успешно', detail: 'Товар обновлен', life: 3000 });
     } else {
       const createDto: CreateProductDto = {

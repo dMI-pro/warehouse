@@ -41,7 +41,10 @@ export const useReturnsStore = defineStore('returns', () => {
     error.value = null;
     try {
       const updatedReturn = await apiService.updateReturn(id, updateReturnDto);
-      await fetchReturns();
+      const index = returns.value.findIndex((r) => r.id === id);
+      if (index !== -1) {
+        returns.value[index] = updatedReturn;
+      }
       return updatedReturn;
     } catch (err: any) {
       error.value = err.response?.data?.message || 'Ошибка обновления возврата';
@@ -56,7 +59,7 @@ export const useReturnsStore = defineStore('returns', () => {
     error.value = null;
     try {
       await apiService.deleteReturn(id);
-      await fetchReturns();
+      returns.value = returns.value.filter((r) => r.id !== id);
     } catch (err: any) {
       error.value = err.response?.data?.message || 'Ошибка удаления возврата';
       throw err;

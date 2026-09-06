@@ -671,7 +671,6 @@ const userOptions = computed(() =>
 );
 
 // Состояние
-const activeTabIndex = ref(0);
 const mainChartRef = ref<HTMLDivElement | null>(null);
 let mainChart: echarts.ECharts | null = null;
 const isLoading = ref(false);
@@ -687,6 +686,11 @@ const tabs = ref<Array<{ label: string; icon: string; type: 'sales' | 'stock' | 
   { label: 'Движение товара', icon: 'pi pi-arrows-h', type: 'movement' },
 ]);
 
+const initialTab =
+  typeof route.query.tab === 'string' ? route.query.tab : undefined;
+const initialTabIndex = tabs.value.findIndex((tab) => tab.type === initialTab);
+const activeTabIndex = ref(initialTabIndex >= 0 ? initialTabIndex : 0);
+
 // Вычисляемые свойства
 const reportType = computed(() => {
   return tabs.value[activeTabIndex.value]?.type ?? 'sales';
@@ -695,26 +699,16 @@ const reportType = computed(() => {
 // Функции вкладок
 const setReportType = (type: 'sales' | 'stock' | 'movement' | 'returns') => {
   const index = tabs.value.findIndex(tab => tab.type === type);
-  if (index !== -1) {
+  if (index !== -1 && index !== activeTabIndex.value) {
     activeTabIndex.value = index;
     saveTabToUrl();
-    generateReport();
+    // generateReport runs once via watch(reportType)
   }
 };
 
 const saveTabToUrl = () => {
   const query = { ...route.query, tab: reportType.value };
   router.replace({ query });
-};
-
-const restoreTabFromUrl = () => {
-  const tabFromUrl = route.query.tab as string;
-  if (tabFromUrl) {
-    const tabIndex = tabs.value.findIndex(tab => tab.type === tabFromUrl);
-    if (tabIndex !== -1) {
-      activeTabIndex.value = tabIndex;
-    }
-  }
 };
 
 // Фильтры дат — useDateRangeFilter (выше)
@@ -1680,9 +1674,14 @@ watch(
 
 // Хуки жизненного цикла
 onBeforeMount(() => {
-  restoreTabFromUrl();
   restoreAlertFromUrl();
 });
+
+const handleWindowResize = () => {
+  if (mainChart) {
+    mainChart.resize();
+  }
+};
 
 onMounted(async () => {
   try {
@@ -1702,11 +1701,7 @@ onMounted(async () => {
     updateChart();
   }
 
-  window.addEventListener('resize', () => {
-    if (mainChart) {
-      mainChart.resize();
-    }
-  });
+  window.addEventListener('resize', handleWindowResize);
 });
 
 onBeforeUnmount(() => {
@@ -1720,11 +1715,7 @@ onBeforeUnmount(() => {
     resizeObserver.value = null;
   }
   
-  window.removeEventListener('resize', () => {
-    if (mainChart) {
-      mainChart.resize();
-    }
-  });
+  window.removeEventListener('resize', handleWindowResize);
 });
 </script>
 

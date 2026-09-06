@@ -100,6 +100,7 @@
 | 36b | Docker prod: json-file logs `max-size: 10m`, `max-file: 5` для всех сервисов | ✅ сделано |
 | 36c | nginx: gzip + cache (`index.html` no-store, assets immutable 1y, API no-store, woff/ttf) | ✅ сделано |
 | 36d | Фото: лимит WebP; thumb только для главной (`images[0]`); lazy 60×60 в таблице | ✅ сделано |
+| 36e | Frontend: один `generateReport` (включая прямой URL вкладки), без лишнего refetch limit=10; resize listener; реактивный ProductDetails без deep watch / двойной истории; ProductsView сохраняет актуальные фильтры после edit | ✅ сделано |
 | 37 | `npm ci` + `npm run type-check` в CI | сделать |
 | 38 | Audit-log: выровнять роли UI vs API | см. `security.md` |
 | 39 | Merge `main` ← `staging` после релиза | эксплуатация |

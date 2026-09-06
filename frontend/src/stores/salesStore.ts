@@ -70,7 +70,10 @@ export const useSalesStore = defineStore('sales', () => {
     error.value = null;
     try {
       const sale = await apiService.updateSale(id, updateSaleDto);
-      await fetchSales();
+      const index = sales.value.findIndex((s) => s.id === id);
+      if (index !== -1) {
+        sales.value[index] = sale;
+      }
       return sale;
     } catch (err: any) {
       error.value = err.response?.data?.message || 'Ошибка обновления продажи';
@@ -85,7 +88,10 @@ export const useSalesStore = defineStore('sales', () => {
     error.value = null;
     try {
       await apiService.deleteSale(id);
-      await fetchSales();
+      sales.value = sales.value.filter((s) => s.id !== id);
+      if (pagination.value.total > 0) {
+        pagination.value.total -= 1;
+      }
     } catch (err: any) {
       error.value = err.response?.data?.message || 'Ошибка удаления продажи';
       throw err;

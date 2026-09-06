@@ -96,12 +96,25 @@ export const useProductsStore = defineStore('products', () => {
     }
   };
 
-  const updateProduct = async (id: number, updateProductDto: UpdateProductDto) => {
+  const updateProduct = async (
+    id: number,
+    updateProductDto: UpdateProductDto,
+    options?: { refetchList?: boolean },
+  ) => {
     loading.value = true;
     error.value = null;
     try {
       const product = await apiService.updateProduct(id, updateProductDto);
-      await fetchProducts();
+      if (currentProduct.value && currentProduct.value.id === id) {
+        currentProduct.value = product;
+      }
+      const index = products.value.findIndex((p) => p.id === id);
+      if (index !== -1) {
+        products.value[index] = product;
+      }
+      if (options?.refetchList) {
+        await fetchProducts();
+      }
       return product;
     } catch (err: any) {
       error.value = err.response?.data?.message || 'Ошибка обновления товара';

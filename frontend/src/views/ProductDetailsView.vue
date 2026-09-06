@@ -611,7 +611,7 @@ const categoriesStore = useCategoriesStore();
 const fileUploadRef1 = ref<any>(null);
 const fileUploadRef2 = ref<any>(null);
 
-const productId = Number(route.params.id);
+const productId = computed(() => Number(route.params.id));
 const saving = ref(false);
 const savingOrder = ref(false);
 const wrappedImages = ref<{ url: string }[]>([]);
@@ -717,9 +717,15 @@ const transactionTypeOptions = computed(() => [
 ]);
 
 // Lifecycle
+const applyProductToUi = () => {
+  if (!product.value) return;
+  populateForm();
+  syncImages();
+};
+
 onMounted(async () => {
   await Promise.all([
-    productsStore.fetchProduct(productId),
+    productsStore.fetchProduct(productId.value),
     warehousesStore.fetchWarehouses(),
     committeesStore.fetchCommittees(),
     transactionTypesStore.fetchTransactionTypes(),
@@ -727,20 +733,21 @@ onMounted(async () => {
   ]);
   
   if (product.value) {
-    populateForm();
-    syncImages();
+    applyProductToUi();
     await fetchProductLogs();
   }
 });
 
-watch(product, () => {
-  if (product.value) {
-    populateForm();
-    syncImages();
-    fetchProductLogs();
-  }
-}, { deep: true });
-
+// SPA navigation between product cards (same component instance).
+watch(
+  () => Number(route.params.id),
+  async (id, prevId) => {
+    if (!id || Number.isNaN(id) || id === prevId) return;
+    await productsStore.fetchProduct(id);
+    applyProductToUi();
+    await fetchProductLogs();
+  },
+);
 // Methods
 const populateForm = () => {
   if (!product.value) return;
@@ -824,6 +831,8 @@ const saveProduct = async () => {
       transactionTypeId: form.transactionTypeId,
     };
     await productsStore.updateProduct(product.value.id, updateDto);
+    applyProductToUi();
+    await fetchProductLogs();
     toast.add({ 
       severity: 'success', 
       summary: 'Успешно', 
@@ -871,7 +880,8 @@ const onUploadImage = async (event: any) => {
         detail: `Загружено ${uploadedCount} из ${filesToUpload.length} изображений`, 
         life: 7200000 
       });
-      await productsStore.fetchProduct(id);
+      syncImages();
+      await fetchProductLogs();
     } else {
       toast.add({ 
         severity: 'error', 
@@ -901,6 +911,8 @@ const deleteImage = async (imageUrl: string) => {
   if (!product.value) return;
   try {
     await productsStore.deleteImage(product.value.id, imageUrl);
+    syncImages();
+    await fetchProductLogs();
     toast.add({ 
       severity: 'success', 
       summary: 'Успешно', 
@@ -923,6 +935,8 @@ const saveImageOrder = async () => {
   try {
     const images = wrappedImages.value.map(i => i.url);
     await productsStore.reorderImages(product.value.id, images);
+    syncImages();
+    await fetchProductLogs();
     toast.add({ 
       severity: 'success', 
       summary: 'Успешно', 
@@ -943,9 +957,11 @@ const saveImageOrder = async () => {
 
 const fetchProductLogs = async () => {
   if (!isAdminOrManager.value) return;
+  const id = product.value?.id ?? Number(route.params.id);
+  if (!id) return;
   logsLoading.value = true;
   try {
-    const response = await apiService.getProductHistory(productId, 1, 100);
+    const response = await apiService.getProductHistory(id, 1, 100);
     productLogs.value = response.data;
   } catch (e: any) {
     console.error('Ошибка загрузки истории:', e);
