@@ -103,6 +103,7 @@
 | 36e | Frontend: один `generateReport` (включая прямой URL вкладки), без лишнего refetch limit=10; resize listener; реактивный ProductDetails без deep watch / двойной истории; ProductsView сохраняет актуальные фильтры после edit | ✅ сделано |
 | 36f | ProductsView: debounce 400 мс; немедленный abort при новом вводе/unmount; sequence guard и обработка Promise | ✅ сделано |
 | 36g | Shared `FilterBar` / `FilterField` + `useDebouncedSearch`; Products / Reports / Audit / Media | ✅ сделано |
+| 36h | Товары / медиа / журнал: сворачиваемый блок «Фильтры» как в отчётах (клик по заголовку; поля и логика те же) | ✅ сделано |
 | 37 | `npm ci` + `npm run type-check` в CI | сделать |
 | 38 | Audit-log: выровнять роли UI vs API | см. `security.md` |
 | 39 | Merge `main` ← `staging` после релиза | эксплуатация |
@@ -137,6 +138,7 @@
 - nginx: gzip; `index.html` без кэша; hashed assets/`woff`/`ttf` — `immutable` 1y; API — `no-store`
 - Фото товаров: WebP ≤1600px/~350 KB; thumb 240px только для главной; таблица lazy 60×60
 - Общие фильтры UI: `FilterBar` / `FilterField`, debounce поиска в composable
+- Товары, медиа и журнал действий: сворачиваемый блок «Фильтры» как в отчётах
 
 Интеграция фронт↔бэк — архив: `INTEGRATION_CHECKLIST.md` (всё [x]).
 

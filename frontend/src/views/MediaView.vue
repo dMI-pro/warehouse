@@ -21,7 +21,13 @@
       </div>
     </div>
 
-    <FilterBar layout="media">
+    <FilterBar
+      v-model:collapsed="filtersCollapsed"
+      collapsible
+      title="Фильтры"
+      icon="pi-filter"
+      layout="media"
+    >
       <FilterField wide>
         <IconField class="search w-full">
           <InputIcon class="pi pi-search" />
@@ -212,6 +218,7 @@ const items = ref<MediaItem[]>([]);
 const pagination = reactive({ total: 0, page: 1, limit: 24, totalPages: 0 });
 
 const modeGallery = ref(false);
+const filtersCollapsed = ref(true);
 const filters = reactive<{ search: string; unusedOnly: boolean; date: Date | null }>({
   search: '',
   unusedOnly: false,

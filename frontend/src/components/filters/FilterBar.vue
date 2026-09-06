@@ -149,6 +149,10 @@ const toggleCollapsed = () => {
   grid-template-columns: minmax(160px, 1.4fr) repeat(auto-fit, minmax(140px, 1fr));
 }
 
+.filter-bar.section-card :deep(.p-card-body) {
+  gap: 1rem;
+}
+
 .filter-bar--collapsed :deep(.p-card-body) {
   gap: 0;
 }

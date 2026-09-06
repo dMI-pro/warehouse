@@ -23,7 +23,13 @@
     </div>
 
     <!-- Фильтры и поиск -->
-    <FilterBar layout="products">
+    <FilterBar
+      v-model:collapsed="filtersCollapsed"
+      collapsible
+      title="Фильтры"
+      icon="pi-filter"
+      layout="products"
+    >
       <FilterField wide>
         <div class="p-input-icon-left w-full">
           <InputText
@@ -753,6 +759,7 @@ const selectedCategory = ref<number | null>(null);
 const selectedWarehouse = ref<number | null>(null);
 const selectedCommittee = ref<number | null>(null);
 const inStockOnly = ref(false);
+const filtersCollapsed = ref(true);
 const sortField = ref('name');
 const productDialogVisible = ref(false);
 const saleDialogVisible = ref(false);
@@ -1780,6 +1787,16 @@ onMounted(async () => {
   if (productsStore.filters.warehouse) selectedWarehouse.value = productsStore.filters.warehouse;
   if (productsStore.filters.committee) selectedCommittee.value = productsStore.filters.committee;
   if (productsStore.filters.inStock) inStockOnly.value = productsStore.filters.inStock;
+
+  if (
+    searchQuery.value ||
+    selectedCategory.value ||
+    selectedWarehouse.value ||
+    selectedCommittee.value ||
+    inStockOnly.value
+  ) {
+    filtersCollapsed.value = false;
+  }
 });
 
 const toggleInStock = async () => {

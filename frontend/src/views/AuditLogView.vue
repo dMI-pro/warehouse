@@ -6,7 +6,13 @@
     </div>
 
     <!-- Фильтры -->
-    <FilterBar layout="auto">
+    <FilterBar
+      v-model:collapsed="filtersCollapsed"
+      collapsible
+      title="Фильтры"
+      icon="pi-filter"
+      layout="auto"
+    >
       <FilterField label="Пользователь" html-for="user">
         <AutoComplete
           id="user"
@@ -232,6 +238,7 @@ const usersStore = useUsersStore();
 const authStore = useAuthStore();
 const toast = useToast();
 const loading = ref(false);
+const filtersCollapsed = ref(true);
 const selectedUser = ref<User | null>(null);
 const userSuggestions = ref<User[]>([]);
 const detailsDialogVisible = ref(false);
