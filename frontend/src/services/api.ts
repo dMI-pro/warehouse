@@ -200,8 +200,13 @@ class ApiService {
     limit?: number;
     inStock?: boolean;
     sortBy?: 'createdAt' | 'arrivalDate';
+    signal?: AbortSignal;
   }): Promise<PaginatedResponse<Product>> {
-    const response = await this.api.get<PaginatedResponse<Product>>('/products', { params });
+    const { signal, ...query } = params || {};
+    const response = await this.api.get<PaginatedResponse<Product>>('/products', {
+      params: query,
+      signal,
+    });
     return response.data;
   }
 

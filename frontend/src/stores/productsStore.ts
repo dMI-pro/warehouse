@@ -26,6 +26,26 @@ export const useProductsStore = defineStore('products', () => {
     inStock: false as boolean,
   });
 
+  let listAbortController: AbortController | null = null;
+  let listRequestSeq = 0;
+
+  const isAbortError = (err: unknown) => {
+    const e = err as { code?: string; name?: string };
+    return (
+      e?.code === 'ERR_CANCELED' ||
+      e?.name === 'CanceledError' ||
+      e?.name === 'AbortError'
+    );
+  };
+
+  const cancelProductsRequest = () => {
+    if (!listAbortController) return;
+    listRequestSeq += 1;
+    listAbortController.abort();
+    listAbortController = null;
+    loading.value = false;
+  };
+
   const filteredProducts = computed(() => {
     return products.value;
   });
@@ -39,6 +59,11 @@ export const useProductsStore = defineStore('products', () => {
     page?: number;
     limit?: number;
   }) => {
+    listAbortController?.abort();
+    const controller = new AbortController();
+    listAbortController = controller;
+    const requestSeq = ++listRequestSeq;
+
     loading.value = true;
     error.value = null;
     try {
@@ -51,7 +76,9 @@ export const useProductsStore = defineStore('products', () => {
         inStock: (params?.inStock ?? filters.value.inStock) || undefined,
         page: params?.page || pagination.value.page,
         limit: params?.limit || pagination.value.limit,
+        signal: controller.signal,
       });
+      if (requestSeq !== listRequestSeq) return;
       products.value = response.data;
       pagination.value = {
         total: response.meta.total,
@@ -60,10 +87,16 @@ export const useProductsStore = defineStore('products', () => {
         totalPages: response.meta.totalPages,
       };
     } catch (err: any) {
+      if (isAbortError(err) || requestSeq !== listRequestSeq) return;
       error.value = err.response?.data?.message || 'Ошибка загрузки товаров';
       throw err;
     } finally {
-      loading.value = false;
+      if (requestSeq === listRequestSeq) {
+        loading.value = false;
+        if (listAbortController === controller) {
+          listAbortController = null;
+        }
+      }
     }
   };
 
@@ -220,6 +253,7 @@ export const useProductsStore = defineStore('products', () => {
     filters,
     filteredProducts,
     fetchProducts,
+    cancelProductsRequest,
     fetchProduct,
     createProduct,
     updateProduct,

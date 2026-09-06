@@ -681,7 +681,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
@@ -737,6 +737,15 @@ const toast = useToast();
 const router = useRouter();
 
 const searchQuery = ref('');
+const SEARCH_DEBOUNCE_MS = 400;
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+const clearSearchDebounce = () => {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = null;
+  }
+};
 const selectedCategory = ref<number | null>(null);
 const selectedWarehouse = ref<number | null>(null);
 const selectedCommittee = ref<number | null>(null);
@@ -1088,13 +1097,20 @@ const getQuantitySeverity = (quantity: number, minStockLevel: number) => {
 };
 
 const handleSearch = () => {
-  productsStore.setFilters({ search: searchQuery.value });
-  productsStore.setPage(1);
-  productsStore.fetchProducts();
+  clearSearchDebounce();
+  productsStore.cancelProductsRequest();
+  searchDebounceTimer = setTimeout(() => {
+    searchDebounceTimer = null;
+    productsStore.setFilters({ search: searchQuery.value });
+    productsStore.setPage(1);
+    void productsStore.fetchProducts({ page: 1 }).catch(() => undefined);
+  }, SEARCH_DEBOUNCE_MS);
 };
 
 const handleCategoryChange = () => {
+  clearSearchDebounce();
   productsStore.setFilters({
+    search: searchQuery.value,
     category: selectedCategory.value || undefined,
     warehouse: selectedWarehouse.value || undefined,
     committee: selectedCommittee.value || undefined,
@@ -1104,7 +1120,9 @@ const handleCategoryChange = () => {
 };
 
 const handleWarehouseChange = () => {
+  clearSearchDebounce();
   productsStore.setFilters({
+    search: searchQuery.value,
     category: selectedCategory.value || undefined,
     warehouse: selectedWarehouse.value || undefined,
     committee: selectedCommittee.value || undefined,
@@ -1114,7 +1132,9 @@ const handleWarehouseChange = () => {
 };
 
 const handleCommitteeChange = () => {
+  clearSearchDebounce();
   productsStore.setFilters({
+    search: searchQuery.value,
     category: selectedCategory.value || undefined,
     warehouse: selectedWarehouse.value || undefined,
     committee: selectedCommittee.value || undefined,
@@ -1130,6 +1150,7 @@ const handleSortChange = () => {
 };
 
 const resetFilters = () => {
+  clearSearchDebounce();
   searchQuery.value = '';
   selectedCategory.value = null;
   selectedWarehouse.value = null;
@@ -1767,8 +1788,12 @@ onMounted(async () => {
 });
 
 const toggleInStock = async () => {
+  clearSearchDebounce();
   inStockOnly.value = !inStockOnly.value;
-  productsStore.setFilters({ inStock: inStockOnly.value });
+  productsStore.setFilters({
+    search: searchQuery.value,
+    inStock: inStockOnly.value,
+  });
   await productsStore.fetchProducts({ page: 1 });
 };
 
@@ -1786,6 +1811,11 @@ const exportAllProducts = async (format: 'xlsx' | 'csv') => {
     handleApiError(error, toast);
   }
 };
+
+onBeforeUnmount(() => {
+  clearSearchDebounce();
+  productsStore.cancelProductsRequest();
+});
 </script>
 
 <style scoped>

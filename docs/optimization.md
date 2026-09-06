@@ -145,8 +145,8 @@ Refresh-сессия не доказывает, что пользователь 
 9. ~~**Утечка resize-listener в ReportsView.**~~ ✅
    Именованный `handleWindowResize` корректно снимается в `onBeforeUnmount`.
 
-10. **Поиск товаров без debounce.**  
-    `ProductsView` вызывает API на событие `input`, то есть примерно один запрос на каждый введённый символ. Поиск не защищён от быстрых повторов и устаревших ответов. TanStack Query отменяет/дедуплицирует только при правильном query key и передаче `AbortSignal`; debounce всё равно нужен.
+10. ~~**Поиск товаров без debounce.**~~ ✅
+    `ProductsView`: debounce 400 мс; страница сбрасывается на 1; активный запрос отменяется сразу при новом вводе и при уходе со страницы; `fetchProducts` использует `AbortSignal` и sequence guard против устаревших ответов. Ошибки отложенного Promise обработаны без `Unhandled Promise Rejection`.
 
 11. **Dashboard обновляется каждые 5 минут независимо от видимости вкладки.**  
     Таймер удаляется при unmount, что правильно, но лучше использовать `refetchInterval` TanStack Query с остановкой для background tab.
@@ -335,7 +335,7 @@ TanStack Query не исправит большие изображения, не
 3. Добавить основные PostgreSQL indexes.
 4. Параллелить первую загрузку ProductsView.
 5. Внедрить TanStack Query сначала для справочников и товаров.
-6. Добавить debounce + cancellation для поиска.
+6. ~~Добавить debounce + cancellation для поиска.~~ ✅
 7. Настроить Docker log rotation и разумные memory/CPU limits.
 8. Зафиксировать версию MinIO и убрать публичные порты, если они не нужны.
 

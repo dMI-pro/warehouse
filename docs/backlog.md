@@ -101,6 +101,7 @@
 | 36c | nginx: gzip + cache (`index.html` no-store, assets immutable 1y, API no-store, woff/ttf) | ✅ сделано |
 | 36d | Фото: лимит WebP; thumb только для главной (`images[0]`); lazy 60×60 в таблице | ✅ сделано |
 | 36e | Frontend: один `generateReport` (включая прямой URL вкладки), без лишнего refetch limit=10; resize listener; реактивный ProductDetails без deep watch / двойной истории; ProductsView сохраняет актуальные фильтры после edit | ✅ сделано |
+| 36f | ProductsView: debounce 400 мс; немедленный abort при новом вводе/unmount; sequence guard и обработка Promise | ✅ сделано |
 | 37 | `npm ci` + `npm run type-check` в CI | сделать |
 | 38 | Audit-log: выровнять роли UI vs API | см. `security.md` |
 | 39 | Merge `main` ← `staging` после релиза | эксплуатация |
