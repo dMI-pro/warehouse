@@ -96,6 +96,7 @@
 
 | # | Задача | Статус |
 |---|--------|--------|
+| 9 | **Индексы БД** для фильтров/сортировок: Prisma migration `20260906113000_add_filter_sort_indexes` (`products`: createdAt, arrivalDate, categoryId, warehouseId, committeeId; `sales`: soldAt, productId, soldBy; `returns`: returnedAt, productId, returnedBy; `audit_logs`: createdAt, userId+createdAt, entityType+entityId+createdAt; `refresh_tokens`: expiresAt). Данные не меняет. **Не** `migrate dev` на prod; **не** в `deploy.sh`. На VPS после деплоя: `docker exec antiquar-backend npx prisma migrate deploy`. Локально: `make prisma-deploy` или тот же `migrate deploy` | ✅ миграция в репо; применить на VPS отдельно |
 | 36a | Docker prod: ложный `unhealthy` backend — healthcheck на `127.0.0.1:3000/health` вместо `localhost` (IPv6) | ✅ сделано |
 | 36b | Docker prod: json-file logs `max-size: 10m`, `max-file: 5` для всех сервисов | ✅ сделано |
 | 36c | nginx: gzip + cache (`index.html` no-store, assets immutable 1y, API no-store, woff/ttf) | ✅ сделано |
@@ -139,6 +140,7 @@
 - Фото товаров: WebP ≤1600px/~350 KB; thumb 240px только для главной; таблица lazy 60×60
 - Общие фильтры UI: `FilterBar` / `FilterField`, debounce поиска в composable
 - Товары, медиа и журнал действий: сворачиваемый блок «Фильтры» как в отчётах
+- Индексы БД (миграция `add_filter_sort_indexes`): применить на VPS через `prisma migrate deploy`, не через `deploy.sh`
 
 Интеграция фронт↔бэк — архив: `INTEGRATION_CHECKLIST.md` (всё [x]).
 

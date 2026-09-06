@@ -46,6 +46,7 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([expiresAt])
   @@map("refresh_tokens")
 }
 
@@ -140,6 +141,11 @@ model Product {
   sales     Sale[]
   returns   Return[]
 
+  @@index([createdAt])
+  @@index([arrivalDate])
+  @@index([categoryId])
+  @@index([warehouseId])
+  @@index([committeeId])
   @@map("products")
 }
 
@@ -169,6 +175,9 @@ model Sale {
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
   user    User    @relation(fields: [soldBy], references: [id], onDelete: Restrict)
 
+  @@index([soldAt])
+  @@index([productId])
+  @@index([soldBy])
   @@map("sales")
 }
 
@@ -189,6 +198,9 @@ model AuditLog {
   // Отношения
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([entityType, entityId, createdAt])
   @@map("audit_logs")
 }
 
@@ -205,5 +217,8 @@ model Return {
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
   user    User    @relation(fields: [returnedBy], references: [id], onDelete: Restrict)
 
+  @@index([returnedAt])
+  @@index([productId])
+  @@index([returnedBy])
   @@map("returns")
 }
