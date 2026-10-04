@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Модель пользователя
+model User {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  username     String    @unique
+  password     String
+  fullName     String
+  role         String    @default("GUEST") // GUEST, SELLER, MANAGER, ADMIN
+  isSuperAdmin Boolean   @default(false)
+  userStatusId Int?
+  sessionsRevokeAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Отношения
+  status         UserStatus?    @relation(fields: [userStatusId], references: [id], onDelete: SetNull)
+  sales          Sale[]
+  auditLogs      AuditLog[]
+  returns        Return[]
+  refreshTokens  RefreshToken[]
+
+  @@map("users")
+}
+
+// Refresh-сессии: в cookie уходит plaintext, в БД только sha256
+model RefreshToken {
+  id                String    @id @default(uuid())
+  userId            Int
+  tokenHash         String    @unique
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  replacedByTokenId String?
+  userAgent         String?
+  ipAddress         String?
+  createdAt         DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// Модель статуса пользователя
+model UserStatus {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique // ACTIVE, BLOCKED, etc.
+  name        String   // Активный, Заблокированный
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Отношения
+  users       User[]
+
+  @@map("user_statuses")
+}
+
+// Модель категории товаров
+model Category {
+  id          Int        @id @default(autoincrement())
+  name        String
+  description String?
+  parentId    Int?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Отношения для иерархии категорий
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryHierarchy")
+
+  // Товары в этой категории
+  products Product[]
+
+  @@map("categories")
+}
+
+// Модель склада
+model Warehouse {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  address     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Отношения
+  products Product[]
+
+  @@map("warehouses")
+}
+
+// Модель коммитета (владелец товара)
+model Committee {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  contactInfo String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Отношения
+  products Product[]
+
+  @@map("committees")
+}
+
+// Модель товара
+model Product {
+  id             Int       @id @default(autoincrement())
+  name           String
+  sku            String    @unique
+  description    String?
+  purchasePrice  Decimal   @db.Decimal(10, 2)
+  salePrice      Decimal   @db.Decimal(10, 2)
+  quantity       Int       @default(0)
+  minStockLevel  Int       @default(0)
+  categoryId     Int?
+  warehouseId    Int?
+  committeeId    Int?
+  transactionTypeId Int?
+  arrivalDate    DateTime? // Дата поступления товара
+  images         String[]  @default([]) // Массив URL изображений
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Отношения
+  category  Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  warehouse Warehouse?  @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  committee Committee? @relation(fields: [committeeId], references: [id], onDelete: SetNull)
+  transactionType TransactionType? @relation(fields: [transactionTypeId], references: [id], onDelete: SetNull)
+  sales     Sale[]
+  returns   Return[]
+
+  @@index([createdAt])
+  @@index([arrivalDate])
+  @@index([categoryId])
+  @@index([warehouseId])
+  @@index([committeeId])
+  @@map("products")
+}
+
+// Тип транзакции товара (выкуп/комиссия и др.)
+model TransactionType {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Отношения
+  products Product[]
+
+  @@map("transaction_type")
+}
+
+// Модель продажи
+model Sale {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  quantity  Int
+  salePrice Decimal  @db.Decimal(10, 2)
+  soldAt    DateTime @default(now())
+  soldBy    Int      // ID пользователя, который совершил продажу
+
+  // Отношения
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [soldBy], references: [id], onDelete: Restrict)
+
+  @@index([soldAt])
+  @@index([productId])
+  @@index([soldBy])
+  @@map("sales")
+}
+
+// Модель журнала действий (аудит)
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String   // login, login_attempt, product.create, product.update, product.delete, sale.create, etc.
+  entityType String?  // Product, Category, Sale, User, Auth, etc.
+  entityId   Int?
+  oldValues  Json?    // Старые значения в формате JSON
+  newValues  Json?    // Новые значения в формате JSON
+  ipAddress  String?  // IP адрес для попыток входа
+  userAgent  String?  // User agent для попыток входа
+  success    Boolean? // Успешность действия (для попыток входа)
+  createdAt  DateTime @default(now())
+
+  // Отношения
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@map("audit_logs")
+}
+
+// Модель возврата товара (поставщику/владельцу)
+model Return {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  quantity    Int
+  reason      String?
+  returnedAt  DateTime @default(now())
+  returnedBy  Int      // ID пользователя, который оформил возврат
+
+  // Отношения
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [returnedBy], references: [id], onDelete: Restrict)
+
+  @@index([returnedAt])
+  @@index([productId])
+  @@index([returnedBy])
+  @@map("returns")
+}

@@ -1,0 +1,96 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: antiquar-db
+    env_file:
+      - ./.env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: antiquar-backend
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: >
+      sh -c "
+        echo 'Waiting for PostgreSQL...' &&
+        sleep 5 &&
+        echo 'Installing dependencies...' &&
+        npm install &&
+        echo 'Generating Prisma client...' &&
+        npx prisma generate &&
+        echo 'Pushing database schema...' &&
+        npx prisma db push --accept-data-loss || true &&
+        echo 'Starting backend in watch mode...' &&
+        npm run start:dev
+      "
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: antiquar-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      HOST: 0.0.0.0
+      CHOKIDAR_USEPOLLING: "true"
+    depends_on:
+      - backend
+    command: >
+      sh -c "
+        echo 'Installing dependencies...' &&
+        npm install &&
+        echo 'Starting frontend dev server...' &&
+        npm run dev -- --host 0.0.0.0
+      "
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: antiquar-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    env_file:
+      - ./.env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  minio_data:
+    driver: local

@@ -1,0 +1,343 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateReturnDto } from './dto/create-return.dto';
+import { UpdateReturnDto } from './dto/update-return.dto';
+import { QueryReturnsDto } from './dto/query-returns.dto';
+import { AuditLogService } from '../audit-log/audit-log.service';
+import { Prisma } from '@prisma/client';
+import {
+  sanitizeNestedProduct,
+  type ProductViewer,
+} from '../common/utils/product-visibility.util';
+import { parseQueryDateBound } from '../common/utils/date-range.util';
+
+@Injectable()
+export class ReturnsService {
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => AuditLogService))
+    private auditLogService: AuditLogService,
+  ) {}
+
+  async create(
+    createReturnDto: CreateReturnDto,
+    userId: number,
+    viewer?: ProductViewer,
+  ) {
+    const { productId, quantity, reason, returnedAt } = createReturnDto;
+
+    if (!userId) {
+      throw new BadRequestException('User ID is required to create a return');
+    }
+
+    // Check product exists
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${productId} not found`);
+    }
+
+    // Transaction: Create return record and update product quantity
+    // NOTE: For returns, we usually INCREASE the stock quantity because the item is coming back
+    // However, the user said "если его забрали обратно(без продажи, передумали продавать или другие причины)"
+    // which implies the item is leaving the warehouse (returned TO owner), NOT returned FROM customer.
+    // The previous implementation DECREMENTED quantity, which aligns with "item leaving warehouse".
+    // I will keep decrement logic but ensure it's correct.
+
+    // Check stock availability if we are removing items
+    if (product.quantity < quantity) {
+      throw new BadRequestException(
+        `Insufficient stock. Available: ${product.quantity}, Requested return: ${quantity}`,
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (prisma) => {
+      // Decrease quantity (item leaving warehouse)
+      await prisma.product.update({
+        where: { id: productId },
+        data: { quantity: { decrement: quantity } },
+      });
+
+      // Create return record
+      const returnRecord = await prisma.return.create({
+        data: {
+          quantity,
+          reason,
+          returnedAt: returnedAt ? new Date(returnedAt) : new Date(),
+          productId,
+          returnedBy: userId,
+        },
+        include: {
+          product: {
+            include: {
+              committee: true,
+            },
+          },
+          user: true,
+        },
+      });
+
+      return returnRecord;
+    });
+
+    if (userId) {
+      await this.auditLogService.create({
+        userId,
+        action: 'return.create',
+        entityType: 'Return',
+        entityId: result.id,
+        newValues: {
+          productId: result.productId,
+          quantity: result.quantity,
+          reason: result.reason,
+        },
+        success: true,
+      });
+    }
+
+    return sanitizeNestedProduct(result, viewer);
+  }
+
+  async findAll(query: QueryReturnsDto, viewer?: ProductViewer) {
+    const {
+      returnedBy,
+      committeeId,
+      search,
+      startDate,
+      endDate,
+      page = 1,
+      limit,
+    } = query;
+    const where: Prisma.ReturnWhereInput = {};
+
+    if (returnedBy) {
+      where.returnedBy = returnedBy;
+    }
+
+    const productWhere: Prisma.ProductWhereInput = {};
+    if (committeeId) {
+      productWhere.committeeId = committeeId;
+    }
+    if (search?.trim()) {
+      const q = search.trim();
+      productWhere.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { sku: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+    if (Object.keys(productWhere).length > 0) {
+      where.product = productWhere;
+    }
+
+    if (startDate || endDate) {
+      where.returnedAt = {};
+      if (startDate) {
+        where.returnedAt.gte = parseQueryDateBound(startDate, 'start');
+      }
+      if (endDate) {
+        where.returnedAt.lte = parseQueryDateBound(endDate, 'end');
+      }
+    }
+
+    const returns = await this.prisma.return.findMany({
+      where,
+      include: {
+        product: {
+          include: {
+            committee: true,
+          },
+        },
+        user: true,
+      },
+      orderBy: {
+        returnedAt: 'desc',
+      },
+      ...(limit ? { skip: (page - 1) * limit, take: limit } : {}),
+    });
+    return returns.map((ret) => sanitizeNestedProduct(ret, viewer));
+  }
+
+  async findOne(id: number, viewer?: ProductViewer) {
+    const returnRecord = await this.prisma.return.findUnique({
+      where: { id },
+      include: {
+        product: {
+          include: {
+            committee: true,
+          },
+        },
+        user: true,
+      },
+    });
+
+    if (!returnRecord) {
+      throw new NotFoundException(`Return with ID ${id} not found`);
+    }
+
+    return sanitizeNestedProduct(returnRecord, viewer);
+  }
+
+  async update(
+    id: number,
+    updateReturnDto: UpdateReturnDto,
+    userId: number,
+    viewer?: ProductViewer,
+  ) {
+    const result = await this.prisma.$transaction(async (prisma) => {
+      const existingReturn = await prisma.return.findUnique({
+        where: { id },
+      });
+
+      if (!existingReturn) {
+        throw new NotFoundException(`Return with ID ${id} not found`);
+      }
+
+      // Проверяем, что productId не меняется
+      if (updateReturnDto.productId !== existingReturn.productId) {
+        throw new BadRequestException('Changing product ID is not allowed');
+      }
+
+      const product = await prisma.product.findUnique({
+        where: { id: existingReturn.productId },
+      });
+
+      if (!product) {
+        throw new NotFoundException(
+          `Product with ID ${existingReturn.productId} not found`,
+        );
+      }
+
+      // Рассчитываем разницу в количестве
+      const quantityDiff = updateReturnDto.quantity - existingReturn.quantity;
+
+      // Если новое количество больше старого, проверяем достаточно ли товара
+      if (quantityDiff > 0) {
+        if (product.quantity < quantityDiff) {
+          throw new BadRequestException(
+            `Insufficient stock. Available: ${product.quantity}, Requested additional: ${quantityDiff}`,
+          );
+        }
+      }
+
+      // Обновляем количество товара
+      await prisma.product.update({
+        where: { id: existingReturn.productId },
+        data: {
+          quantity: {
+            decrement: quantityDiff, // Если quantityDiff отрицательное - увеличиваем остаток
+          },
+        },
+      });
+
+      // Обновляем запись возврата
+      const updatedReturn = await prisma.return.update({
+        where: { id },
+        data: {
+          quantity: updateReturnDto.quantity,
+          reason: updateReturnDto.reason,
+          returnedAt: updateReturnDto.returnedAt
+            ? new Date(updateReturnDto.returnedAt)
+            : existingReturn.returnedAt,
+        },
+        include: {
+          product: {
+            include: {
+              committee: true,
+            },
+          },
+          user: true,
+        },
+      });
+
+      return { existingReturn, updatedReturn };
+    });
+
+    if (userId) {
+      const { existingReturn, updatedReturn } = result;
+      const oldValues: Record<string, unknown> = {};
+      const newValues: Record<string, unknown> = {};
+      const existingReturnRecord = existingReturn as unknown as Record<
+        string,
+        unknown
+      >;
+      const updatedReturnRecord = updatedReturn as unknown as Record<
+        string,
+        unknown
+      >;
+
+      Object.keys(updateReturnDto).forEach((key) => {
+        const val1 = existingReturnRecord[key];
+        const val2 = updatedReturnRecord[key];
+        if (JSON.stringify(val1) !== JSON.stringify(val2)) {
+          oldValues[key] = val1;
+          newValues[key] = val2;
+        }
+      });
+
+      if (Object.keys(newValues).length > 0) {
+        await this.auditLogService.create({
+          userId,
+          action: 'return.update',
+          entityType: 'Return',
+          entityId: id,
+          oldValues,
+          newValues,
+          success: true,
+        });
+      }
+    }
+
+    return sanitizeNestedProduct(result.updatedReturn, viewer);
+  }
+
+  async remove(id: number, userId: number) {
+    const result = await this.prisma.$transaction(async (prisma) => {
+      const returnRecord = await prisma.return.findUnique({
+        where: { id },
+      });
+
+      if (!returnRecord) {
+        throw new NotFoundException(`Return with ID ${id} not found`);
+      }
+
+      // Возвращаем товар на склад (увеличиваем количество)
+      await prisma.product.update({
+        where: { id: returnRecord.productId },
+        data: {
+          quantity: {
+            increment: returnRecord.quantity,
+          },
+        },
+      });
+
+      // Удаляем запись возврата
+      await prisma.return.delete({
+        where: { id },
+      });
+
+      return returnRecord;
+    });
+
+    if (userId) {
+      await this.auditLogService.create({
+        userId,
+        action: 'return.delete',
+        entityType: 'Return',
+        entityId: id,
+        oldValues: result,
+        success: true,
+      });
+    }
+
+    return { message: 'Return deleted successfully' };
+  }
+}

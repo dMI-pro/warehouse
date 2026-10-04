@@ -1,0 +1,710 @@
+<template>
+  <div class="audit-log" v-if="authStore.isAdmin || authStore.user?.isSuperAdmin">
+    <div class="flex align-items-center justify-content-between mb-3">
+      <h1 class="page-title">Журнал действий</h1>
+      <Button label="Экспорт Excel" icon="pi pi-file-excel" class="p-button-sm" @click="exportAuditExcel" />
+    </div>
+
+    <!-- Фильтры -->
+    <FilterBar
+      v-model:collapsed="filtersCollapsed"
+      collapsible
+      title="Фильтры"
+      icon="pi-filter"
+      layout="auto"
+    >
+      <FilterField label="Пользователь" html-for="user">
+        <AutoComplete
+          id="user"
+          v-model="selectedUser"
+          :suggestions="userSuggestions"
+          @complete="searchUsers"
+          optionLabel="fullName"
+          placeholder="Выберите пользователя"
+          class="w-full"
+        />
+      </FilterField>
+      <FilterField label="Тип действия" html-for="actionType">
+        <Dropdown
+          id="actionType"
+          v-model="filters.actionType"
+          :options="actionTypeOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Все типы"
+          class="w-full"
+        />
+      </FilterField>
+      <FilterField label="Дата начала" html-for="startDate">
+        <Calendar
+          id="startDate"
+          v-model="filters.startDate"
+          dateFormat="dd.mm.yy"
+          showIcon
+          :showButtonBar="true"
+          class="w-full"
+        />
+      </FilterField>
+      <FilterField label="Дата окончания" html-for="endDate">
+        <Calendar
+          id="endDate"
+          v-model="filters.endDate"
+          dateFormat="dd.mm.yy"
+          showIcon
+          :showButtonBar="true"
+          class="w-full"
+        />
+      </FilterField>
+      <FilterField actions>
+        <div class="filter-actions-stack">
+          <Button
+            label="Применить"
+            icon="pi pi-filter"
+            class="w-full"
+            @click="applyFilters"
+          />
+          <Button
+            label="Сбросить"
+            icon="pi pi-times"
+            severity="secondary"
+            outlined
+            class="w-full"
+            @click="resetFilters"
+          />
+        </div>
+      </FilterField>
+    </FilterBar>
+
+    <!-- Таблица журнала -->
+    <Card>
+      <template #content>
+        <DataTable
+          :value="filteredLogs"
+          :loading="loading"
+          :lazy="true"
+          :paginator="true"
+          :rows="pagination.limit"
+          :totalRecords="pagination.total"
+          :first="(pagination.page - 1) * pagination.limit"
+          :rowsPerPageOptions="[20, 50, 100]"
+          paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
+          currentPageReportTemplate="{first} - {last} из {totalRecords}"
+          :emptyMessage="loading ? 'Загрузка...' : 'Нет записей'"
+          class="audit-table"
+          @page="onPageChange"
+        >
+          <Column header="Время" :sortable="true" style="width: 150px">
+            <template #body="{ data }">
+              {{ formatDateTime(data.createdAt) }}
+            </template>
+          </Column>
+          <Column header="Пользователь" :sortable="true" style="width: 200px">
+            <template #body="{ data }">
+              <div v-if="data.user" class="user-cell">
+                <div class="avatar-small" :style="{ backgroundColor: getAvatarColor(data.user.role) }">
+                  {{ getInitials(getActorDisplayName(data.user)) }}
+                </div>
+                <span :class="['audit-user-label', { 'self-actor': isCurrentUserActor(data.user) }]">
+                  {{ getActorDisplayName(data.user) }}
+                </span>
+              </div>
+              <span v-else>Система</span>
+            </template>
+          </Column>
+          <Column header="Действие" :sortable="true">
+            <template #body="{ data }">
+              <div class="action-cell">
+                <i :class="getActionIcon(data.action)" :style="{ color: getActionColor(data.action) }"></i>
+                <span>{{ getActionLabel(data.action) }}</span>
+                <Tag
+                  v-if="data.success === false"
+                  value="Неудачно"
+                  severity="danger"
+                  style="margin-left: 0.5rem"
+                />
+              </div>
+            </template>
+          </Column>
+          <Column header="Сущность" :sortable="true">
+            <template #body="{ data }">
+              <a v-if="data.entityId" href="#" class="entity-link" @click.prevent="viewEntity(data)">
+                {{ data.entityType }} #{{ data.entityId }}
+              </a>
+              <span v-else>—</span>
+            </template>
+          </Column>
+          <Column header="Подробности" style="width: 120px">
+            <template #body="{ data }">
+              <Button
+                v-if="data.oldValues || data.newValues"
+                label="Показать"
+                icon="pi pi-eye"
+                severity="info"
+                text
+                size="small"
+                @click="showDetails(data)"
+              />
+            </template>
+          </Column>
+        </DataTable>
+      </template>
+    </Card>
+
+    <!-- Диалог с подробностями -->
+    <Dialog
+      v-model:visible="detailsDialogVisible"
+      header="Подробности действия"
+      :modal="true"
+      :style="{ width: '600px' }"
+      :breakpoints="{ '960px': '75vw', '640px': '90vw' }"
+      maximizable
+    >
+        <div v-if="selectedLog" class="details-content">
+          <div class="detail-section">
+            <h4>Действие</h4>
+            <p>{{ getActionLabel(selectedLog.action) }}</p>
+          </div>
+          <div class="detail-section">
+            <h4>Пользователь</h4>
+            <p>
+              {{ selectedLog.user ? getActorDisplayName(selectedLog.user) : 'Система' }}
+            </p>
+          </div>
+          <div class="detail-section">
+            <h4>Время</h4>
+            <p>{{ formatDateTime(selectedLog.createdAt) }}</p>
+          </div>
+          <div v-if="selectedLog.ipAddress || selectedLog.userAgent" class="detail-section">
+            <h4>Информация о подключении</h4>
+            <p v-if="selectedLog.ipAddress"><strong>IP адрес:</strong> {{ selectedLog.ipAddress }}</p>
+            <p v-if="selectedLog.userAgent"><strong>User Agent:</strong> {{ selectedLog.userAgent }}</p>
+          </div>
+          <div v-if="selectedLogChanges.length" class="detail-section">
+            <h4>Изменения</h4>
+            <div class="changes-table-wrapper">
+              <table class="changes-table">
+                <thead>
+                  <tr>
+                    <th>Поле</th>
+                    <th>Было</th>
+                    <th>Стало</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="change in selectedLogChanges" :key="change.key">
+                    <td class="change-key">{{ change.key }}</td>
+                    <td class="change-old">{{ change.old }}</td>
+                    <td class="change-new">{{ change.new }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+    </Dialog>
+  </div>
+  <div v-else class="audit-log">
+    <Message severity="error" :closable="false">
+      У вас нет доступа к этой странице. Только администраторы могут просматривать журнал действий.
+    </Message>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted } from 'vue';
+import Card from 'primevue/card';
+import Button from 'primevue/button';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Calendar from 'primevue/calendar';
+import Dropdown from 'primevue/dropdown';
+import AutoComplete from 'primevue/autocomplete';
+import Dialog from 'primevue/dialog';
+import Tag from 'primevue/tag';
+import Message from 'primevue/message';
+import FilterBar from '@/components/filters/FilterBar.vue';
+import FilterField from '@/components/filters/FilterField.vue';
+import { useUsersStore } from '@/stores/usersStore';
+import { useAuthStore } from '@/stores/authStore';
+import { apiService } from '@/services/api';
+import type { User, Role, AuditLog, PaginatedResponse } from '@/types/api';
+import { isCurrentUserActor, getActorDisplayName, getInitials, getAvatarColor } from '@/utils/user-utils';
+import { getDefaultTemplate } from '@/utils/exportTemplates';
+import { exportExcelTable, type ExcelColumn } from '@/utils/excelExport';
+import { buildApiDateRangeParams, validateDateRange, formatAppDateTime } from '@/utils/dateRange';
+import { useToast } from 'primevue/usetoast';
+
+const usersStore = useUsersStore();
+const authStore = useAuthStore();
+const toast = useToast();
+const loading = ref(false);
+const filtersCollapsed = ref(true);
+const selectedUser = ref<User | null>(null);
+const userSuggestions = ref<User[]>([]);
+const detailsDialogVisible = ref(false);
+const selectedLog = ref<AuditLog | null>(null);
+const selectedLogChanges = ref<Array<{ key: string; old: string; new: string }>>([]);
+const auditLogs = ref<AuditLog[]>([]);
+const pagination = ref({
+  total: 0,
+  page: 1,
+  limit: 20,
+  totalPages: 0,
+});
+
+const filters = reactive({
+  actionType: null as string | null,
+  startDate: null as Date | null,
+  endDate: null as Date | null,
+});
+
+const actionTypeOptions = [
+  { label: 'Все типы', value: null },
+  { label: 'Вход в систему', value: 'login' },
+  { label: 'Попытка входа', value: 'login_attempt' },
+  // Товары
+  { label: 'Создание товара', value: 'product.create' },
+  { label: 'Обновление товара', value: 'product.update' },
+  { label: 'Изменение цены', value: 'product.price_change' },
+  { label: 'Изменение остатка', value: 'product.quantity_change' },
+  { label: 'Добавление изображения', value: 'product.image_add' },
+  { label: 'Удаление изображения', value: 'product.image_delete' },
+  { label: 'Изменение порядка изображений', value: 'product.image_reorder' },
+  { label: 'Удаление товара', value: 'product.delete' },
+  // Продажи
+  { label: 'Продажа', value: 'sale.create' },
+  { label: 'Изменение продажи', value: 'sale.update' },
+  { label: 'Удаление продажи', value: 'sale.delete' },
+  // Возвраты
+  { label: 'Возврат товара', value: 'return.create' },
+  { label: 'Изменение возврата', value: 'return.update' },
+  { label: 'Удаление возврата', value: 'return.delete' },
+  // Пользователи
+  { label: 'Создание пользователя', value: 'user.create' },
+  { label: 'Обновление пользователя', value: 'user.update' },
+  { label: 'Удаление пользователя', value: 'user.delete' },
+  { label: 'Сброс сессий', value: 'user.sessions.revoke' },
+  { label: 'Блокировка пользователя', value: 'user.block' },
+  // Склады
+  { label: 'Создание склада', value: 'warehouse.create' },
+  { label: 'Обновление склада', value: 'warehouse.update' },
+  { label: 'Удаление склада', value: 'warehouse.delete' },
+  // Комитеты
+  { label: 'Создание комитета', value: 'committee.create' },
+  { label: 'Обновление комитета', value: 'committee.update' },
+  { label: 'Удаление комитета', value: 'committee.delete' },
+  // Статусы пользователей
+  { label: 'Создание статуса', value: 'user_status.create' },
+  { label: 'Обновление статуса', value: 'user_status.update' },
+  { label: 'Удаление статуса', value: 'user_status.delete' },
+];
+
+const fetchAuditLogs = async () => {
+  loading.value = true;
+  try {
+    const rangeError = validateDateRange(filters.startDate, filters.endDate);
+    if (rangeError) {
+      toast.add({ severity: 'warn', summary: 'Фильтр', detail: rangeError, life: 3000 });
+      return;
+    }
+
+    const params: Record<string, string | number> = {
+      page: pagination.value.page,
+      limit: pagination.value.limit,
+    };
+
+    if (selectedUser.value?.id) {
+      params.userId = selectedUser.value.id;
+    }
+
+    if (filters.actionType) {
+      params.action = filters.actionType;
+    }
+
+    Object.assign(params, buildApiDateRangeParams(filters.startDate, filters.endDate));
+
+    const response: PaginatedResponse<AuditLog> = await apiService.getAuditLogs(params);
+    auditLogs.value = response.data;
+    pagination.value = {
+      total: response.meta.total,
+      page: response.meta.page,
+      limit: response.meta.limit,
+      totalPages: response.meta.totalPages,
+    };
+  } catch (error: any) {
+    console.error('Failed to load audit logs', error);
+    const detail =
+      error?.response?.data?.message ||
+      error?.message ||
+      'Не удалось загрузить журнал';
+    toast.add({
+      severity: 'error',
+      summary: 'Ошибка',
+      detail: Array.isArray(detail) ? detail.join(', ') : String(detail),
+      life: 5000,
+    });
+  } finally {
+    loading.value = false;
+  }
+};
+
+const filteredLogs = computed(() => {
+  return auditLogs.value;
+});
+
+const formatDateTime = (dateString: string) => formatAppDateTime(dateString);
+
+const getActionIcon = (action: string): string => {
+  const iconMap: Record<string, string> = {
+    'login': 'pi pi-sign-in',
+    'login_attempt': 'pi pi-exclamation-triangle',
+    'product.create': 'pi pi-plus-circle',
+    'product.update': 'pi pi-pencil',
+    'product.price_change': 'pi pi-tag',
+    'product.quantity_change': 'pi pi-box',
+    'product.image_add': 'pi pi-image',
+    'product.image_delete': 'pi pi-trash',
+    'product.image_reorder': 'pi pi-sort-alt',
+    'product.delete': 'pi pi-trash',
+    'sale.create': 'pi pi-shopping-cart',
+    'sale.update': 'pi pi-pencil',
+    'sale.delete': 'pi pi-trash',
+    'return.create': 'pi pi-replay',
+    'return.update': 'pi pi-pencil',
+    'return.delete': 'pi pi-trash',
+    'user.create': 'pi pi-user-plus',
+    'user.update': 'pi pi-user-edit',
+    'user.delete': 'pi pi-user-minus',
+    'user.sessions.revoke': 'pi pi-refresh',
+    'user.block': 'pi pi-ban',
+    'warehouse.create': 'pi pi-building',
+    'warehouse.update': 'pi pi-pencil',
+    'warehouse.delete': 'pi pi-trash',
+    'committee.create': 'pi pi-users',
+    'committee.update': 'pi pi-pencil',
+    'committee.delete': 'pi pi-trash',
+    'user_status.create': 'pi pi-id-card',
+    'user_status.update': 'pi pi-pencil',
+    'user_status.delete': 'pi pi-trash',
+  };
+  return iconMap[action] || 'pi pi-info-circle';
+};
+
+const getActionColor = (action: string): string => {
+  const colorMap: Record<string, string> = {
+    'login': '#52c41a',
+    'login_attempt': '#ff4d4f',
+    'product.create': '#52c41a',
+    'product.update': '#1890ff',
+    'product.price_change': '#faad14',
+    'product.quantity_change': '#1890ff',
+    'product.image_add': '#52c41a',
+    'product.image_delete': '#ff4d4f',
+    'product.image_reorder': '#1890ff',
+    'product.delete': '#ff4d4f',
+    'sale.create': '#faad14',
+    'sale.update': '#1890ff',
+    'sale.delete': '#ff4d4f',
+    'return.create': '#722ed1',
+    'return.update': '#1890ff',
+    'return.delete': '#ff4d4f',
+    'user.create': '#52c41a',
+    'user.update': '#1890ff',
+    'user.delete': '#ff4d4f',
+    'user.sessions.revoke': '#faad14',
+    'user.block': '#ff4d4f',
+    'warehouse.create': '#52c41a',
+    'warehouse.update': '#1890ff',
+    'warehouse.delete': '#ff4d4f',
+    'committee.create': '#52c41a',
+    'committee.update': '#1890ff',
+    'committee.delete': '#ff4d4f',
+    'user_status.create': '#52c41a',
+    'user_status.update': '#1890ff',
+    'user_status.delete': '#ff4d4f',
+  };
+  return colorMap[action] || '#8c8c8c';
+};
+
+const getActionLabel = (action: string): string => {
+  const labelMap: Record<string, string> = {
+    'login': 'Вход в систему',
+    'login_attempt': 'Попытка входа',
+    'product.create': 'Создание товара',
+    'product.update': 'Обновление товара',
+    'product.price_change': 'Изменение цены',
+    'product.quantity_change': 'Изменение остатка',
+    'product.image_add': 'Добавление изображения',
+    'product.image_delete': 'Удаление изображения',
+    'product.image_reorder': 'Изменение порядка изображений',
+    'product.delete': 'Удаление товара',
+    'sale.create': 'Продажа',
+    'sale.update': 'Изменение продажи',
+    'sale.delete': 'Удаление продажи',
+    'return.create': 'Возврат товара',
+    'return.update': 'Изменение возврата',
+    'return.delete': 'Удаление возврата',
+    'user.create': 'Создание пользователя',
+    'user.update': 'Обновление пользователя',
+    'user.delete': 'Удаление пользователя',
+    'user.sessions.revoke': 'Сброс сессий',
+    'user.block': 'Блокировка пользователя',
+    'warehouse.create': 'Создание склада',
+    'warehouse.update': 'Обновление склада',
+    'warehouse.delete': 'Удаление склада',
+    'committee.create': 'Создание комитета',
+    'committee.update': 'Обновление комитета',
+    'committee.delete': 'Удаление комитета',
+    'user_status.create': 'Создание статуса',
+    'user_status.update': 'Обновление статуса',
+    'user_status.delete': 'Удаление статуса',
+  };
+  return labelMap[action] || action;
+};
+
+ 
+
+const searchUsers = (event: any) => {
+  const query = event.query.toLowerCase();
+  userSuggestions.value = usersStore.users.filter(
+    (user) =>
+      user.fullName?.toLowerCase().includes(query) ||
+      user.username.toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query)
+  );
+};
+
+const applyFilters = async () => {
+  pagination.value.page = 1;
+  await fetchAuditLogs();
+};
+
+const resetFilters = async () => {
+  selectedUser.value = null;
+  filters.actionType = null;
+  filters.startDate = null;
+  filters.endDate = null;
+  pagination.value.page = 1;
+  await fetchAuditLogs();
+};
+
+const buildChanges = (log: AuditLog | null) => {
+  const result: Array<{ key: string; old: string; new: string }> = [];
+  if (!log) {
+    return result;
+  }
+  const oldValues = (log.oldValues || {}) as Record<string, any>;
+  const newValues = (log.newValues || {}) as Record<string, any>;
+  const keys = new Set<string>([
+    ...Object.keys(oldValues || {}),
+    ...Object.keys(newValues || {}),
+  ]);
+  const formatValue = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return String(value);
+  };
+  keys.forEach((key) => {
+    const oldVal = oldValues ? oldValues[key] : undefined;
+    const newVal = newValues ? newValues[key] : undefined;
+    if (oldVal === undefined && newVal === undefined) {
+      return;
+    }
+    result.push({
+      key,
+      old: formatValue(oldVal),
+      new: formatValue(newVal),
+    });
+  });
+  return result;
+};
+
+const showDetails = (log: AuditLog) => {
+  selectedLog.value = log;
+  selectedLogChanges.value = buildChanges(log);
+  detailsDialogVisible.value = true;
+};
+
+const viewEntity = (log: any) => {
+  // В реальном приложении здесь будет переход на страницу сущности
+  console.log('View entity:', log);
+};
+
+const onPageChange = async (event: any) => {
+  pagination.value.page = event.page + 1;
+  pagination.value.limit = event.rows;
+  await fetchAuditLogs();
+};
+
+onMounted(async () => {
+  if (authStore.isAdmin || authStore.user?.isSuperAdmin) {
+    await usersStore.fetchUsers();
+    await fetchAuditLogs();
+  }
+});
+
+const exportAuditExcel = async () => {
+  const logs = filteredLogs.value;
+  if (!logs.length) {
+    return;
+  }
+  const rows = logs.map((l) => ({
+    createdAt: l.createdAt,
+    user: l.user ? getActorDisplayName(l.user) : 'Система',
+    action: getActionLabel(l.action),
+    entity: l.entityType ? `${l.entityType} #${l.entityId ?? ''}` : '—',
+    success: l.success === false ? 'Неудачно' : 'Успешно',
+    ipAddress: l.ipAddress || '',
+    userAgent: l.userAgent || '',
+  }));
+  const allColumns: ExcelColumn[] = [
+    { key: 'createdAt', header: 'Время', type: 'date' },
+    { key: 'user', header: 'Пользователь', type: 'string' },
+    { key: 'action', header: 'Действие', type: 'string' },
+    { key: 'entity', header: 'Сущность', type: 'string' },
+    { key: 'success', header: 'Статус', type: 'string' },
+    { key: 'ipAddress', header: 'IP адрес', type: 'string' },
+    { key: 'userAgent', header: 'User Agent', type: 'string' },
+  ];
+  const template = getDefaultTemplate('audit');
+  const columns = template?.columns?.length
+    ? allColumns.filter((c) => template!.columns!.includes(c.key))
+    : allColumns;
+  await exportExcelTable(columns, rows, {
+    totals: false,
+    tableName: 'AuditLog',
+    fileName: `audit_${new Date().toISOString().split('T')[0]}.xlsx`,
+  });
+};
+</script>
+
+<style scoped>
+.audit-log {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 600;
+  margin-bottom: 2rem;
+}
+
+.filter-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.audit-table {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.audit-table :deep(.p-datatable-tbody > tr) {
+  background-color: var(--surface-card);
+}
+
+.audit-table :deep(.p-datatable-tbody > tr:hover) {
+  background-color: var(--surface-hover);
+}
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.avatar-small {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.audit-user-label.self-actor {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.action-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.entity-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.entity-link:hover {
+  text-decoration: underline;
+}
+
+.details-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.detail-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.detail-section p {
+  margin: 0;
+  color: var(--text-color);
+}
+
+.changes-table-wrapper {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.changes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.changes-table th,
+.changes-table td {
+  border: 1px solid var(--surface-border);
+  padding: 0.5rem;
+  vertical-align: top;
+}
+
+.changes-table th {
+  background: var(--surface-50);
+  font-weight: 600;
+}
+
+.change-key {
+  width: 25%;
+  font-weight: 500;
+}
+
+.change-old {
+  width: 37.5%;
+}
+
+.change-new {
+  width: 37.5%;
+}
+</style>
+
